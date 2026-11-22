@@ -123,7 +123,7 @@ pub fn transcribe_full_with_state(
     let spans = if options.webrtc_vad {
         crate::webrtc::speech_spans(audio_data, VAD_PAD_MS, VAD_MERGE_GAP_MS, cancel_token)?
     } else if let Some(ref path) = options.vad_model_path {
-        vad_speech_spans(path, audio_data, options)?
+        vad_speech_spans(path, audio_data, options, cancel_token)?
     } else {
         return transcribe_span(state, audio_data, options, 0, cancel_token);
     };
@@ -361,7 +361,11 @@ fn vad_speech_spans(
     model_path: &std::path::Path,
     samples: &[f32],
     options: &TranscribeOptions,
+    cancel_token: Option<&CancellationToken>,
 ) -> Result<Vec<std::ops::Range<usize>>> {
+    if cancel_token.is_some_and(CancellationToken::is_cancelled) {
+        anyhow::bail!("Transcription cancelled");
+    }
     let spans_ms = vad_speech_spans_ms(
         model_path,
         samples,
@@ -369,17 +373,33 @@ fn vad_speech_spans(
         VAD_PAD_MS,
         VAD_MERGE_GAP_MS,
     )?;
+    if cancel_token.is_some_and(CancellationToken::is_cancelled) {
+        anyhow::bail!("Transcription cancelled");
+    }
 
+    Ok(spans_ms_to_sample_ranges(&spans_ms, samples.len()))
+}
+
+fn spans_ms_to_sample_ranges(
+    spans_ms: &[(i64, i64)],
+    sample_len: usize,
+) -> Vec<std::ops::Range<usize>> {
     let per_ms = SAMPLE_RATE / 1000;
-    Ok(spans_ms
-        .into_iter()
-        .map(|(start_ms, end_ms)| {
-            let end = ((end_ms as usize) * per_ms).min(samples.len());
-            let start = ((start_ms as usize) * per_ms).min(end);
+    spans_ms
+        .iter()
+        .map(|&(start_ms, end_ms)| {
+            let end = end_ms
+                .max(0)
+                .saturating_mul(per_ms as i64)
+                .min(sample_len as i64) as usize;
+            let start = start_ms
+                .max(0)
+                .saturating_mul(per_ms as i64)
+                .min(end as i64) as usize;
             start..end
         })
         .filter(|span| !span.is_empty())
-        .collect())
+        .collect()
 }
 
 #[derive(Debug, Clone)]
@@ -701,5 +721,43 @@ mod tests {
         let n3 = NormalizedText::new("Totally unrelated text about astronomy.");
         let sim_unrelated = n1.similarity(&n3);
         assert!(sim_unrelated < 0.2);
+    }
+
+    #[test]
+    fn spans_ms_to_sample_ranges_clamps_negative_and_oversized_bounds() {
+        let ranges = spans_ms_to_sample_ranges(&[(-200, 100), (-500, -100), (500, 5000)], 16_000);
+        assert_eq!(ranges, vec![0..1600, 8000..16_000]);
+        assert!(spans_ms_to_sample_ranges(&[(600, 400), (0, 0)], 16_000).is_empty());
+    }
+
+    #[test]
+    fn vad_speech_spans_respects_cancellation_and_reports_missing_model() {
+        let samples = vec![0.0f32; SAMPLE_RATE];
+        let options = TranscribeOptions::default();
+
+        let cancelled = CancellationToken::new();
+        cancelled.cancel();
+        let cancel_err = vad_speech_spans(
+            std::path::Path::new("nonexistent-vad.bin"),
+            &samples,
+            &options,
+            Some(&cancelled),
+        )
+        .unwrap_err();
+        assert!(
+            cancel_err
+                .to_string()
+                .to_ascii_lowercase()
+                .contains("cancel")
+        );
+
+        let missing_err = vad_speech_spans(
+            std::path::Path::new("nonexistent-vad.bin"),
+            &samples,
+            &options,
+            None,
+        )
+        .unwrap_err();
+        assert!(missing_err.to_string().contains("Failed to load VAD model"));
     }
 }

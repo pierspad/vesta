@@ -50,15 +50,17 @@ pub fn merge_apkg(paths: &[PathBuf], output: &Path) -> Result<()> {
     for (index, path) in paths.iter().enumerate() {
         let mut archive = zip::ZipArchive::new(std::fs::File::open(path)?)?;
         if index == 0 {
-            std::io::copy(
-                &mut archive.by_name("collection.anki2")?,
+            copy_entry_bounded(
+                archive.by_name("collection.anki2")?,
                 &mut std::fs::File::create(&db_path)?,
+                512 * 1024 * 1024,
             )?;
         } else {
             let source_db = work.path().join(format!("source-{index}.sqlite"));
-            std::io::copy(
-                &mut archive.by_name("collection.anki2")?,
+            copy_entry_bounded(
+                archive.by_name("collection.anki2")?,
                 &mut std::fs::File::create(&source_db)?,
+                512 * 1024 * 1024,
             )?;
             let conn = rusqlite::Connection::open(&db_path)?;
             conn.execute(
@@ -110,15 +112,27 @@ pub fn merge_apkg(paths: &[PathBuf], output: &Path) -> Result<()> {
                     [serde_json::to_string(&current)?],
                 )?;
             }
-            let offset: i64 =
-                conn.query_row("SELECT coalesce(max(id),0)+1 FROM notes", [], |r| r.get(0))?;
-            let min_id: i64 =
+            let max_note: i64 =
+                conn.query_row("SELECT coalesce(max(id),0) FROM notes", [], |r| r.get(0))?;
+            let min_note: i64 =
                 conn.query_row("SELECT coalesce(min(id),0) FROM incoming.notes", [], |r| {
                     r.get(0)
                 })?;
-            let offset = offset.checked_sub(min_id).context("Note ID overflow")?;
-            let card_offset: i64 = conn.query_row("SELECT coalesce(max(id),0)+1-(SELECT coalesce(min(id),0) FROM incoming.cards) FROM cards", [], |r| r.get(0))?;
-            conn.execute("INSERT INTO notes SELECT id+?1, printf('%010x',id+?1), mid, mod, usn, tags, flds, sfld, csum, flags, data FROM incoming.notes", [offset])?;
+            let offset = max_note
+                .checked_add(1)
+                .and_then(|n| n.checked_sub(min_note))
+                .context("Note ID overflow")?;
+            let max_card: i64 =
+                conn.query_row("SELECT coalesce(max(id),0) FROM cards", [], |r| r.get(0))?;
+            let min_card: i64 =
+                conn.query_row("SELECT coalesce(min(id),0) FROM incoming.cards", [], |r| {
+                    r.get(0)
+                })?;
+            let card_offset = max_card
+                .checked_add(1)
+                .and_then(|c| c.checked_sub(min_card))
+                .context("Card ID overflow")?;
+            conn.execute("INSERT INTO notes SELECT id+?1, printf('%016x',id+?1), mid, mod, usn, tags, flds, sfld, csum, flags, data FROM incoming.notes", [offset])?;
             conn.execute("INSERT INTO cards SELECT id+?1, nid+?2, did, ord, mod, usn, type, queue, due, ivl, factor, reps, lapses, left, odue, odid, flags, data FROM incoming.cards", [card_offset, offset])?;
         }
         let source_media: BTreeMap<String, String> =
@@ -132,9 +146,10 @@ pub fn merge_apkg(paths: &[PathBuf], output: &Path) -> Result<()> {
                 continue;
             }
             let target = work.path().join(format!("media-{}", media.len()));
-            std::io::copy(
-                &mut archive.by_name(&entry)?,
+            copy_entry_bounded(
+                archive.by_name(&entry)?,
                 &mut std::fs::File::create(&target)?,
+                512 * 1024 * 1024,
             )?;
             media.insert(media.len().to_string(), filename.clone());
             names.insert(filename, target);
@@ -166,6 +181,19 @@ pub fn merge_apkg(paths: &[PathBuf], output: &Path) -> Result<()> {
         zip.finish()?;
     }
     temporary.persist(output).map_err(|e| e.error)?;
+    Ok(())
+}
+
+fn copy_entry_bounded(
+    entry: impl std::io::Read,
+    dest: &mut std::fs::File,
+    max_bytes: u64,
+) -> Result<()> {
+    let mut limited = entry.take(max_bytes.saturating_add(1));
+    let copied = std::io::copy(&mut limited, dest)?;
+    if copied > max_bytes {
+        bail!("APKG entry exceeds maximum allowed size ({max_bytes} bytes)");
+    }
     Ok(())
 }
 
@@ -374,5 +402,75 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM cards", [], |r| r.get(0))
             .unwrap();
         assert_eq!(card_count, 2);
+    }
+
+    #[test]
+    fn merge_apkg_combines_distinct_decks_and_note_types() {
+        let dir = tempfile::tempdir().unwrap();
+        let ep1 = dir.path().join("ep1.apkg");
+        let ep2 = dir.path().join("ep2.apkg");
+        let merged = dir.path().join("merged.apkg");
+
+        make_test_apkg_with_model_and_deck(
+            &ep1,
+            1001,
+            "Season 1::Episode 1",
+            2001,
+            10,
+            100,
+            "Front 1\x1fBack 1",
+        );
+        make_test_apkg_with_model_and_deck(
+            &ep2,
+            1002,
+            "Season 1::Episode 2",
+            2002,
+            20,
+            200,
+            "Front 2\x1fBack 2",
+        );
+
+        merge_apkg(&[ep1, ep2], &merged).unwrap();
+
+        let mut archive = zip::ZipArchive::new(std::fs::File::open(&merged).unwrap()).unwrap();
+        let db_out = dir.path().join("merged.sqlite");
+        std::io::copy(
+            &mut archive.by_name("collection.anki2").unwrap(),
+            &mut std::fs::File::create(&db_out).unwrap(),
+        )
+        .unwrap();
+
+        let conn = rusqlite::Connection::open(&db_out).unwrap();
+        let (models_raw, decks_raw): (String, String) = conn
+            .query_row("SELECT models, decks FROM col WHERE id = 1", [], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })
+            .unwrap();
+        let models: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_str(&models_raw).unwrap();
+        let decks: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_str(&decks_raw).unwrap();
+        assert!(models.contains_key("2001"));
+        assert!(models.contains_key("2002"));
+        assert!(decks.contains_key("1001"));
+        assert!(decks.contains_key("1002"));
+
+        let note_mids: Vec<i64> = {
+            let mut stmt = conn.prepare("SELECT mid FROM notes ORDER BY id").unwrap();
+            stmt.query_map([], |r| r.get(0))
+                .unwrap()
+                .map(|r| r.unwrap())
+                .collect()
+        };
+        assert_eq!(note_mids, vec![2001, 2002]);
+
+        let card_dids: Vec<i64> = {
+            let mut stmt = conn.prepare("SELECT did FROM cards ORDER BY id").unwrap();
+            stmt.query_map([], |r| r.get(0))
+                .unwrap()
+                .map(|r| r.unwrap())
+                .collect()
+        };
+        assert_eq!(card_dids, vec![1001, 1002]);
     }
 }

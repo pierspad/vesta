@@ -19,13 +19,16 @@ use std::sync::{Arc, Mutex};
 
 use tauri::State;
 
-/// In-memory configuration store state kept in sync with the on-disk file.
-pub struct ConfigState(pub Arc<Mutex<HashMap<String, String>>>);
+#[derive(Default)]
+struct ConfigStore {
+    entries: HashMap<String, String>,
+    loaded: bool,
+}
 
-impl Default for ConfigState {
-    fn default() -> Self {
-        Self(Arc::new(Mutex::new(HashMap::new())))
-    }
+/// In-memory configuration store state kept in sync with the on-disk file.
+#[derive(Default)]
+pub struct ConfigState {
+    inner: Arc<Mutex<ConfigStore>>,
 }
 
 /// Configuration snapshot returned when loading `vesta_config.json`, including
@@ -131,15 +134,41 @@ fn write_config_file(path: &std::path::Path, map: &HashMap<String, String>) -> R
     Ok(())
 }
 
+fn ensure_loaded_locked(
+    store: &mut ConfigStore,
+    loader: impl FnOnce() -> Result<ConfigLoadResult, String>,
+) -> Result<(), String> {
+    if !store.loaded {
+        let loaded = loader()?;
+        store.entries = loaded.entries;
+        store.loaded = true;
+    }
+    Ok(())
+}
+
+fn clear_config_store(store: &Mutex<ConfigStore>) -> Result<(), String> {
+    let mut guard = store.lock().map_err(|e| e.to_string())?;
+    write_to_disk(&HashMap::new())?;
+    guard.entries.clear();
+    guard.loaded = true;
+    Ok(())
+}
+
 /// Loads (or reloads) the entire configuration store from disk and returns it
 /// to the frontend. Called once at startup before mounting the app to hydrate
 /// the in-memory TypeScript cache.
 #[tauri::command]
-pub fn config_load_all(state: State<'_, ConfigState>) -> Result<ConfigLoadResult, String> {
-    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-    let loaded = read_from_disk()?;
-    *guard = loaded.entries.clone();
-    Ok(loaded)
+pub async fn config_load_all(state: State<'_, ConfigState>) -> Result<ConfigLoadResult, String> {
+    let store = Arc::clone(&state.inner);
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut guard = store.lock().map_err(|e| e.to_string())?;
+        let loaded = read_from_disk()?;
+        guard.entries = loaded.entries.clone();
+        guard.loaded = true;
+        Ok(loaded)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -148,16 +177,17 @@ pub async fn config_set(
     key: String,
     value: String,
 ) -> Result<(), String> {
-    let store = Arc::clone(&state.0);
+    let store = Arc::clone(&state.inner);
     // Atomic writes include fsync; never run them on the webview event thread.
     tauri::async_runtime::spawn_blocking(move || {
         let mut guard = store.lock().map_err(|e| e.to_string())?;
-        let old_value = guard.insert(key.clone(), value);
-        if let Err(e) = write_to_disk(&guard) {
+        ensure_loaded_locked(&mut guard, read_from_disk)?;
+        let old_value = guard.entries.insert(key.clone(), value);
+        if let Err(e) = write_to_disk(&guard.entries) {
             if let Some(old) = old_value {
-                guard.insert(key, old);
+                guard.entries.insert(key, old);
             } else {
-                guard.remove(&key);
+                guard.entries.remove(&key);
             }
             return Err(e);
         }
@@ -169,14 +199,15 @@ pub async fn config_set(
 
 #[tauri::command]
 pub async fn config_remove(state: State<'_, ConfigState>, key: String) -> Result<(), String> {
-    let store = Arc::clone(&state.0);
+    let store = Arc::clone(&state.inner);
     // Atomic writes include fsync; never run them on the webview event thread.
     tauri::async_runtime::spawn_blocking(move || {
         let mut guard = store.lock().map_err(|e| e.to_string())?;
-        let old_value = guard.remove(&key);
-        if let Err(e) = write_to_disk(&guard) {
+        ensure_loaded_locked(&mut guard, read_from_disk)?;
+        let old_value = guard.entries.remove(&key);
+        if let Err(e) = write_to_disk(&guard.entries) {
             if let Some(old) = old_value {
-                guard.insert(key, old);
+                guard.entries.insert(key, old);
             }
             return Err(e);
         }
@@ -186,25 +217,24 @@ pub async fn config_remove(state: State<'_, ConfigState>, key: String) -> Result
     .map_err(|error| error.to_string())?
 }
 
-pub fn config_clear(state: State<'_, ConfigState>) -> Result<(), String> {
-    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-    write_to_disk(&HashMap::new())?;
-    guard.clear();
-    Ok(())
-}
-
 /// Replaces the complete configuration in one atomic write. Used by the
 /// settings import flow so a failed import cannot leave a half-applied mix of
 /// old and new preferences.
 #[tauri::command]
-pub fn config_replace_all(
+pub async fn config_replace_all(
     state: State<'_, ConfigState>,
     values: HashMap<String, String>,
 ) -> Result<(), String> {
-    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-    write_to_disk(&values)?;
-    *guard = values;
-    Ok(())
+    let store = Arc::clone(&state.inner);
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut guard = store.lock().map_err(|e| e.to_string())?;
+        write_to_disk(&values)?;
+        guard.entries = values;
+        guard.loaded = true;
+        Ok(())
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[cfg(test)]
@@ -279,10 +309,28 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn ensure_loaded_hydrates_before_mutation_without_overwriting_existing_keys() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("vesta_config.json");
+        let existing = HashMap::from([("api-key".into(), "secret".into())]);
+        write_config_file(&path, &existing).unwrap();
+
+        let state = ConfigState::default();
+        let mut guard = state.inner.lock().unwrap();
+        ensure_loaded_locked(&mut guard, || read_config_file(&path)).unwrap();
+        guard.entries.insert("theme".into(), "dark".into());
+        assert_eq!(
+            guard.entries.get("api-key").map(String::as_str),
+            Some("secret")
+        );
+        assert_eq!(guard.entries.get("theme").map(String::as_str), Some("dark"));
+    }
 }
 
 #[tauri::command]
-pub fn config_reset_installation(
+pub async fn config_reset_installation(
     app: tauri::AppHandle,
     state: State<'_, ConfigState>,
 ) -> Result<(), String> {
@@ -293,10 +341,15 @@ pub fn config_reset_installation(
         .app_local_data_dir()
         .map_err(|e| e.to_string())?
         .join("temp_subs");
-    for path in [cache, temp_subs] {
-        if path.exists() {
-            fs::remove_dir_all(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let store = Arc::clone(&state.inner);
+    tauri::async_runtime::spawn_blocking(move || {
+        for path in [cache, temp_subs] {
+            if path.exists() {
+                fs::remove_dir_all(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+            }
         }
-    }
-    config_clear(state)
+        clear_config_store(&store)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }

@@ -16,8 +16,45 @@
 pub use zip;
 
 use std::fs;
-use std::io::{self, BufReader, BufWriter, Seek, Write};
+use std::io::{self, BufReader, BufWriter, Read, Seek, Write};
 use std::path::Path;
+
+const DEFAULT_MAX_ZIP_FILE_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+const DEFAULT_MAX_ZIP_TOTAL_BYTES: u64 = 8 * 1024 * 1024 * 1024;
+
+fn copy_entry_bounded(
+    entry: &mut impl Read,
+    writer: &mut impl Write,
+    declared_size: u64,
+    max_entry_bytes: u64,
+    total_written: &mut u64,
+    max_total_bytes: u64,
+) -> Result<(), String> {
+    if declared_size > max_entry_bytes {
+        return Err(format!(
+            "ZIP entry exceeds max allowed uncompressed size ({declared_size} > {max_entry_bytes} bytes)"
+        ));
+    }
+    let remaining_total = max_total_bytes.saturating_sub(*total_written);
+    if declared_size > remaining_total {
+        return Err(format!(
+            "ZIP archive exceeds max total uncompressed size ({max_total_bytes} bytes)"
+        ));
+    }
+    let entry_cap = max_entry_bytes.min(remaining_total);
+    let mut limited = entry.take(entry_cap.saturating_add(1));
+    let copied =
+        io::copy(&mut limited, writer).map_err(|e| format!("Error writing extracted file: {e}"))?;
+    if copied > entry_cap {
+        return Err(format!(
+            "ZIP entry decompressed payload exceeds safety limit ({entry_cap} bytes)"
+        ));
+    }
+    *total_written = total_written
+        .checked_add(copied)
+        .ok_or_else(|| "ZIP archive total size overflow".to_string())?;
+    Ok(())
+}
 
 fn is_media_extension(ext: &str) -> bool {
     matches!(
@@ -55,12 +92,27 @@ fn is_media_extension(ext: &str) -> bool {
 /// The caller must exclusively own the destination during extraction: this is
 /// not a sandbox against another process concurrently replacing directories.
 pub fn unzip_to(zip_path: &Path, dest_dir: &Path) -> Result<(), String> {
+    unzip_to_with_limit(
+        zip_path,
+        dest_dir,
+        DEFAULT_MAX_ZIP_FILE_BYTES,
+        DEFAULT_MAX_ZIP_TOTAL_BYTES,
+    )
+}
+
+fn unzip_to_with_limit(
+    zip_path: &Path,
+    dest_dir: &Path,
+    max_entry_bytes: u64,
+    max_total_bytes: u64,
+) -> Result<(), String> {
     let file = fs::File::open(zip_path).map_err(|e| format!("Cannot open ZIP archive: {e}"))?;
     let reader = BufReader::with_capacity(128 * 1024, file);
     let mut archive =
         zip::ZipArchive::new(reader).map_err(|e| format!("Invalid ZIP archive: {e}"))?;
     ensure_directory(dest_dir)?;
     let root = fs::canonicalize(dest_dir).map_err(|error| error.to_string())?;
+    let mut total_written: u64 = 0;
 
     for i in 0..archive.len() {
         let mut entry = archive
@@ -100,8 +152,15 @@ pub fn unzip_to(zip_path: &Path, dest_dir: &Path) -> Result<(), String> {
             let mut outfile = tempfile::NamedTempFile::new_in(&parent)
                 .map_err(|e| format!("Cannot create extracted file: {e}"))?;
             let mut writer = BufWriter::with_capacity(128 * 1024, outfile.as_file_mut());
-            io::copy(&mut entry, &mut writer)
-                .map_err(|e| format!("Error writing extracted file: {e}"))?;
+            let declared_size = entry.size();
+            copy_entry_bounded(
+                &mut entry,
+                &mut writer,
+                declared_size,
+                max_entry_bytes,
+                &mut total_written,
+                max_total_bytes,
+            )?;
             writer
                 .flush()
                 .map_err(|e| format!("Error flushing extracted file: {e}"))?;
@@ -122,6 +181,15 @@ pub fn extract_file_from_zip(
     entry_name: &str,
     dest_path: &Path,
 ) -> Result<(), String> {
+    extract_file_from_zip_with_limit(zip_path, entry_name, dest_path, DEFAULT_MAX_ZIP_FILE_BYTES)
+}
+
+fn extract_file_from_zip_with_limit(
+    zip_path: &Path,
+    entry_name: &str,
+    dest_path: &Path,
+    max_entry_bytes: u64,
+) -> Result<(), String> {
     let file = fs::File::open(zip_path).map_err(|e| format!("Cannot open ZIP archive: {e}"))?;
     let reader = BufReader::with_capacity(128 * 1024, file);
     let mut archive =
@@ -139,7 +207,16 @@ pub fn extract_file_from_zip(
     let mut temporary = tempfile::NamedTempFile::new_in(parent)
         .map_err(|e| format!("Cannot create temporary extracted file: {e}"))?;
     let mut writer = BufWriter::with_capacity(128 * 1024, temporary.as_file_mut());
-    io::copy(&mut entry, &mut writer).map_err(|e| format!("Error extracting file: {e}"))?;
+    let mut total_written = 0u64;
+    let declared_size = entry.size();
+    copy_entry_bounded(
+        &mut entry,
+        &mut writer,
+        declared_size,
+        max_entry_bytes,
+        &mut total_written,
+        max_entry_bytes,
+    )?;
     writer
         .flush()
         .map_err(|e| format!("Error flushing extracted file: {e}"))?;
@@ -208,10 +285,9 @@ pub fn zip_from_dir(src_dir: &Path, zip_path: &Path) -> Result<(), String> {
         {
             continue;
         }
-        if fs::metadata(&path)
-            .map_err(|e| format!("Cannot inspect source file: {e}"))?
-            .is_file()
-        {
+        let meta =
+            fs::symlink_metadata(&path).map_err(|e| format!("Cannot inspect source file: {e}"))?;
+        if !meta.file_type().is_symlink() && meta.is_file() {
             let filename = path
                 .file_name()
                 .and_then(|n| n.to_str())
@@ -519,5 +595,44 @@ mod regression_tests {
             .unwrap();
         zip.write_all(b"hello").unwrap();
         assert!(finish_zip(zip).unwrap_err().contains("disk flush failed"));
+    }
+
+    #[test]
+    fn extraction_rejects_oversized_payload_against_limit() {
+        let dir = tempfile::tempdir().unwrap();
+        let archive = dir.path().join("bomb.zip");
+        {
+            let mut zip = zip::ZipWriter::new(fs::File::create(&archive).unwrap());
+            zip.start_file("big.txt", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            zip.write_all(&vec![b'A'; 4096]).unwrap();
+            zip.finish().unwrap();
+        }
+        let dest = dir.path().join("out");
+        let err = unzip_to_with_limit(&archive, &dest, 1024, 2048).unwrap_err();
+        assert!(err.contains("exceeds"), "{err}");
+
+        let single_dest = dir.path().join("single.txt");
+        let single_err =
+            extract_file_from_zip_with_limit(&archive, "big.txt", &single_dest, 1024).unwrap_err();
+        assert!(single_err.contains("exceeds"), "{single_err}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn zip_from_dir_skips_symlinks() {
+        use std::os::unix::fs::symlink;
+        let dir = tempfile::tempdir().unwrap();
+        let src = dir.path().join("src");
+        let outside = dir.path().join("secret.txt");
+        fs::create_dir(&src).unwrap();
+        fs::write(&outside, b"secret").unwrap();
+        fs::write(src.join("real.txt"), b"ok").unwrap();
+        symlink(&outside, src.join("link.txt")).unwrap();
+        let out = dir.path().join("out.apkg");
+        zip_from_dir(&src, &out).unwrap();
+        let mut archive = zip::ZipArchive::new(fs::File::open(&out).unwrap()).unwrap();
+        assert_eq!(archive.len(), 1);
+        assert_eq!(archive.by_index(0).unwrap().name().unwrap(), "real.txt");
     }
 }

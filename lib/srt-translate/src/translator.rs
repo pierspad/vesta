@@ -108,7 +108,7 @@ pub(crate) fn extract_gemini_text(
         (None, String::new())
     };
 
-    let trimmed = text.trim().trim_matches('"').trim();
+    let trimmed = text.trim();
     if trimmed.is_empty() {
         if let Some(reason) = finish_reason {
             let upper = reason.to_ascii_uppercase();
@@ -520,15 +520,10 @@ impl Translator {
         self.translation_response(&prompt).await
     }
 
-    // OpenAI-compatible translation historically trims quotes after whitespace;
-    // generate_response and Google's transport retain their own normalization.
+    // Translation prompts expect a bare line; strip stray surrounding quotes consistently across providers.
     async fn translation_response(&self, prompt: &str) -> Result<String> {
         let text = self.generate_response(prompt).await?;
-        if self.config.api_type == ApiType::Google {
-            Ok(text)
-        } else {
-            Ok(text.trim().trim_matches('"').to_string())
-        }
+        Ok(text.trim().trim_matches('"').to_string())
     }
 
     pub async fn translate_batch(
@@ -889,6 +884,49 @@ struct TranslationItem {
     text: String,
 }
 
+fn extract_json_array_candidates(cleaned: &str) -> Vec<&str> {
+    let mut candidates = Vec::new();
+    let bytes = cleaned.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'[' {
+            let mut depth = 0usize;
+            let mut in_string = false;
+            let mut escaped = false;
+            let mut j = i;
+            while j < bytes.len() {
+                let b = bytes[j];
+                if in_string {
+                    if escaped {
+                        escaped = false;
+                    } else if b == b'\\' {
+                        escaped = true;
+                    } else if b == b'"' {
+                        in_string = false;
+                    }
+                } else {
+                    match b {
+                        b'"' => in_string = true,
+                        b'[' => depth += 1,
+                        b']' => {
+                            depth = depth.saturating_sub(1);
+                            if depth == 0 {
+                                candidates.push(&cleaned[i..=j]);
+                                i = j;
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                j += 1;
+            }
+        }
+        i += 1;
+    }
+    candidates
+}
+
 fn parse_json_translations(response: &str, expected_count: usize) -> Result<HashMap<u32, String>> {
     let cleaned = response
         .trim()
@@ -897,16 +935,25 @@ fn parse_json_translations(response: &str, expected_count: usize) -> Result<Hash
         .trim_end_matches("```")
         .trim();
 
-    let json_start = cleaned.find('[');
-    let json_end = cleaned.rfind(']');
+    let candidates = extract_json_array_candidates(cleaned);
+    let mut parsed_items: Option<Vec<TranslationItem>> = None;
+    let mut last_err = None;
+    for candidate in candidates.into_iter().chain(std::iter::once(cleaned)) {
+        match serde_json::from_str::<Vec<TranslationItem>>(candidate) {
+            Ok(items) => {
+                parsed_items = Some(items);
+                break;
+            }
+            Err(e) => {
+                if last_err.is_none() {
+                    last_err = Some(e);
+                }
+            }
+        }
+    }
 
-    let json_str = match (json_start, json_end) {
-        (Some(start), Some(end)) if end > start => &cleaned[start..=end],
-        _ => cleaned,
-    };
-
-    match serde_json::from_str::<Vec<TranslationItem>>(json_str) {
-        Ok(items) => {
+    match parsed_items {
+        Some(items) => {
             let mut translations = HashMap::new();
             for item in items {
                 anyhow::ensure!(
@@ -931,7 +978,7 @@ fn parse_json_translations(response: &str, expected_count: usize) -> Result<Hash
 
             Ok(translations)
         }
-        Err(e) => {
+        None => {
             if let Some(translations) = try_legacy_parsing(cleaned, expected_count) {
                 anyhow::ensure!(
                     translations.values().all(|text| !text.trim().is_empty()),
@@ -940,11 +987,15 @@ fn parse_json_translations(response: &str, expected_count: usize) -> Result<Hash
                 return Ok(translations);
             }
 
-            anyhow::bail!(
-                "Failed to parse translation JSON response at line {}, column {}",
-                e.line(),
-                e.column()
-            )
+            if let Some(e) = last_err {
+                anyhow::bail!(
+                    "Failed to parse translation JSON response at line {}, column {}",
+                    e.line(),
+                    e.column()
+                )
+            } else {
+                anyhow::bail!("Failed to parse translation JSON response")
+            }
         }
     }
 }
@@ -955,9 +1006,15 @@ fn try_legacy_parsing(text: &str, expected_count: usize) -> Option<HashMap<u32, 
     let mut current_translation = String::new();
 
     for line in text.lines() {
-        let line_lower = line.to_lowercase();
+        let trimmed = line.trim_start();
+        let is_legacy_header = trimmed
+            .get(..3)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("id:"))
+            || (trimmed.len() > 3
+                && trimmed.as_bytes()[0..2].eq_ignore_ascii_case(b"id")
+                && trimmed[2..].trim_start().starts_with(':'));
 
-        if line_lower.starts_with("id:") || line_lower.contains("id:") {
+        if is_legacy_header && let Some((id_part, trans_part)) = trimmed.split_once('|') {
             if let Some(id) = current_id
                 && translations
                     .insert(id, current_translation.trim().to_string())
@@ -966,20 +1023,18 @@ fn try_legacy_parsing(text: &str, expected_count: usize) -> Option<HashMap<u32, 
                 return None;
             }
 
-            if let Some((id_part, trans_part)) = line.split_once('|') {
-                let id_str: String = id_part.chars().filter(|c| c.is_ascii_digit()).collect();
-                if let Ok(id) = id_str.parse::<u32>() {
-                    current_id = Some(id);
+            let id_str: String = id_part.chars().filter(|c| c.is_ascii_digit()).collect();
+            if let Ok(id) = id_str.parse::<u32>() {
+                current_id = Some(id);
 
-                    let mut trans = trans_part.trim();
-                    if let Some((_, after_colon)) = trans.split_once(':')
-                        && (trans.to_lowercase().starts_with("translation:")
-                            || trans.to_lowercase().starts_with("trans:"))
-                    {
-                        trans = after_colon.trim();
-                    }
-                    current_translation = trans.to_string();
+                let mut trans = trans_part.trim();
+                if let Some((_, after_colon)) = trans.split_once(':')
+                    && (trans.to_lowercase().starts_with("translation:")
+                        || trans.to_lowercase().starts_with("trans:"))
+                {
+                    trans = after_colon.trim();
                 }
+                current_translation = trans.to_string();
             }
         } else if current_id.is_some() && !line.trim().is_empty() {
             if !current_translation.is_empty() {
@@ -1649,5 +1704,30 @@ Hope this helps!
             body_json["messages"][0]["content"][1]["text"],
             "Extract text"
         );
+    }
+
+    #[test]
+    fn batch_json_and_legacy_and_gemini_quotes_are_handled_safely() {
+        // Quoted text preserved in extract_gemini_text
+        let resp: GeminiResponse =
+            serde_json::from_str(r#"{"candidates":[{"content":{"parts":[{"text":"\"Ciao\""}]}}]}"#)
+                .unwrap();
+        assert_eq!(extract_gemini_text(resp, 200).unwrap(), "\"Ciao\"");
+
+        // Surrounding prose with brackets does not break JSON array extraction
+        let wrapped = r#"Note [draft]:
+[{"id":1,"text":"Uno"}]
+Trailing [end]"#;
+        let map = parse_json_translations(wrapped, 1).unwrap();
+        assert_eq!(map.get(&1).map(String::as_str), Some("Uno"));
+
+        // Dialogue containing "David:" or "said:" is not treated as a legacy record header
+        let legacy = "ID: 1 | Trans: David: \"hello\"\nsaid: world\nID: 2 | Trans: Fine";
+        let parsed = try_legacy_parsing(legacy, 2).unwrap();
+        assert_eq!(
+            parsed.get(&1).map(String::as_str),
+            Some("David: \"hello\"\nsaid: world")
+        );
+        assert_eq!(parsed.get(&2).map(String::as_str), Some("Fine"));
     }
 }

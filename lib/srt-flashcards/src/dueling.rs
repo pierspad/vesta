@@ -259,11 +259,13 @@ fn resolve_dueling_output_path(
     let base_dir = if !config.output_dir.trim().is_empty() {
         PathBuf::from(config.output_dir.trim())
     } else {
-        Path::new(&config.target_subs_path)
-            .parent()
-            .filter(|parent| !parent.as_os_str().is_empty())
-            .map(Path::to_path_buf)
-            .ok_or_else(|| "Output directory is required for dueling subtitle export".to_string())?
+        match Path::new(&config.target_subs_path).parent() {
+            Some(parent) if !parent.as_os_str().is_empty() => parent.to_path_buf(),
+            Some(_) => PathBuf::from("."),
+            None => {
+                return Err("Output directory is required for dueling subtitle export".to_string());
+            }
+        }
     };
 
     let raw_name = if !config.deck_name.trim().is_empty() {

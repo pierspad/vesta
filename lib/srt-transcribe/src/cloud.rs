@@ -82,8 +82,8 @@ pub async fn transcribe_chunk(
     file_name: &str,
 ) -> Result<Vec<TranscribedSegment>> {
     match cfg.provider.to_lowercase().as_str() {
-        "deepgram" => deepgram(client, cfg, audio).await,
-        "assemblyai" => assemblyai(client, cfg, audio).await,
+        "deepgram" => deepgram(client, cfg, audio, false).await,
+        "assemblyai" => assemblyai(client, cfg, audio, false).await,
 
         _ => openai_compatible(client, cfg, audio, file_name, false).await,
     }
@@ -96,10 +96,52 @@ pub async fn transcribe_timed_chunk(
     audio: Vec<u8>,
 ) -> Result<Vec<TranscribedSegment>> {
     match cfg.provider.to_lowercase().as_str() {
-        "deepgram" => deepgram(client, cfg, audio).await,
-        "assemblyai" => assemblyai(client, cfg, audio).await,
+        "deepgram" => deepgram(client, cfg, audio, true).await,
+        "assemblyai" => assemblyai(client, cfg, audio, true).await,
         _ => openai_compatible(client, cfg, audio, "audio.wav", true).await,
     }
+}
+
+fn wav_duration_secs(audio: &[u8]) -> Option<f64> {
+    hound::WavReader::new(std::io::Cursor::new(audio))
+        .ok()
+        .map(|reader| reader.duration() as f64 / reader.spec().sample_rate.max(1) as f64)
+}
+
+fn wordless_fallback_segments(
+    text: String,
+    audio_duration: Option<f64>,
+    require_timestamps: bool,
+) -> Result<Vec<TranscribedSegment>> {
+    if text.is_empty() {
+        return Ok(vec![]);
+    }
+    anyhow::ensure!(
+        !require_timestamps,
+        "STT response contains text without word timestamps; select a timestamp-capable model"
+    );
+    let end_ms = (audio_duration.unwrap_or(0.0) * 1000.0) as i64;
+    if end_ms <= 0 {
+        anyhow::bail!("Transcription returned text without usable timestamps or audio duration");
+    }
+    Ok(vec![TranscribedSegment {
+        start_ms: 0,
+        end_ms,
+        text,
+    }])
+}
+
+async fn read_json_checked<T: serde::de::DeserializeOwned>(
+    resp: reqwest::Response,
+    label: &str,
+) -> Result<T> {
+    let status = resp.status();
+    let body = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        anyhow::bail!("{label} ({}): {}", status, truncate(&body, 400));
+    }
+    serde_json::from_str(&body)
+        .with_context(|| format!("Failed to parse {label} response: {}", truncate(&body, 300)))
 }
 
 #[derive(Deserialize)]
@@ -139,9 +181,7 @@ async fn openai_compatible(
     }
     // JSON-only models do not return a duration. Preserve the chunk's WAV
     // duration so the resulting subtitle never has a zero-length timestamp.
-    let audio_duration = hound::WavReader::new(std::io::Cursor::new(&audio))
-        .ok()
-        .map(|reader| reader.duration() as f64 / reader.spec().sample_rate as f64);
+    let audio_duration = wav_duration_secs(&audio);
     let endpoint = if cfg.translate_to_english {
         format!("{}/audio/translations", cfg.base_url())
     } else {
@@ -294,7 +334,9 @@ async fn deepgram(
     client: &reqwest::Client,
     cfg: &CloudConfig,
     audio: Vec<u8>,
+    require_timestamps: bool,
 ) -> Result<Vec<TranscribedSegment>> {
+    let audio_duration = wav_duration_secs(&audio);
     let model = if cfg.model.trim().is_empty() {
         "nova-3"
     } else {
@@ -367,13 +409,7 @@ async fn deepgram(
             return Ok(segments_from_words(words, 80));
         }
         let text = alt.transcript.trim().to_string();
-        if !text.is_empty() {
-            return Ok(vec![TranscribedSegment {
-                start_ms: 0,
-                end_ms: 0,
-                text,
-            }]);
-        }
+        return wordless_fallback_segments(text, audio_duration, require_timestamps);
     }
 
     Ok(vec![])
@@ -405,22 +441,20 @@ async fn assemblyai(
     client: &reqwest::Client,
     cfg: &CloudConfig,
     audio: Vec<u8>,
+    require_timestamps: bool,
 ) -> Result<Vec<TranscribedSegment>> {
     let base = cfg.base_url();
+    let audio_duration = wav_duration_secs(&audio);
 
-    let up: AaiUpload = client
+    let up_resp = client
         .post(format!("{}/upload", base))
         .header("Authorization", &cfg.api_key)
         .header("Content-Type", "application/octet-stream")
         .body(audio)
         .send()
         .await
-        .context("AssemblyAI upload failed")?
-        .error_for_status()
-        .context("AssemblyAI upload returned an error")?
-        .json()
-        .await
-        .context("Failed to parse AssemblyAI upload response")?;
+        .context("AssemblyAI upload failed")?;
+    let up: AaiUpload = read_json_checked(up_resp, "AssemblyAI upload error").await?;
 
     let mut create = serde_json::json!({
         "audio_url": up.upload_url,
@@ -433,39 +467,39 @@ async fn assemblyai(
         None => create["language_detection"] = serde_json::Value::Bool(true),
     }
 
-    let created: AaiTranscript = client
+    let created_resp = client
         .post(format!("{}/transcript", base))
         .header("Authorization", &cfg.api_key)
         .json(&create)
         .send()
         .await
-        .context("AssemblyAI create transcript failed")?
-        .error_for_status()
-        .context("AssemblyAI create transcript returned an error")?
-        .json()
-        .await
-        .context("Failed to parse AssemblyAI create response")?;
+        .context("AssemblyAI create transcript failed")?;
+    let created: AaiTranscript =
+        read_json_checked(created_resp, "AssemblyAI create transcript error").await?;
 
     let id = created.id.context("AssemblyAI transcript id missing")?;
 
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(900);
     loop {
-        if tokio::time::Instant::now() >= deadline {
+        let now = tokio::time::Instant::now();
+        if now >= deadline {
             anyhow::bail!("AssemblyAI transcription timed out after 15 minutes");
         }
-        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
-        let poll: AaiTranscript = client
+        let sleep_dur =
+            std::time::Duration::from_secs(3).min(deadline.saturating_duration_since(now));
+        tokio::time::sleep(sleep_dur).await;
+        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if remaining.is_zero() {
+            anyhow::bail!("AssemblyAI transcription timed out after 15 minutes");
+        }
+        let poll_resp = client
             .get(format!("{}/transcript/{}", base, id))
             .header("Authorization", &cfg.api_key)
-            .timeout(deadline.saturating_duration_since(tokio::time::Instant::now()))
+            .timeout(remaining)
             .send()
             .await
-            .context("AssemblyAI poll failed")?
-            .error_for_status()
-            .context("AssemblyAI poll returned an error")?
-            .json()
-            .await
-            .context("Failed to parse AssemblyAI poll response")?;
+            .context("AssemblyAI poll failed")?;
+        let poll: AaiTranscript = read_json_checked(poll_resp, "AssemblyAI poll error").await?;
 
         match poll.status.as_str() {
             "completed" => {
@@ -482,15 +516,7 @@ async fn assemblyai(
                     return Ok(segments_from_words(words, 80));
                 }
                 let text = poll.text.unwrap_or_default().trim().to_string();
-                return Ok(if text.is_empty() {
-                    vec![]
-                } else {
-                    vec![TranscribedSegment {
-                        start_ms: 0,
-                        end_ms: 0,
-                        text,
-                    }]
-                });
+                return wordless_fallback_segments(text, audio_duration, require_timestamps);
             }
             "error" => anyhow::bail!(
                 "AssemblyAI transcription error: {}",
@@ -902,5 +928,54 @@ mod tests {
             translate_to_english: true,
         };
         assert_eq!(compatible_audio_model(&cfg), "whisper-large-v3");
+    }
+
+    #[tokio::test]
+    async fn wordless_deepgram_and_assemblyai_reject_timed_alignment_and_preserve_chunk_duration() {
+        let (url, server) = mock_server(vec![
+            (
+                200,
+                r#"{"results":{"channels":[{"alternatives":[{"transcript":"No words","words":[]}]}]}}"#.into(),
+            ),
+            (
+                200,
+                r#"{"results":{"channels":[{"alternatives":[{"transcript":"No words","words":[]}]}]}}"#.into(),
+            ),
+        ]);
+        let timed_err = transcribe_timed_chunk(
+            &default_client(),
+            &config("deepgram", url.clone(), "nova-3"),
+            wav(),
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            timed_err.to_string().contains("word timestamps"),
+            "{timed_err}"
+        );
+
+        let chunk_segs = transcribe_chunk(
+            &default_client(),
+            &config("deepgram", url, "nova-3"),
+            wav(),
+            "audio.wav",
+        )
+        .await
+        .unwrap();
+        assert_eq!(chunk_segs.len(), 1);
+        assert_eq!((chunk_segs[0].start_ms, chunk_segs[0].end_ms), (0, 1000));
+        server.join().unwrap();
+
+        let (aai_url, aai_server) = mock_server(vec![(400, r#"{"error":"bad audio"}"#.into())]);
+        let aai_err = transcribe_chunk(
+            &default_client(),
+            &config("assemblyai", aai_url, "universal-2"),
+            wav(),
+            "audio.wav",
+        )
+        .await
+        .unwrap_err();
+        assert!(aai_err.to_string().contains("bad audio"), "{aai_err}");
+        aai_server.join().unwrap();
     }
 }

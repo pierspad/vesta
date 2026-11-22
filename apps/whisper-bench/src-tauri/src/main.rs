@@ -521,7 +521,7 @@ async fn run_bench(
                     model: model_id.clone(),
                     wall_seconds: wall,
                     audio_seconds,
-                    realtime_factor: audio_seconds.map(|a| a / wall),
+                    realtime_factor: audio_seconds.filter(|_| wall > 0.0).map(|a| a / wall),
                     subtitle_count: outcome.subtitle_count,
                     detected_language: outcome.detected_language,
                     status: "ok".into(),

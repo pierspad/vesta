@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicI64, Ordering};
 
 use super::export_tsv::{render_text_with_context, sanitize_filename};
 use super::media::{MediaKind, media_filename, ms_to_ffmpeg_ts, video_clip_extension};
@@ -9,6 +10,39 @@ mod model;
 mod package;
 use database::{CollectionMetadata, NoteRecord};
 use model::build_collection_metadata;
+
+static NEXT_APKG_ID: AtomicI64 = AtomicI64::new(0);
+
+fn reserve_note_id_block(count: usize, deck_id: i64) -> i64 {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64;
+    let deck_salt = (deck_id.abs() % 1_000) * 10_000;
+    let floor = now_ms.saturating_mul(1000).saturating_add(deck_salt);
+    let count = (count as i64).max(1);
+    let mut prev = NEXT_APKG_ID.load(Ordering::Relaxed);
+    loop {
+        let start = floor.max(prev);
+        let next = start.saturating_add(count);
+        match NEXT_APKG_ID.compare_exchange_weak(prev, next, Ordering::SeqCst, Ordering::Relaxed) {
+            Ok(_) => return start,
+            Err(actual) => prev = actual,
+        }
+    }
+}
+
+fn apkg_guid(note_id: i64, deck_id: i64, seq: usize) -> String {
+    let bytes = sha1_smol::Sha1::from(format!("{note_id}:{deck_id}:{seq}"))
+        .digest()
+        .bytes();
+    format!(
+        "{:016x}",
+        u64::from_be_bytes([
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7]
+        ])
+    )
+}
 
 fn stable_id(seed: &str, band_base: i64) -> i64 {
     let mut hash: u64 = 0;
@@ -61,10 +95,11 @@ pub(crate) fn generate_apkg(
     let (conf_json, models_json, decks_json, dconf_json) =
         build_collection_metadata(config, timestamp, deck_id, model_id);
     let mut notes = Vec::with_capacity(active_lines.len());
+    let note_id_base = reserve_note_id_block(active_lines.len(), deck_id);
 
     for (seq, line) in active_lines.iter().enumerate() {
-        let note_id = timestamp * 1000 + seq as i64;
-        let card_id = note_id + 1_000_000;
+        let note_id = note_id_base.saturating_add(seq as i64);
+        let card_id = note_id;
         let seq_num = seq + 1;
         let start_ts = ms_to_ffmpeg_ts(line.subs1.start_ms);
         let of = &config.output_fields;
@@ -145,6 +180,11 @@ pub(crate) fn generate_apkg(
             fields.push(String::new());
         }
 
+        for field in &mut fields {
+            if field.contains('\x1f') {
+                *field = field.replace('\x1f', " ");
+            }
+        }
         let fields_joined = fields.join("\x1f");
         let sort_field = fields[0].clone();
         let digest = sha1_smol::Sha1::from(sort_field.as_str()).digest().bytes();
@@ -156,7 +196,7 @@ pub(crate) fn generate_apkg(
             model_id,
             timestamp,
             due: seq as i64 + 1,
-            guid: format!("{:010x}", note_id as u64),
+            guid: apkg_guid(note_id, deck_id, seq),
             fields: fields_joined,
             sort_field,
             checksum,
@@ -626,5 +666,79 @@ mod tests {
             mid_a, mid_b,
             "distinct note type names must not share a model id"
         );
+    }
+
+    #[test]
+    fn consecutive_exports_above_1000_cards_keep_distinct_ids_and_escape_field_separator() {
+        let tmp = tempfile::tempdir().unwrap();
+        let media = tmp.path().join("media");
+        std::fs::create_dir_all(&media).unwrap();
+        let lines_a: Vec<_> = (0..1505)
+            .map(|i| line(i, &format!("A\x1fLine {i}"), Some("Meaning")))
+            .collect();
+        let lines_b = vec![line(0, "B\x1fLine", Some("Meaning"))];
+
+        let apkg_a = tmp.path().join("a.apkg");
+        let apkg_b = tmp.path().join("b.apkg");
+        generate_apkg(
+            &lines_a,
+            &base_config("DeckA", "Shared_Vesta", all_fields()),
+            &media,
+            &apkg_a,
+        )
+        .unwrap();
+        generate_apkg(
+            &lines_b,
+            &base_config("DeckB", "Shared_Vesta", all_fields()),
+            &media,
+            &apkg_b,
+        )
+        .unwrap();
+
+        let extract_ids_and_flds = |apkg: &Path| -> (Vec<(i64, String)>, Vec<String>) {
+            let mut zip = zip::ZipArchive::new(std::fs::File::open(apkg).unwrap()).unwrap();
+            let db = tmp.path().join(format!(
+                "{}.sqlite",
+                apkg.file_stem().unwrap().to_string_lossy()
+            ));
+            std::io::copy(
+                &mut zip.by_name("collection.anki2").unwrap(),
+                &mut std::fs::File::create(&db).unwrap(),
+            )
+            .unwrap();
+            let conn = rusqlite::Connection::open(db).unwrap();
+            let mut stmt = conn.prepare("SELECT id, guid, flds FROM notes").unwrap();
+            stmt.query_map([], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                ))
+            })
+            .unwrap()
+            .map(|r| r.unwrap())
+            .fold(
+                (Vec::new(), Vec::new()),
+                |(mut ids, mut flds), (id, guid, fld)| {
+                    ids.push((id, guid));
+                    flds.push(fld);
+                    (ids, flds)
+                },
+            )
+        };
+
+        let (ids_a, flds_a) = extract_ids_and_flds(&apkg_a);
+        let (ids_b, flds_b) = extract_ids_and_flds(&apkg_b);
+        let set_a: std::collections::HashSet<_> = ids_a.iter().map(|(id, _)| *id).collect();
+        let guids_a: std::collections::HashSet<_> = ids_a.iter().map(|(_, g)| g.clone()).collect();
+        assert_eq!(set_a.len(), 1505);
+        assert_eq!(guids_a.len(), 1505);
+        for (id, guid) in &ids_b {
+            assert!(!set_a.contains(id), "note_id collision: {id}");
+            assert!(!guids_a.contains(guid), "guid collision: {guid}");
+        }
+        // Only the 8 field delimiters per 9-field note may be '\x1f'
+        assert!(flds_a[0].matches('\x1f').count() == 8);
+        assert!(flds_b[0].matches('\x1f').count() == 8);
     }
 }

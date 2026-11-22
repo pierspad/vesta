@@ -70,8 +70,16 @@ fn resolve_llm_config(config: RefineLlmConfig) -> Result<TranslatorConfig, Strin
     Ok(TranslatorConfig {
         api_type,
         api_key,
-        base_url: config.api_url.unwrap_or_else(|| default_url.to_string()),
-        model: config.model.unwrap_or_else(|| default_model.to_string()),
+        base_url: config
+            .api_url
+            .map(|url| url.trim().to_string())
+            .filter(|url| !url.is_empty())
+            .unwrap_or_else(|| default_url.to_string()),
+        model: config
+            .model
+            .map(|m| m.trim().to_string())
+            .filter(|m| !m.is_empty())
+            .unwrap_or_else(|| default_model.to_string()),
     })
 }
 

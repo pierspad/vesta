@@ -117,8 +117,18 @@ pub async fn transcribe_download_model(
 
 /// Uninstall (delete) a specific Whisper model
 #[tauri::command]
-pub async fn transcribe_uninstall_model(model_id: String) -> Result<bool, String> {
-    uninstall_model(&model_id).map_err(|e| e.to_string())
+pub async fn transcribe_uninstall_model(
+    state: State<'_, AppTranscribeState>,
+    model_id: String,
+) -> Result<bool, String> {
+    let _guard = OperationGuard::begin(
+        &state,
+        "Transcription or model download already in progress",
+    )?;
+    tokio::task::spawn_blocking(move || uninstall_model(&model_id))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
 }
 
 /// Status of the optional add-ons for local transcription: the known Silero
@@ -169,8 +179,18 @@ pub async fn transcribe_download_vad(
 }
 
 #[tauri::command]
-pub async fn transcribe_uninstall_vad(model_id: String) -> Result<bool, String> {
-    srt_transcribe::model::uninstall_vad_model(&model_id).map_err(|e| e.to_string())
+pub async fn transcribe_uninstall_vad(
+    state: State<'_, AppTranscribeState>,
+    model_id: String,
+) -> Result<bool, String> {
+    let _guard = OperationGuard::begin(
+        &state,
+        "Transcription or model download already in progress",
+    )?;
+    tokio::task::spawn_blocking(move || srt_transcribe::model::uninstall_vad_model(&model_id))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

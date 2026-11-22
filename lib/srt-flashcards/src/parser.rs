@@ -63,11 +63,19 @@ fn parse_srt_block(lines: &[&str]) -> Result<Option<SubEntry>> {
     };
 
     let start_ms = srt_parser::Timestamp::from_srt_string(start_str.trim())
-        .map(|t| t.total_milliseconds() as i64)
-        .map_err(|e| anyhow::anyhow!("Invalid SRT start timestamp: {}", e))?;
-    let end_ms = srt_parser::Timestamp::from_srt_string(end_str.trim())
-        .map(|t| t.total_milliseconds() as i64)
-        .map_err(|e| anyhow::anyhow!("Invalid SRT end timestamp: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Invalid SRT start timestamp: {}", e))
+        .and_then(|t| {
+            i64::try_from(t.total_milliseconds()).context("SRT start timestamp overflow")
+        })?;
+    let end_ms = srt_parser::Timestamp::from_srt_string(
+        end_str.split_whitespace().next().unwrap_or("").trim(),
+    )
+    .map_err(|e| anyhow::anyhow!("Invalid SRT end timestamp: {}", e))
+    .and_then(|t| i64::try_from(t.total_milliseconds()).context("SRT end timestamp overflow"))?;
+    anyhow::ensure!(
+        end_ms >= start_ms,
+        "SRT end timestamp precedes start ({end_ms} < {start_ms})"
+    );
 
     let text = if lines.len() > 2 {
         let mut buf = String::with_capacity(lines.len() * 32);
@@ -320,6 +328,10 @@ fn parse_vtt_block(lines: &[&str], id_counter: u32) -> Result<Option<SubEntry>> 
 
     let start_ms = parse_vtt_timestamp(start_str.trim())?;
     let end_ms = parse_vtt_timestamp(end_str.split_whitespace().next().unwrap_or("").trim())?;
+    anyhow::ensure!(
+        end_ms >= start_ms,
+        "VTT end timestamp precedes start ({end_ms} < {start_ms})"
+    );
 
     let text = if t_idx + 1 < lines.len() {
         let mut buf = String::with_capacity((lines.len() - t_idx) * 32);

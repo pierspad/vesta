@@ -58,7 +58,19 @@ pub fn run_from(args: Vec<std::ffi::OsString>) -> Result<()> {
 
 async fn run_async(args: Vec<std::ffi::OsString>) -> Result<()> {
     let cli = Cli::parse_from(args);
+    tokio::select! {
+        biased;
+        res = run_inner(cli) => res,
+        sig = tokio::signal::ctrl_c() => {
+            if sig.is_ok() {
+                eprintln!("\nsrt-extract cancelled.");
+            }
+            anyhow::bail!("Cancelled by user")
+        }
+    }
+}
 
+async fn run_inner(cli: Cli) -> Result<()> {
     if let Some(output) = &cli.output {
         srt_parser::persistence::ensure_distinct_files(&cli.input, output)?;
     }

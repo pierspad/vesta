@@ -55,6 +55,21 @@ pub fn media_command(cmd: &str) -> tokio::process::Command {
     command
 }
 
+async fn spawn_retry_etxtbsy(
+    cmd: &mut tokio::process::Command,
+) -> std::io::Result<tokio::process::Child> {
+    let mut attempts = 0;
+    loop {
+        match cmd.spawn() {
+            Err(e) if e.raw_os_error() == Some(26) && attempts < 10 => {
+                attempts += 1;
+                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            }
+            res => return res,
+        }
+    }
+}
+
 pub async fn check_ffmpeg(ffmpeg_cmd: &str) -> bool {
     tokio::time::timeout(
         std::time::Duration::from_secs(5),
@@ -230,7 +245,14 @@ fn hw_preset_args(encoder: H264Encoder, x264_preset: &str) -> Vec<String> {
     }
 }
 
-async fn test_h264_encoder(ffmpeg_cmd: &str, encoder: H264Encoder) -> bool {
+async fn test_h264_encoder(
+    ffmpeg_cmd: &str,
+    encoder: H264Encoder,
+    cancel: &CancellationToken,
+) -> bool {
+    if cancel.is_cancelled() {
+        return false;
+    }
     let mut cmd = media_command(ffmpeg_cmd);
     cmd.args([
         "-nostdin",
@@ -253,12 +275,38 @@ async fn test_h264_encoder(ffmpeg_cmd: &str, encoder: H264Encoder) -> bool {
     }
     cmd.args(["-c:v", encoder.ffmpeg_name(), "-f", "null", "-"]);
     cmd.kill_on_drop(true);
-    tokio::time::timeout(std::time::Duration::from_secs(5), cmd.output())
-        .await
-        .is_ok_and(|result| result.is_ok_and(|o| o.status.success()))
+    let Ok(mut child) = cmd
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    else {
+        return false;
+    };
+    tokio::select! {
+        _ = cancel.cancelled() => {
+            let _ = child.kill().await;
+            let _ = child.wait().await;
+            false
+        }
+        res = tokio::time::timeout(std::time::Duration::from_secs(5), child.wait()) => match res {
+            Ok(Ok(status)) => status.success(),
+            _ => {
+                let _ = child.kill().await;
+                let _ = child.wait().await;
+                false
+            }
+        }
+    }
 }
 
 pub async fn detect_h264_encoder(ffmpeg_cmd: &str) -> H264Encoder {
+    detect_h264_encoder_cancellable(ffmpeg_cmd, &CancellationToken::new()).await
+}
+
+pub(crate) async fn detect_h264_encoder_cancellable(
+    ffmpeg_cmd: &str,
+    cancel: &CancellationToken,
+) -> H264Encoder {
     #[cfg(target_os = "macos")]
     let candidates = [H264Encoder::VideoToolbox];
     #[cfg(windows)]
@@ -267,7 +315,10 @@ pub async fn detect_h264_encoder(ffmpeg_cmd: &str) -> H264Encoder {
     let candidates = [H264Encoder::Nvenc, H264Encoder::Vaapi, H264Encoder::Qsv];
 
     for encoder in candidates {
-        if test_h264_encoder(ffmpeg_cmd, encoder).await {
+        if cancel.is_cancelled() {
+            break;
+        }
+        if test_h264_encoder(ffmpeg_cmd, encoder, cancel).await {
             return encoder;
         }
     }
@@ -283,31 +334,63 @@ pub struct VideoStreamInfo {
 }
 
 pub async fn probe_video_stream(ffprobe_cmd: &str, video_path: &str) -> Option<VideoStreamInfo> {
-    let output = tokio::time::timeout(
-        std::time::Duration::from_secs(15),
-        media_command(ffprobe_cmd)
-            .args([
-                "-v",
-                "error",
-                "-select_streams",
-                "v:0",
-                "-show_entries",
-                "stream=width,height,codec_name:format=duration",
-                "-of",
-                "json",
-                video_path,
-            ])
-            .output(),
-    )
-    .await
-    .ok()?
-    .ok()?;
+    probe_video_stream_cancellable(ffprobe_cmd, video_path, &CancellationToken::new()).await
+}
 
-    if !output.status.success() {
+pub(crate) async fn probe_video_stream_cancellable(
+    ffprobe_cmd: &str,
+    video_path: &str,
+    cancel: &CancellationToken,
+) -> Option<VideoStreamInfo> {
+    if cancel.is_cancelled() {
         return None;
     }
-
-    let val: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
+    let mut cmd = media_command(ffprobe_cmd);
+    cmd.args([
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=width,height,codec_name:format=duration",
+        "-of",
+        "json",
+        video_path,
+    ]);
+    cmd.kill_on_drop(true)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null());
+    let mut child = spawn_retry_etxtbsy(&mut cmd).await.ok()?;
+    let stdout = child.stdout.take()?;
+    let reader = tokio::spawn(async move {
+        use tokio::io::AsyncReadExt;
+        let mut buf = Vec::new();
+        let _ = stdout.take(1024 * 1024).read_to_end(&mut buf).await;
+        buf
+    });
+    let status = tokio::select! {
+        _ = cancel.cancelled() => {
+            let _ = child.kill().await;
+            let _ = child.wait().await;
+            reader.abort();
+            return None;
+        }
+        res = tokio::time::timeout(std::time::Duration::from_secs(15), child.wait()) => match res {
+            Ok(Ok(status)) => status,
+            _ => {
+                let _ = child.kill().await;
+                let _ = child.wait().await;
+                reader.abort();
+                return None;
+            }
+        }
+    };
+    if !status.success() {
+        reader.abort();
+        return None;
+    }
+    let stdout_bytes = reader.await.ok()?;
+    let val: serde_json::Value = serde_json::from_slice(&stdout_bytes).ok()?;
     let stream = val.get("streams")?.as_array()?.first()?;
     let width = stream.get("width")?.as_u64()? as u32;
     let height = stream.get("height")?.as_u64()? as u32;
@@ -426,6 +509,23 @@ pub async fn optimize_video_source_with_progress(
     .await
 }
 
+fn append_optimize_stream_args(args: &mut Vec<String>, include_audio: bool, dest_str: &str) {
+    args.extend(["-map".into(), "0:v:0".into()]);
+    if include_audio {
+        args.extend([
+            "-map".into(),
+            "0:a?".into(),
+            "-c:a".into(),
+            "aac".into(),
+            "-b:a".into(),
+            "192k".into(),
+        ]);
+    } else {
+        args.push("-an".into());
+    }
+    args.extend(["-sn".into(), "-dn".into(), "-y".into(), dest_str.into()]);
+}
+
 /// Reuse a generation-scoped encoder probe; `None` performs detection for
 /// standalone callers. Never cache hardware availability across operations.
 #[allow(clippy::too_many_arguments)]
@@ -442,17 +542,24 @@ pub(crate) async fn optimize_video_source_with_encoder(
     progress: &(dyn Fn(f64, &str) + Send + Sync),
 ) -> Result<OptimizedVideo> {
     if cancel.is_cancelled() {
-        return Ok(OptimizedVideo::original(source_path));
+        anyhow::bail!("Video preparation cancelled");
     }
 
-    let Some(stream_info) = probe_video_stream(ffprobe_cmd, source_path).await else {
+    let Some(stream_info) = probe_video_stream_cancellable(ffprobe_cmd, source_path, cancel).await
+    else {
+        if cancel.is_cancelled() {
+            anyhow::bail!("Video preparation cancelled");
+        }
         return Ok(OptimizedVideo::original(source_path));
     };
 
     let encoder = match selected_encoder {
         Some(encoder) => encoder,
-        None => detect_h264_encoder(ffmpeg_cmd).await,
+        None => detect_h264_encoder_cancellable(ffmpeg_cmd, cancel).await,
     };
+    if cancel.is_cancelled() {
+        anyhow::bail!("Video preparation cancelled");
+    }
 
     if !should_optimize_video(
         &stream_info,
@@ -500,12 +607,7 @@ pub(crate) async fn optimize_video_source_with_encoder(
                     "-g".into(),
                     "24".into(),
                 ];
-                if include_audio {
-                    full_hw.extend(["-c:a".into(), "aac".into(), "-b:a".into(), "192k".into()]);
-                } else {
-                    full_hw.push("-an".into());
-                }
-                full_hw.extend(["-sn".into(), "-dn".into(), "-y".into(), dest_str.into()]);
+                append_optimize_stream_args(&mut full_hw, include_audio, dest_str);
                 candidate_args.push(("vaapi_full_hw", full_hw));
             }
 
@@ -532,12 +634,7 @@ pub(crate) async fn optimize_video_source_with_encoder(
                 "-g".into(),
                 "24".into(),
             ];
-            if include_audio {
-                sw_hw.extend(["-c:a".into(), "aac".into(), "-b:a".into(), "192k".into()]);
-            } else {
-                sw_hw.push("-an".into());
-            }
-            sw_hw.extend(["-sn".into(), "-dn".into(), "-y".into(), dest_str.into()]);
+            append_optimize_stream_args(&mut sw_hw, include_audio, dest_str);
             candidate_args.push(("vaapi_sw_hw", sw_hw));
         }
 
@@ -559,12 +656,7 @@ pub(crate) async fn optimize_video_source_with_encoder(
                     "-g".into(),
                     "24".into(),
                 ];
-                if include_audio {
-                    hw_nv.extend(["-c:a".into(), "aac".into(), "-b:a".into(), "192k".into()]);
-                } else {
-                    hw_nv.push("-an".into());
-                }
-                hw_nv.extend(["-sn".into(), "-dn".into(), "-y".into(), dest_str.into()]);
+                append_optimize_stream_args(&mut hw_nv, include_audio, dest_str);
                 candidate_args.push(("nvenc_hw", hw_nv));
             }
 
@@ -587,12 +679,7 @@ pub(crate) async fn optimize_video_source_with_encoder(
                 "-g".into(),
                 "24".into(),
             ];
-            if include_audio {
-                sw_nv.extend(["-c:a".into(), "aac".into(), "-b:a".into(), "192k".into()]);
-            } else {
-                sw_nv.push("-an".into());
-            }
-            sw_nv.extend(["-sn".into(), "-dn".into(), "-y".into(), dest_str.into()]);
+            append_optimize_stream_args(&mut sw_nv, include_audio, dest_str);
             candidate_args.push(("nvenc_sw", sw_nv));
         }
 
@@ -614,12 +701,7 @@ pub(crate) async fn optimize_video_source_with_encoder(
                 "-g".into(),
                 "24".into(),
             ];
-            if include_audio {
-                vt.extend(["-c:a".into(), "aac".into(), "-b:a".into(), "192k".into()]);
-            } else {
-                vt.push("-an".into());
-            }
-            vt.extend(["-sn".into(), "-dn".into(), "-y".into(), dest_str.into()]);
+            append_optimize_stream_args(&mut vt, include_audio, dest_str);
             candidate_args.push(("videotoolbox", vt));
         }
 
@@ -647,12 +729,7 @@ pub(crate) async fn optimize_video_source_with_encoder(
                 "-g".into(),
                 "24".into(),
             ];
-            if include_audio {
-                qsv.extend(["-c:a".into(), "aac".into(), "-b:a".into(), "192k".into()]);
-            } else {
-                qsv.push("-an".into());
-            }
-            qsv.extend(["-sn".into(), "-dn".into(), "-y".into(), dest_str.into()]);
+            append_optimize_stream_args(&mut qsv, include_audio, dest_str);
             candidate_args.push(("qsv", qsv));
         }
 
@@ -679,20 +756,16 @@ pub(crate) async fn optimize_video_source_with_encoder(
         "-g".into(),
         "24".into(),
     ];
-    if include_audio {
-        cpu.extend(["-c:a".into(), "aac".into(), "-b:a".into(), "192k".into()]);
-    } else {
-        cpu.push("-an".into());
-    }
-    cpu.extend(["-sn".into(), "-dn".into(), "-y".into(), dest_str.into()]);
+    append_optimize_stream_args(&mut cpu, include_audio, dest_str);
     candidate_args.push(("cpu_libx264", cpu));
 
     for (name, args) in candidate_args {
         if cancel.is_cancelled() {
-            return Ok(OptimizedVideo::original(source_path));
+            anyhow::bail!("Video preparation cancelled");
         }
 
         let mut cmd = media_command(ffmpeg_cmd);
+        cmd.kill_on_drop(true);
         cmd.arg("-nostdin");
         cmd.arg("-loglevel").arg("error");
         cmd.args(["-progress", "pipe:1", "-nostats"]);
@@ -700,7 +773,7 @@ pub(crate) async fn optimize_video_source_with_encoder(
         cmd.stdout(std::process::Stdio::piped());
         // Drain stderr through output inherited by the parent, preventing a
         // full pipe from stopping FFmpeg while retaining useful diagnostics.
-        let mut child = match cmd.spawn() {
+        let mut child = match spawn_retry_etxtbsy(&mut cmd).await {
             Ok(child) => child,
             Err(_) => continue,
         };
@@ -715,13 +788,18 @@ pub(crate) async fn optimize_video_source_with_encoder(
             let line = tokio::select! {
                 _ = cancel.cancelled() => {
                     let _ = child.kill().await;
+                    let _ = child.wait().await;
                     anyhow::bail!("Video preparation cancelled");
                 }
                 line = tokio::time::timeout(std::time::Duration::from_secs(60), lines.next_line()) => {
                     match line {
                         Ok(Ok(Some(line))) => line,
                         Ok(Ok(None)) => break,
-                        _ => { let _ = child.kill().await; break; }
+                        _ => {
+                            let _ = child.kill().await;
+                            let _ = child.wait().await;
+                            break;
+                        }
                     }
                 }
             };
@@ -736,7 +814,11 @@ pub(crate) async fn optimize_video_source_with_encoder(
             }
         }
         let res = tokio::select! {
-            _ = cancel.cancelled() => { let _ = child.kill().await; anyhow::bail!("Video preparation cancelled"); }
+            _ = cancel.cancelled() => {
+                let _ = child.kill().await;
+                let _ = child.wait().await;
+                anyhow::bail!("Video preparation cancelled");
+            }
             result = child.wait() => result,
         };
         if let Ok(status) = res
@@ -783,15 +865,56 @@ pub(crate) fn scale_vf(width: u32, height: u32, crop_bottom: u32) -> String {
     filters.join(",")
 }
 
-async fn run_ffmpeg(mut cmd: tokio::process::Command, what: &str) -> Result<()> {
-    let output = cmd
-        .output()
+async fn run_ffmpeg(
+    mut cmd: tokio::process::Command,
+    what: &str,
+    cancel: &CancellationToken,
+) -> Result<()> {
+    if cancel.is_cancelled() {
+        anyhow::bail!("ffmpeg {what} cancelled");
+    }
+    cmd.kill_on_drop(true)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped());
+    let mut child = spawn_retry_etxtbsy(&mut cmd)
         .await
         .with_context(|| format!("Failed to run ffmpeg for {what}"))?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
+    let stderr = child.stderr.take();
+    let stderr_task = tokio::spawn(async move {
+        use tokio::io::AsyncReadExt;
+        let mut buf = Vec::new();
+        if let Some(err) = stderr {
+            let _ = err.take(64 * 1024).read_to_end(&mut buf).await;
+        }
+        buf
+    });
+    let status = tokio::select! {
+        _ = cancel.cancelled() => {
+            let _ = child.kill().await;
+            let _ = child.wait().await;
+            stderr_task.abort();
+            anyhow::bail!("ffmpeg {what} cancelled");
+        }
+        res = tokio::time::timeout(std::time::Duration::from_secs(120), child.wait()) => match res {
+            Ok(Ok(status)) => status,
+            Ok(Err(e)) => {
+                stderr_task.abort();
+                return Err(e).with_context(|| format!("Failed to wait on ffmpeg for {what}"));
+            }
+            Err(_) => {
+                let _ = child.kill().await;
+                let _ = child.wait().await;
+                stderr_task.abort();
+                anyhow::bail!("ffmpeg {what} timed out after 120s");
+            }
+        }
+    };
+    if !status.success() {
+        let stderr_bytes = stderr_task.await.unwrap_or_default();
+        let stderr = String::from_utf8_lossy(&stderr_bytes);
         anyhow::bail!("ffmpeg {what} error: {stderr}");
     }
+    stderr_task.abort();
     Ok(())
 }
 
@@ -809,6 +932,7 @@ pub(crate) async fn extract_audio_clip(
     normalize: bool,
     gain_db: i32,
     ffmpeg_cmd: &str,
+    cancel: &CancellationToken,
 ) -> Result<()> {
     let (start_ts, duration_ts) = clip_window(start_ms, end_ms, pad_start_ms, pad_end_ms);
 
@@ -853,7 +977,7 @@ pub(crate) async fn extract_audio_clip(
     }
     cmd.arg(output_path.as_os_str());
 
-    run_ffmpeg(cmd, "audio").await
+    run_ffmpeg(cmd, "audio", cancel).await
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -868,6 +992,7 @@ pub(crate) async fn extract_snapshot(
     format: SnapshotFormat,
     quality: u8,
     ffmpeg_cmd: &str,
+    cancel: &CancellationToken,
 ) -> Result<()> {
     let midpoint_ms = start_ms + (end_ms - start_ms) / 2;
     let vf = scale_vf(width, height, crop_bottom);
@@ -895,7 +1020,7 @@ pub(crate) async fn extract_snapshot(
     }
     cmd.arg(output_path.as_os_str());
 
-    run_ffmpeg(cmd, "snapshot").await
+    run_ffmpeg(cmd, "snapshot", cancel).await
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -918,8 +1043,11 @@ pub(crate) async fn extract_video_clip(
     normalize: bool,
     gain_db: i32,
     ffmpeg_cmd: &str,
+    cancel: &CancellationToken,
 ) -> Result<()> {
     let (start_ts, duration_ts) = clip_window(start_ms, end_ms, pad_start_ms, pad_end_ms);
+    let even_w = (width.max(2) / 2) * 2;
+    let even_h = (height.max(2) / 2) * 2;
 
     let mut cmd = media_command(ffmpeg_cmd);
     cmd.args([
@@ -939,10 +1067,10 @@ pub(crate) async fn extract_video_clip(
         cmd.args(["-init_hw_device", "vaapi=va", "-filter_hw_device", "va"]);
         format!(
             "{},format=nv12,hwupload",
-            scale_vf(width, height, crop_bottom)
+            scale_vf(even_w, even_h, crop_bottom)
         )
     } else {
-        scale_vf(width, height, crop_bottom)
+        scale_vf(even_w, even_h, crop_bottom)
     };
     cmd.args(["-vf", &vf]);
 
@@ -998,7 +1126,7 @@ pub(crate) async fn extract_video_clip(
 
     cmd.arg(output_path.as_os_str());
 
-    run_ffmpeg(cmd, "video").await
+    run_ffmpeg(cmd, "video", cancel).await
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1029,6 +1157,7 @@ pub async fn extract_preview_audio_clip(
         normalize,
         gain_db,
         ffmpeg_cmd,
+        &CancellationToken::new(),
     )
     .await
 }
@@ -1050,6 +1179,7 @@ pub async fn extract_preview_snapshot(
         SnapshotFormat::Jpeg,
         80,
         ffmpeg_cmd,
+        &CancellationToken::new(),
     )
     .await
 }
@@ -1297,5 +1427,83 @@ mod tests {
             assert_eq!(info.codec, "h264");
             assert!(info.duration_secs > 4000.0);
         }
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn multi_audio_track_clip_and_optimize_preserve_audio_selection() {
+        let dir = tempfile::tempdir().unwrap();
+        let probe_json = dir.path().join("probe.json");
+        std::fs::write(
+            &probe_json,
+            br#"{"streams":[{"width":1920,"height":1080,"codec_name":"hevc"}],"format":{"duration":"12.5"}}"#,
+        )
+        .unwrap();
+        let args_log = dir.path().join("ffmpeg.log");
+        let ffprobe = dir.path().join("mock-ffprobe");
+        let ffmpeg = dir.path().join("mock-ffmpeg");
+        write_executable_script(
+            &ffprobe,
+            &format!("#!/bin/sh\ncat '{}'\n", probe_json.display()),
+        );
+        write_executable_script(
+            &ffmpeg,
+            &format!(
+                "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '{}'\nfor last do out=\"$last\"; done\nprintf '%02048d' 0 > \"$out\"\n",
+                args_log.display()
+            ),
+        );
+
+        let src = dir.path().join("dual_audio.mkv");
+        std::fs::write(&src, b"stub").unwrap();
+        let cancel = CancellationToken::new();
+
+        let optimized = optimize_video_source_with_encoder(
+            src.to_str().unwrap(),
+            854,
+            480,
+            0,
+            true,
+            Some(H264Encoder::Libx264),
+            ffmpeg.to_str().unwrap(),
+            ffprobe.to_str().unwrap(),
+            &cancel,
+            &|_, _| {},
+        )
+        .await
+        .unwrap();
+        assert!(!optimized.original_used);
+
+        let clip_out = dir.path().join("clip.mp4");
+        extract_video_clip(
+            optimized.path.to_str().unwrap(),
+            &clip_out,
+            1000,
+            2500,
+            0,
+            0,
+            "h264",
+            "ultrafast",
+            H264Encoder::Libx264,
+            800,
+            128,
+            Some(1),
+            640,
+            360,
+            0,
+            false,
+            0,
+            ffmpeg.to_str().unwrap(),
+            &cancel,
+        )
+        .await
+        .unwrap();
+        assert!(clip_out.exists());
+
+        let logged = std::fs::read_to_string(&args_log).unwrap();
+        let lines: Vec<&str> = logged.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].contains("-map 0:v:0 -map 0:a?"));
+        assert!(lines[1].contains("-map 0:v:0 -map 0:a:1"));
     }
 }

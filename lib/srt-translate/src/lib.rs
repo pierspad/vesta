@@ -1089,4 +1089,93 @@ mod checkpoint_tests {
             assert_eq!(saved[&id].text, format!("Translated {id}"));
         }
     }
+
+    #[tokio::test]
+    async fn repair_missing_tiered_repairs_missing_entries_and_persists_checkpoint() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}/v1", listener.local_addr().unwrap());
+
+        let server = tokio::spawn(async move {
+            for reply_text in ["Ciao due", "Ciao quattro"] {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut buf = [0u8; 8192];
+                let n = stream.read(&mut buf).await.unwrap();
+                assert!(n > 0);
+                let body = serde_json::json!({
+                    "choices": [{"message": {"role": "assistant", "content": reply_text}}]
+                })
+                .to_string();
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                stream.write_all(resp.as_bytes()).await.unwrap();
+            }
+        });
+
+        let dir = tempfile::tempdir().unwrap();
+        let output_path = dir.path().join("repaired.srt");
+
+        let sub = |id: u32, text: &str| Subtitle {
+            id,
+            start: srt_parser::Timestamp {
+                milliseconds: u64::from(id) * 1000,
+            },
+            end: srt_parser::Timestamp {
+                milliseconds: u64::from(id) * 1000 + 800,
+            },
+            text: text.to_string(),
+        };
+        let originals = HashMap::from([
+            (1, sub(1, "One")),
+            (2, sub(2, "Two")),
+            (3, sub(3, "Three")),
+            (4, sub(4, "Four")),
+        ]);
+        let initial_translated = HashMap::from([(1, sub(1, "Uno")), (3, sub(3, "Tre"))]);
+
+        let pool = Arc::new(vec![vec![PoolEntry {
+            translator: Translator::new(TranslatorConfig {
+                api_type: ApiType::Local,
+                api_key: None,
+                base_url: url,
+                model: "test-model".to_string(),
+            }),
+            rate_limiter: None,
+            max_requests: Some(4),
+            label: "mock-local".to_string(),
+        }]]);
+        let scheduler = Arc::new(tokio::sync::Mutex::new(TierScheduler::new(&pool)));
+        let translated = Arc::new(tokio::sync::Mutex::new(initial_translated));
+        let progress = Arc::new(tokio::sync::Mutex::new(|_: TranslationProgress| {}));
+        let cancel = CancellationToken::new();
+
+        repair_missing_tiered(
+            pool,
+            scheduler,
+            &[2, 4],
+            &originals,
+            &translated,
+            "it",
+            Some("Test Show".to_string()),
+            &output_path,
+            progress,
+            &cancel,
+        )
+        .await
+        .unwrap();
+
+        server.await.unwrap();
+
+        let map = translated.lock().await;
+        assert_eq!(map[&2].text, "Ciao due");
+        assert_eq!(map[&4].text, "Ciao quattro");
+
+        let saved = SrtParser::parse_file(&output_path).unwrap();
+        assert_eq!(saved.len(), 4);
+        assert_eq!(saved[&2].text, "Ciao due");
+        assert_eq!(saved[&4].text, "Ciao quattro");
+    }
 }

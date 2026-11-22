@@ -220,7 +220,7 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<u8> {
                     } => {
                         pending_updates
                             .lock()
-                            .expect("annotation update lock poisoned")
+                            .unwrap_or_else(|e| e.into_inner())
                             .push(RefineUpdate { id, notes });
                         eprintln!("Annotated {done}/{total}");
                     }

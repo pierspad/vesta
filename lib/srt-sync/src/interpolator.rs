@@ -113,41 +113,78 @@ impl TimeMapper {
             return;
         }
 
-        let mut valid_anchors = Vec::new();
+        let anchors = std::mem::take(&mut self.anchors);
+        let mut result = Vec::with_capacity(anchors.len());
 
-        for anchor in self.anchors.drain(..) {
-            if anchor.is_manual {
-                valid_anchors.push(anchor);
-            } else {
-                if let Some(last_valid) = valid_anchors.last()
-                    && anchor.corrected_time_ms < last_valid.corrected_time_ms
-                {
-                    continue;
-                }
-                valid_anchors.push(anchor);
+        // Partition auto-anchors between surrounding manual anchors and keep a
+        // longest non-decreasing corrected_time_ms subsequence in each span so
+        // an early outlier does not wipe out subsequent valid auto-anchors.
+        let mut idx = 0;
+        while idx < anchors.len() {
+            if anchors[idx].is_manual {
+                result.push(anchors[idx]);
+                idx += 1;
+                continue;
             }
+
+            let low = result
+                .iter()
+                .rev()
+                .find(|a| a.is_manual)
+                .map_or(i64::MIN, |a| a.corrected_time_ms);
+
+            let span_start = idx;
+            while idx < anchors.len() && !anchors[idx].is_manual {
+                idx += 1;
+            }
+
+            let high = anchors[idx..]
+                .iter()
+                .find(|a| a.is_manual)
+                .map_or(i64::MAX, |a| a.corrected_time_ms);
+
+            if low > high {
+                continue;
+            }
+
+            let eligible: Vec<AnchorPoint> = anchors[span_start..idx]
+                .iter()
+                .copied()
+                .filter(|a| low <= a.corrected_time_ms && a.corrected_time_ms <= high)
+                .collect();
+
+            if eligible.is_empty() {
+                continue;
+            }
+
+            let mut tails_val: Vec<i64> = Vec::new();
+            let mut tails_idx: Vec<usize> = Vec::new();
+            let mut prev = vec![None; eligible.len()];
+
+            for (i, anchor) in eligible.iter().enumerate() {
+                let t = anchor.corrected_time_ms;
+                let pos = tails_val.partition_point(|&v| v <= t);
+                prev[i] = pos.checked_sub(1).map(|p| tails_idx[p]);
+                if pos == tails_val.len() {
+                    tails_val.push(t);
+                    tails_idx.push(i);
+                } else {
+                    tails_val[pos] = t;
+                    tails_idx[pos] = i;
+                }
+            }
+
+            let mut kept = Vec::with_capacity(tails_idx.len());
+            let mut cur = tails_idx.last().copied();
+            while let Some(k) = cur {
+                kept.push(eligible[k]);
+                cur = prev[k];
+            }
+            kept.reverse();
+            result.extend(kept);
         }
 
-        let mut final_anchors = Vec::new();
-        let mut next_valid: Option<AnchorPoint> = None;
-
-        for anchor in valid_anchors.into_iter().rev() {
-            if anchor.is_manual {
-                final_anchors.push(anchor);
-                next_valid = Some(anchor);
-            } else {
-                if let Some(next_v) = next_valid
-                    && anchor.corrected_time_ms > next_v.corrected_time_ms
-                {
-                    continue;
-                }
-                final_anchors.push(anchor);
-                next_valid = Some(anchor);
-            }
-        }
-
-        final_anchors.reverse();
-        self.anchors = final_anchors;
+        self.anchors = result;
     }
 
     pub fn remove_anchor(&mut self, subtitle_index: u32) -> bool {
@@ -366,5 +403,24 @@ mod tests {
         near.add_anchor(AnchorPoint::new_manual(12, i64::MIN, i64::MIN));
         assert_eq!(near.anchor_count(), 1);
         assert!(near.get_anchors()[0].is_manual);
+    }
+
+    #[test]
+    fn inconsistent_auto_anchor_outlier_does_not_drop_valid_subsequent_auto_anchors() {
+        let mut mapper = TimeMapper::new();
+        mapper.add_anchor(AnchorPoint::new_manual(1, 10_000, 10_000));
+        mapper.add_anchor(AnchorPoint::new_manual(10, 100_000, 100_000));
+        // Early auto outlier followed by 3 mutually consistent auto anchors
+        mapper.add_anchor(AnchorPoint::new(2, 30_000, 90_000));
+        mapper.add_anchor(AnchorPoint::new(3, 40_000, 40_000));
+        mapper.add_anchor(AnchorPoint::new(4, 50_000, 50_000));
+        mapper.add_anchor(AnchorPoint::new(5, 60_000, 60_000));
+
+        let ids: Vec<u32> = mapper
+            .get_anchors()
+            .iter()
+            .map(|a| a.subtitle_index)
+            .collect();
+        assert_eq!(ids, vec![1, 3, 4, 5, 10]);
     }
 }

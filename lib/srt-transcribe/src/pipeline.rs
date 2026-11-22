@@ -445,7 +445,8 @@ pub async fn run_cloud(
     };
 
     if cloud_cfg.api_key.trim().is_empty()
-        && !(["custom", "custom_whisper"].contains(&provider.as_str())
+        && !((provider.eq_ignore_ascii_case("custom")
+            || provider.eq_ignore_ascii_case("custom_whisper"))
             && cloud_cfg
                 .api_url
                 .as_deref()

@@ -107,7 +107,8 @@ fn list_models_in(models_dir: &Path) -> Vec<OcrModelInfo> {
             id: id.to_string(),
             name: name.to_string(),
             size: size.to_string(),
-            downloaded: models_dir.join(filename).is_file(),
+            downloaded: std::fs::metadata(models_dir.join(filename))
+                .is_ok_and(|meta| meta.is_file() && meta.len() > 0),
         })
         .collect()
 }
@@ -277,5 +278,14 @@ mod tests {
                 .unwrap()
                 .exists()
         );
+    }
+
+    #[test]
+    fn list_models_ignores_zero_byte_placeholder_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let (_, _, filename, _, _) = OCR_MODELS[0];
+        std::fs::write(dir.path().join(filename), b"").unwrap();
+        let listed = list_models_in(dir.path());
+        assert!(!listed[0].downloaded);
     }
 }

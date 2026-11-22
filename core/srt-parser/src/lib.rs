@@ -213,7 +213,8 @@ impl SrtParser {
         };
 
         let start = Timestamp::from_srt_string(start_str.trim())?;
-        let end = Timestamp::from_srt_string(end_str.trim())?;
+        let end =
+            Timestamp::from_srt_string(end_str.split_whitespace().next().unwrap_or("").trim())?;
 
         // Parse text (may span multiple lines or be empty)
         let text = if !text_lines.is_empty() {
@@ -585,5 +586,16 @@ Come stai?"#;
         assert_eq!(parsed.get(&2).unwrap().text, "World");
 
         let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn parses_srt_end_timestamp_with_trailing_coordinates() {
+        let srt =
+            "1\n00:00:01,500 --> 00:00:03,250 X1:100 X2:500 Y1:40 Y2:80\nHello positioned world\n";
+        let map = SrtParser::parse_string(srt).unwrap();
+        let sub = map.get(&1).unwrap();
+        assert_eq!(sub.start.total_milliseconds(), 1500);
+        assert_eq!(sub.end.total_milliseconds(), 3250);
+        assert_eq!(sub.text, "Hello positioned world");
     }
 }

@@ -123,11 +123,15 @@ fn subtitle_context(
 #[tauri::command]
 pub async fn suggest_translation_context(
     app: AppHandle,
+    state: State<'_, AppTranslateState>,
     input_path: String,
     target_lang: String,
     context: Option<String>,
     tiers: Vec<Vec<TierEntryConfig>>,
 ) -> Result<String, String> {
+    let guard = OperationGuard::begin(&state, "A translation task is already in progress")?;
+    let cancel_token = guard.token();
+
     let prepared = tokio::task::spawn_blocking(move || {
         let subtitles = SrtParser::parse_file(&input_path).map_err(|e| e.to_string())?;
         let mut sorted: Vec<_> = subtitles.values().collect();
@@ -166,6 +170,9 @@ pub async fn suggest_translation_context(
     })
     .await
     .map_err(|error| format!("Failed to prepare translation context: {error}"))??;
+    if cancel_token.is_cancelled() {
+        return Err("Context suggestion cancelled".into());
+    }
     let (prompt, pool) = prepared;
     let pool = super::provider_diagnostics::observe_pool(pool, &app);
     let mut last_error = "No translation endpoint configured".to_string();
@@ -175,9 +182,18 @@ pub async fn suggest_translation_context(
         .filter(|entry| entry.max_requests != Some(0))
     {
         if let Some(limiter) = &entry.rate_limiter {
-            limiter.until_ready().await;
+            tokio::select! {
+                biased;
+                _ = cancel_token.cancelled() => return Err("Context suggestion cancelled".into()),
+                _ = limiter.until_ready() => {}
+            }
         }
-        match entry.translator.generate_response(&prompt).await {
+        let response_result = tokio::select! {
+            biased;
+            _ = cancel_token.cancelled() => return Err("Context suggestion cancelled".into()),
+            res = entry.translator.generate_response(&prompt) => res,
+        };
+        match response_result {
             Ok(response) if !response.trim().is_empty() => {
                 return Ok(response.chars().take(3000).collect());
             }
@@ -344,8 +360,7 @@ fn load_translation_source(
 
 #[tauri::command]
 pub async fn cancel_translation(state: State<'_, AppTranslateState>) -> Result<bool, String> {
-    state.lock().map_err(|e| e.to_string())?.operation.cancel();
-    Ok(true)
+    Ok(state.lock().map_err(|e| e.to_string())?.operation.cancel())
 }
 
 /// Represents a subtitle pair (original and translated).

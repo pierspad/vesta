@@ -1,5 +1,6 @@
 //! Select an encoder and optionally prepare the source for video clips.
 use super::*;
+use crate::media::detect_h264_encoder_cancellable;
 
 pub(super) async fn prepare_video(
     config: &FlashcardConfig,
@@ -11,7 +12,7 @@ pub(super) async fn prepare_video(
 ) -> (H264Encoder, Option<OptimizedVideo>) {
     // Transparent GPU auto-detection: if available, used automatically.
     let detected_gpu_encoder = if needs_video && config.video_hw_accel != "off" {
-        let enc = detect_h264_encoder(&tools.ffmpeg).await;
+        let enc = detect_h264_encoder_cancellable(&tools.ffmpeg, cancel).await;
         if enc.is_hardware() {
             emit(
                 progress,

@@ -462,9 +462,18 @@ fn save_apkg_to_tsv(
         let updated_notes = updates_map.get(&card.id).cloned().unwrap_or(card.notes);
         output_content.push_str(&format!(
             "{}\t{}\t{}\n",
-            card.expression.replace('\n', "<br>").replace('\t', " "),
-            card.meaning.replace('\n', "<br>").replace('\t', " "),
-            updated_notes.replace('\n', "<br>").replace('\t', " ")
+            card.expression
+                .replace("\r\n", "<br>")
+                .replace(['\n', '\r'], "<br>")
+                .replace('\t', " "),
+            card.meaning
+                .replace("\r\n", "<br>")
+                .replace(['\n', '\r'], "<br>")
+                .replace('\t', " "),
+            updated_notes
+                .replace("\r\n", "<br>")
+                .replace(['\n', '\r'], "<br>")
+                .replace('\t', " ")
         ));
     }
 
@@ -532,10 +541,11 @@ fn save_apkg_to_apkg(
         while fields.len() <= notes_idx {
             fields.push(String::new());
         }
-        if fields[notes_idx] == *new_notes {
+        let sanitized_notes = new_notes.replace('\x1f', " ");
+        if fields[notes_idx] == sanitized_notes {
             continue;
         }
-        fields[notes_idx] = new_notes.clone();
+        fields[notes_idx] = sanitized_notes;
 
         let joined_flds = fields.join("\x1f");
 

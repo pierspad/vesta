@@ -9,6 +9,59 @@ pub fn read_subtitle_file(path: String) -> Result<String, String> {
     srt_parser::encoding::read_text_auto(&path).map_err(|e| e.to_string())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SubtitleEntry {
+    pub id: u32,
+    pub start: String,
+    pub end: String,
+    pub text: String,
+}
+
+#[tauri::command]
+pub async fn parse_subtitle_file(path: String) -> Result<Vec<SubtitleEntry>, String> {
+    tokio::task::spawn_blocking(move || {
+        let map = srt_parser::SrtParser::parse_file(&path).map_err(|e| e.to_string())?;
+        let mut entries: Vec<SubtitleEntry> = map
+            .into_values()
+            .map(|sub| SubtitleEntry {
+                id: sub.id,
+                start: sub.start.to_srt_string(),
+                end: sub.end.to_srt_string(),
+                text: sub.text,
+            })
+            .collect();
+        entries.sort_by_key(|entry| entry.id);
+        Ok(entries)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn save_subtitle_file(path: String, entries: Vec<SubtitleEntry>) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        let mut map = std::collections::HashMap::with_capacity(entries.len());
+        for entry in entries {
+            let start = srt_parser::Timestamp::from_srt_string(&entry.start)
+                .map_err(|e| format!("Invalid start timestamp for cue {}: {e}", entry.id))?;
+            let end = srt_parser::Timestamp::from_srt_string(&entry.end)
+                .map_err(|e| format!("Invalid end timestamp for cue {}: {e}", entry.id))?;
+            map.insert(
+                entry.id,
+                srt_parser::Subtitle {
+                    id: entry.id,
+                    start,
+                    end,
+                    text: entry.text,
+                },
+            );
+        }
+        srt_parser::SrtParser::save_file(&path, &map).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppInfo {
     pub version: String,
@@ -169,5 +222,46 @@ mod tests {
     #[test]
     fn ignores_summaries_without_a_device() {
         assert_eq!(vulkan_device_name("Vulkan Instance Version: 1.3"), None);
+    }
+
+    #[tokio::test]
+    async fn parse_and_save_subtitle_file_roundtrip_and_validate_timestamps() {
+        let dir = tempfile::tempdir().unwrap();
+        let srt_path = dir.path().join("sample.srt");
+        let entries = vec![
+            super::SubtitleEntry {
+                id: 1,
+                start: "00:00:01,000".to_string(),
+                end: "00:00:02,500".to_string(),
+                text: "First line\nSecond line".to_string(),
+            },
+            super::SubtitleEntry {
+                id: 2,
+                start: "00:00:03,000".to_string(),
+                end: "00:00:04,250".to_string(),
+                text: "Third line".to_string(),
+            },
+        ];
+
+        super::save_subtitle_file(srt_path.to_string_lossy().into_owned(), entries.clone())
+            .await
+            .unwrap();
+        let parsed = super::parse_subtitle_file(srt_path.to_string_lossy().into_owned())
+            .await
+            .unwrap();
+        assert_eq!(parsed, entries);
+
+        let err = super::save_subtitle_file(
+            srt_path.to_string_lossy().into_owned(),
+            vec![super::SubtitleEntry {
+                id: 1,
+                start: "not-a-timestamp".to_string(),
+                end: "00:00:02,000".to_string(),
+                text: "Bad".to_string(),
+            }],
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("Invalid start timestamp"));
     }
 }

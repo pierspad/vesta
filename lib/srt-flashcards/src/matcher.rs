@@ -95,7 +95,7 @@ pub(crate) fn combine_consecutive_repeats(matched: &mut Vec<MatchedLine>) {
     let mut write_idx = 0;
     for read_idx in 1..matched.len() {
         let same_s2 = match (&matched[write_idx].subs2, &matched[read_idx].subs2) {
-            (Some(a), Some(b)) => a.id == b.id,
+            (Some(a), Some(b)) => a.id == b.id && a.start_ms == b.start_ms && a.text == b.text,
             _ => false,
         };
 

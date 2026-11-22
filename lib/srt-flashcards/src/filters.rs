@@ -99,7 +99,16 @@ pub(crate) fn apply_filters(lines: &mut [MatchedLine], filters: &SubtitleFilters
             continue;
         }
 
-        if filters.exclude_styled && line.subs1.text.starts_with('{') {
+        if filters.exclude_styled
+            && (line.subs1.text.starts_with('{')
+                || line.subs1.style.as_deref().is_some_and(|s| {
+                    !s.trim().is_empty()
+                        && !matches!(
+                            s.trim().to_ascii_lowercase().as_str(),
+                            "default" | "dialogue" | "main" | "subtitles"
+                        )
+                }))
+        {
             line.active = false;
             continue;
         }
@@ -164,11 +173,17 @@ pub(crate) fn combine_sentences(lines: &mut Vec<MatchedLine>, continuation_chars
             lines[write_idx].subs1.end_ms = next_end;
 
             let next_s2 = lines[read_idx].subs2.take();
-            if let (Some(s2), Some(next_s2)) = (&mut lines[write_idx].subs2, next_s2) {
-                s2.text.reserve(1 + next_s2.text.len());
-                s2.text.push(' ');
-                s2.text.push_str(&next_s2.text);
-                s2.end_ms = next_s2.end_ms;
+            match (&mut lines[write_idx].subs2, next_s2) {
+                (Some(s2), Some(next_s2)) => {
+                    s2.text.reserve(1 + next_s2.text.len());
+                    s2.text.push(' ');
+                    s2.text.push_str(&next_s2.text);
+                    s2.end_ms = next_s2.end_ms;
+                }
+                (target @ None, Some(next_s2)) => {
+                    *target = Some(next_s2);
+                }
+                _ => {}
             }
         } else {
             write_idx += 1;

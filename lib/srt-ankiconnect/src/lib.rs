@@ -22,24 +22,43 @@ pub struct AnkiNote {
 }
 
 async fn invoke(url: &str, action: &str, params: Value) -> Result<Value, String> {
+    invoke_with_timeout(url, action, params, std::time::Duration::from_secs(15)).await
+}
+
+async fn invoke_with_timeout(
+    url: &str,
+    action: &str,
+    params: Value,
+    timeout: std::time::Duration,
+) -> Result<Value, String> {
     let body = json!({ "action": action, "version": API_VERSION, "params": params });
 
     let response = HTTP_CLIENT
         .post(url)
         .json(&body)
-        .timeout(std::time::Duration::from_secs(15))
+        .timeout(timeout)
         .send()
         .await
         .map_err(|e| {
             format!("AnkiConnect is unreachable at {url}: {e}. Is Anki running with the AnkiConnect add-on installed?")
         })?;
 
-    let mut payload: Value = response
-        .error_for_status()
-        .map_err(|e| format!("AnkiConnect HTTP error: {e}"))?
-        .json()
+    let status = response.status();
+    let text = response
+        .text()
         .await
         .map_err(|e| format!("Invalid AnkiConnect response: {e}"))?;
+    if !status.is_success() {
+        let preview: String = text.trim().chars().take(300).collect();
+        return Err(if preview.is_empty() {
+            format!("AnkiConnect HTTP error ({status})")
+        } else {
+            format!("AnkiConnect HTTP error ({status}): {preview}")
+        });
+    }
+
+    let mut payload: Value =
+        serde_json::from_str(&text).map_err(|e| format!("Invalid AnkiConnect response: {e}"))?;
 
     if let Some(err) = payload.get("error").filter(|e| !e.is_null()) {
         return Err(format!("AnkiConnect: {err}"));
@@ -64,7 +83,13 @@ pub async fn deck_names(url: &str) -> Result<Vec<String>, String> {
 }
 
 pub async fn import_package(url: &str, apkg_path: &str) -> Result<(), String> {
-    let result = invoke(url, "importPackage", json!({ "path": apkg_path })).await?;
+    let result = invoke_with_timeout(
+        url,
+        "importPackage",
+        json!({ "path": apkg_path }),
+        std::time::Duration::from_secs(120),
+    )
+    .await?;
     match result.as_bool() {
         Some(true) => Ok(()),
         _ => Err("Import failed: Anki rejected the package".to_string()),
@@ -193,5 +218,46 @@ mod protocol_tests {
         )
         .await
         .unwrap();
+
+        let err = ping(&response(500, r#"database locked"#).await)
+            .await
+            .unwrap_err();
+        assert!(err.contains("database locked"), "{err}");
+
+        assert_eq!(
+            deck_names(&response(200, r#"{"result":["Default","Vesta"],"error":null}"#).await)
+                .await
+                .unwrap(),
+            vec!["Default".to_string(), "Vesta".to_string()]
+        );
+        import_package(
+            &response(200, r#"{"result":true,"error":null}"#).await,
+            "/tmp/a.apkg",
+        )
+        .await
+        .unwrap();
+        assert!(
+            import_package(
+                &response(200, r#"{"result":false,"error":null}"#).await,
+                "/tmp/a.apkg"
+            )
+            .await
+            .unwrap_err()
+            .contains("rejected")
+        );
+        store_media_file(
+            &response(200, r#"{"result":"clip.mp3","error":null}"#).await,
+            "clip.mp3",
+            "AAAA",
+        )
+        .await
+        .unwrap();
+        let added = add_notes(
+            &response(200, r#"{"result":[101,null],"error":null}"#).await,
+            &[],
+        )
+        .await
+        .unwrap();
+        assert_eq!(added, vec![Some(101), None]);
     }
 }

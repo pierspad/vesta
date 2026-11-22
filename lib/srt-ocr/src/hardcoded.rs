@@ -96,15 +96,28 @@ struct FfprobeVideoStream {
     width: Option<u32>,
     height: Option<u32>,
     duration: Option<String>,
+    start_time: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct FfprobeVideoFormat {
     duration: Option<String>,
+    start_time: Option<String>,
 }
 
 struct ProbedVideoInfo {
     duration_ms: u64,
+    start_offset_ms: u64,
+}
+
+fn compute_stream_start_offset_ms(format_start: Option<&str>, stream_start: Option<&str>) -> u64 {
+    let parse_sec = |raw: Option<&str>| -> Option<f64> {
+        let secs = raw?.trim().parse::<f64>().ok()?;
+        secs.is_finite().then_some(secs)
+    };
+    let fmt_start = parse_sec(format_start).unwrap_or(0.0);
+    let strm_start = parse_sec(stream_start).unwrap_or(fmt_start);
+    ((strm_start - fmt_start).max(0.0) * 1000.0).round() as u64
 }
 
 async fn probe_video_stream(
@@ -119,7 +132,7 @@ async fn probe_video_stream(
         "-select_streams",
         "v:0",
         "-show_entries",
-        "stream=width,height,duration:format=duration",
+        "stream=width,height,duration,start_time:format=duration,start_time",
         "-of",
         "json",
     ])
@@ -152,11 +165,19 @@ async fn probe_video_stream(
         }
     };
 
-    let duration_ms = parse_dur_ms(probe.format.and_then(|f| f.duration).as_deref())
+    let format_info = probe.format.as_ref();
+    let duration_ms = parse_dur_ms(format_info.and_then(|f| f.duration.as_deref()))
         .or_else(|| parse_dur_ms(stream.duration.as_deref()))
         .unwrap_or(0);
+    let start_offset_ms = compute_stream_start_offset_ms(
+        format_info.and_then(|f| f.start_time.as_deref()),
+        stream.start_time.as_deref(),
+    );
 
-    Ok(ProbedVideoInfo { duration_ms })
+    Ok(ProbedVideoInfo {
+        duration_ms,
+        start_offset_ms,
+    })
 }
 
 /// Extracts a single PNG preview frame from `input` at `time_ms` (or ~10% into the video, capped at 30s).
@@ -504,13 +525,13 @@ pub async fn extract_hardcoded_subtitles(
         "sample_fps must be finite and within 0.5..=15.0 (got {sample_fps})"
     );
 
-    let _ = probe_video_stream(ffprobe, input, cancel).await?;
+    let probed = probe_video_stream(ffprobe, input, cancel).await?;
     if limit == Some(0) {
         return Ok(Vec::new());
     }
 
     let filter = format!(
-        "crop=max(16\\,iw*{w:.6}):max(16\\,ih*{h:.6}):iw*{x:.6}:ih*{y:.6},fps={fps:.3},scale='min(960,iw)':-2",
+        "setpts=PTS-STARTPTS,crop=max(16\\,iw*{w:.6}):max(16\\,ih*{h:.6}):iw*{x:.6}:ih*{y:.6},fps={fps:.3},scale='min(960,iw)':-2",
         w = roi.width,
         h = roi.height,
         x = roi.x,
@@ -529,9 +550,18 @@ pub async fn extract_hardcoded_subtitles(
         .arg(input)
         .args(["-vf", &filter, "-f", "image2pipe", "-vcodec", "png", "-"]);
 
-    let mut child = cmd
-        .spawn()
-        .context("Failed to spawn ffmpeg for hardcoded subtitle extraction")?;
+    let mut attempts = 0;
+    let mut child = loop {
+        match cmd.spawn() {
+            Err(e) if e.raw_os_error() == Some(26) && attempts < 10 => {
+                attempts += 1;
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+            res => {
+                break res.context("Failed to spawn ffmpeg for hardcoded subtitle extraction")?;
+            }
+        }
+    };
     let mut stdout = child
         .stdout
         .take()
@@ -557,6 +587,8 @@ pub async fn extract_hardcoded_subtitles(
     loop {
         if cancel.is_some_and(CancellationToken::is_cancelled) {
             let _ = child.kill().await;
+            let _ = child.wait().await;
+            stderr_task.abort();
             bail!("Hardcoded subtitle extraction cancelled");
         }
 
@@ -565,6 +597,8 @@ pub async fn extract_hardcoded_subtitles(
                 biased;
                 _ = token.cancelled() => {
                     let _ = child.kill().await;
+                    let _ = child.wait().await;
+                    stderr_task.abort();
                     bail!("Hardcoded subtitle extraction cancelled");
                 }
                 res = stdout.read(&mut chunk) => res.context("Failed reading ffmpeg PNG stream")?,
@@ -581,10 +615,16 @@ pub async fn extract_hardcoded_subtitles(
         }
 
         while let Some(png_bytes) = pop_complete_png(&mut buf, &mut scan_pos)? {
-            let t_ms = ((frame_idx as f64 / sample_fps) * 1000.0).round() as u64;
+            let t_ms =
+                probed.start_offset_ms + ((frame_idx as f64 / sample_fps) * 1000.0).round() as u64;
             frame_idx += 1;
 
-            let maybe_sig = analyze_roi_frame(&png_bytes)?;
+            let (png_bytes, maybe_sig) = tokio::task::spawn_blocking(move || {
+                let sig = analyze_roi_frame(&png_bytes)?;
+                anyhow::Ok((png_bytes, sig))
+            })
+            .await
+            .context("Hardcoded subtitle frame analysis task failed")??;
             match (open_cue.take(), maybe_sig) {
                 (None, None) => {}
                 (None, Some(sig)) => {
@@ -632,6 +672,7 @@ pub async fn extract_hardcoded_subtitles(
 
     if hit_limit {
         let _ = child.wait().await;
+        stderr_task.abort();
     } else {
         let status = child
             .wait()
@@ -813,5 +854,125 @@ mod tests {
                 .await
                 .unwrap_err();
         assert!(err.to_string().to_lowercase().contains("cancel"));
+    }
+
+    #[test]
+    fn compute_stream_start_offset_ms_handles_relative_and_invalid_values() {
+        assert_eq!(
+            compute_stream_start_offset_ms(Some("1.000"), Some("3.250")),
+            2250
+        );
+        assert_eq!(
+            compute_stream_start_offset_ms(Some("5.000"), Some("5.000")),
+            0
+        );
+        assert_eq!(
+            compute_stream_start_offset_ms(Some("5.000"), Some("2.000")),
+            0
+        );
+        assert_eq!(compute_stream_start_offset_ms(None, Some("1.500")), 1500);
+        assert_eq!(compute_stream_start_offset_ms(Some("bad"), Some("NaN")), 0);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn extract_hardcoded_subtitles_applies_setpts_and_stream_start_offset() {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let encode_solid_png = |luma: u8| -> Vec<u8> {
+            let mut rgba = vec![16u8; 32 * 8 * 4];
+            for px in rgba.as_chunks_mut::<4>().0 {
+                px[3] = 255;
+            }
+            if luma > 100 {
+                for y in 2..6 {
+                    for x in 4..28 {
+                        let off = (y * 32 + x) * 4;
+                        rgba[off..off + 4].copy_from_slice(&[luma, luma, luma, 255]);
+                    }
+                }
+            }
+            let mut out = Vec::new();
+            let mut encoder = png::Encoder::new(&mut out, 32, 8);
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+            encoder
+                .write_header()
+                .unwrap()
+                .write_image_data(&rgba)
+                .unwrap();
+            out
+        };
+
+        let mut stream_bytes = Vec::new();
+        stream_bytes.extend_from_slice(&encode_solid_png(16)); // t = offset + 0ms (dark)
+        stream_bytes.extend_from_slice(&encode_solid_png(240)); // t = offset + 500ms (bright cue)
+        stream_bytes.extend_from_slice(&encode_solid_png(16)); // t = offset + 1000ms (dark close)
+
+        let png_stream_path = dir.path().join("frames.pngs");
+        std::fs::write(&png_stream_path, &stream_bytes).unwrap();
+        let probe_path = dir.path().join("probe.json");
+        std::fs::write(
+            &probe_path,
+            br#"{"streams":[{"width":320,"height":240,"duration":"2.0","start_time":"5.500"}],"format":{"duration":"2.0","start_time":"1.000"}}"#,
+        )
+        .unwrap();
+        let args_log = dir.path().join("ffmpeg.args");
+
+        let ffprobe_script = dir.path().join("mock-ffprobe");
+        let ffmpeg_script = dir.path().join("mock-ffmpeg");
+        std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .mode(0o700)
+            .open(&ffprobe_script)
+            .unwrap()
+            .write_all(format!("#!/bin/sh\ncat '{}'\n", probe_path.display()).as_bytes())
+            .unwrap();
+        std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .mode(0o700)
+            .open(&ffmpeg_script)
+            .unwrap()
+            .write_all(
+                format!(
+                    "#!/bin/sh\nprintf '%s\\n' \"$*\" > '{}'\ncat '{}'\n",
+                    args_log.display(),
+                    png_stream_path.display()
+                )
+                .as_bytes(),
+            )
+            .unwrap();
+
+        let video = dir.path().join("offset.mkv");
+        std::fs::write(&video, b"stub").unwrap();
+        let roi = VideoRoi {
+            x: 0.1,
+            y: 0.7,
+            width: 0.8,
+            height: 0.2,
+        };
+        let cues = extract_hardcoded_subtitles(
+            ffmpeg_script.to_str().unwrap(),
+            ffprobe_script.to_str().unwrap(),
+            &video,
+            roi,
+            2.0,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(cues.len(), 1);
+        assert_eq!(cues[0].start_ms, 5000);
+        assert_eq!(cues[0].end_ms, 5500);
+        let logged = std::fs::read_to_string(&args_log).unwrap();
+        assert!(logged.contains("setpts=PTS-STARTPTS,"));
     }
 }

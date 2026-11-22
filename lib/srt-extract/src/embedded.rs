@@ -119,7 +119,14 @@ async fn extract_track(
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
-    let temporary = tempfile::NamedTempFile::new_in(parent)?;
+    std::fs::create_dir_all(parent)?;
+    if let Ok(meta) = std::fs::symlink_metadata(output)
+        && meta.file_type().is_symlink()
+    {
+        bail!("Refusing to overwrite symlink output: {}", output.display());
+    }
+    let temp_dir = tempfile::tempdir_in(parent)?;
+    let temp_out = temp_dir.path().join("extracted.srt");
     let mut command = tokio::process::Command::new(ffmpeg);
     #[cfg(windows)]
     command.creation_flags(0x0800_4000);
@@ -139,22 +146,19 @@ async fn extract_track(
     if let Some(limit) = preview_limit {
         command.args(["-frames:s", &limit.to_string()]);
     }
-    let result = tokio::time::timeout(
-        Duration::from_secs(120),
-        command.arg(temporary.path()).output(),
-    )
-    .await
-    .context("Subtitle extraction timed out")??;
+    let result = tokio::time::timeout(Duration::from_secs(120), command.arg(&temp_out).output())
+        .await
+        .context("Subtitle extraction timed out")??;
     if !result.status.success() {
         bail!(
             "Subtitle extraction failed: {}",
             String::from_utf8_lossy(&result.stderr)
         );
     }
-    if temporary.as_file().metadata()?.len() == 0 {
+    if std::fs::metadata(&temp_out)?.len() == 0 {
         bail!("Subtitle track is empty");
     }
-    temporary.persist(output).map_err(|error| error.error)?;
+    std::fs::rename(&temp_out, output)?;
     Ok(())
 }
 

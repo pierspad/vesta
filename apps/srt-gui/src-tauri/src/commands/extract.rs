@@ -355,8 +355,15 @@ pub async fn ocr_download_model(
 
 /// Uninstalls a cached local OCR model from disk.
 #[tauri::command]
-pub async fn ocr_uninstall_model(model_id: String) -> Result<bool, String> {
-    srt_ocr::model::uninstall_model(&model_id).map_err(|e| e.to_string())
+pub async fn ocr_uninstall_model(
+    state: State<'_, AppOcrState>,
+    model_id: String,
+) -> Result<bool, String> {
+    let _guard = OperationGuard::begin(&state, "OCR or model download already in progress")?;
+    tokio::task::spawn_blocking(move || srt_ocr::model::uninstall_model(&model_id))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

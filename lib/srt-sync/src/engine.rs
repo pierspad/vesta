@@ -170,9 +170,10 @@ impl SyncEngine {
         let start = (sub.start.milliseconds as i64)
             .saturating_add(start_offset)
             .max(0) as u64;
-        let end = (sub.end.milliseconds as i64)
+        let end = ((sub.end.milliseconds as i64)
             .saturating_add(end_offset)
-            .max(0) as u64;
+            .max(0) as u64)
+            .max(start);
         (start, end, start_offset)
     }
 

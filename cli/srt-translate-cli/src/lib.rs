@@ -71,24 +71,25 @@ static ENV_VAR_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\$\{([A-Z_][A-Z0-9_]*)\}").expect("Regex pattern is a compile-time constant")
 });
 
-/// Expands environment variables in `${VAR_NAME}` format.
-fn expand_env_vars(content: &str) -> Result<String> {
-    let mut result = content.to_string();
+/// Expands `${VAR_NAME}` placeholders within parsed configuration string fields
+/// in a single pass so environment values cannot alter TOML structure or trigger
+/// recursive expansion.
+fn expand_env_in_str(content: &str) -> Result<String> {
+    let mut result = String::with_capacity(content.len());
     let mut missing_vars = Vec::new();
+    let mut last_end = 0usize;
 
     for cap in ENV_VAR_PATTERN.captures_iter(content) {
+        let full_match = cap.get(0).expect("full capture group always exists");
+        result.push_str(&content[last_end..full_match.start()]);
         let var_name = &cap[1];
-        let placeholder = &cap[0];
-
         match std::env::var(var_name) {
-            Ok(value) => {
-                result = result.replace(placeholder, &value);
-            }
-            Err(_) => {
-                missing_vars.push(var_name.to_string());
-            }
+            Ok(value) => result.push_str(&value),
+            Err(_) => missing_vars.push(var_name.to_string()),
         }
+        last_end = full_match.end();
     }
+    result.push_str(&content[last_end..]);
 
     if !missing_vars.is_empty() {
         return Err(anyhow::anyhow!(
@@ -98,6 +99,23 @@ fn expand_env_vars(content: &str) -> Result<String> {
     }
 
     Ok(result)
+}
+
+fn expand_config_env_vars(config: &mut Config) -> Result<()> {
+    for tier in &mut config.tiers {
+        for entry in &mut tier.entries {
+            entry.provider = expand_env_in_str(&entry.provider)?;
+            entry.model = expand_env_in_str(&entry.model)?;
+            if let Some(ref mut api_key) = entry.api_key {
+                *api_key = expand_env_in_str(api_key)?;
+            }
+            if let Some(ref mut api_url) = entry.api_url {
+                *api_url = expand_env_in_str(api_url)?;
+            }
+        }
+    }
+    config.output.filename_pattern = expand_env_in_str(&config.output.filename_pattern)?;
+    Ok(())
 }
 
 #[derive(Parser)]
@@ -192,16 +210,15 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
     let language = cli.language.as_ref()
         .ok_or_else(|| anyhow::anyhow!("Language is required. Use -l/--language <code> or see --language-list for available languages"))?;
 
-    let mut config_content = std::fs::read_to_string(&cli.config)
+    let config_content = std::fs::read_to_string(&cli.config)
         .map_err(|e| anyhow::anyhow!(
             "Failed to read config file '{}': {}\n\nPlease create a config.toml file or specify --config path.",
             cli.config.display(),
             e
         ))?;
 
-    config_content = expand_env_vars(&config_content)?;
-
-    let config = parse_config(&config_content)?;
+    let mut config = parse_config(&config_content)?;
+    expand_config_env_vars(&mut config)?;
 
     let tiers: Vec<Vec<TierEntry>> = config.tiers.into_iter().map(|t| t.entries).collect();
     let mut pool = srt_translate::build_pool(&tiers).map_err(|e| anyhow::anyhow!(e))?;
@@ -216,23 +233,23 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
         }
     }
 
-    println!("🔧 Configuration:");
-    println!("  📄 Config file: {}", cli.config.display());
+    eprintln!("🔧 Configuration:");
+    eprintln!("  📄 Config file: {}", cli.config.display());
     for (tier_idx, tier) in pool.iter().enumerate() {
-        println!("  🏷️  Tier {}:", tier_idx + 1);
+        eprintln!("  🏷️  Tier {}:", tier_idx + 1);
         for entry in tier {
-            println!("     - {}", entry.label);
+            eprintln!("     - {}", entry.label);
         }
     }
-    println!(
+    eprintln!(
         "  📦 Batch size: {} subtitles per request",
         config.translation.batch_size
     );
-    println!();
+    eprintln!();
 
-    println!("📖 Reading file: {}", input.display());
+    eprintln!("📖 Reading file: {}", input.display());
     let original_subtitles = SrtParser::parse_file(input)?;
-    println!("✅ Found {} subtitles", original_subtitles.len());
+    eprintln!("✅ Found {} subtitles", original_subtitles.len());
 
     let title_context = input
         .file_stem()
@@ -240,7 +257,7 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
         .map(|s| s.replace(['_', '.'], " "));
 
     if let Some(ref title) = title_context {
-        println!("🎬 Detected title: {}", title);
+        eprintln!("🎬 Detected title: {}", title);
     }
 
     let output_path = cli.output.unwrap_or_else(|| {
@@ -264,16 +281,16 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
 
     srt_parser::persistence::ensure_distinct_files(input, &output_path)?;
 
-    println!(" Translating to '{}'...", language);
-    println!();
+    eprintln!(" Translating to '{}'...", language);
+    eprintln!();
 
     let cli_progress_handler = |progress: TranslationProgress| {
         if let Some(eta) = progress.eta_seconds {
             let minutes = (eta / 60.0) as u32;
             let seconds = (eta % 60.0) as u32;
-            println!("  {} (ETA: {}m {}s)", progress.message, minutes, seconds);
+            eprintln!("  {} (ETA: {}m {}s)", progress.message, minutes, seconds);
         } else if !progress.message.is_empty() {
-            println!("  ℹ️  {}", progress.message);
+            eprintln!("  ℹ️  {}", progress.message);
         }
     };
 
@@ -310,27 +327,27 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
     }
     let translated = translated_result?;
 
-    println!();
+    eprintln!();
 
     let missing_ids =
         srt_translate::verify_translation_completeness(&original_subtitles, &translated);
     if missing_ids.is_empty() {
-        println!(
+        eprintln!(
             "✅ All {} subtitles present with correct line counts!",
             original_subtitles.len()
         );
+        eprintln!();
+        eprintln!("💾 Translation complete: {}", output_path.display());
+        eprintln!("✨ Done!");
+        Ok(ExitCode::SUCCESS)
     } else {
-        println!(
+        eprintln!(
             "⚠️  {} subtitles still have issues after repair — you may need to review them manually.",
             missing_ids.len()
         );
+        eprintln!("💾 Partial translation saved to: {}", output_path.display());
+        Ok(ExitCode::FAILURE)
     }
-
-    println!();
-    println!("💾 Translation complete: {}", output_path.display());
-    println!("✨ Done!");
-
-    Ok(ExitCode::SUCCESS)
 }
 
 fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -> Result<ExitCode> {
@@ -550,5 +567,26 @@ mod tests {
         assert_eq!(strip_language_suffix("movie"), "movie");
         assert_eq!(strip_language_suffix("movie.toolong"), "movie.toolong");
         assert_eq!(strip_language_suffix("movie.a"), "movie.a");
+    }
+
+    #[test]
+    fn env_var_expansion_is_post_parse_and_resists_toml_injection() {
+        let secret = "sk\"\n[[tiers.entries]]\nprovider = \"evil";
+        let key_name = "VESTA_TEST_TRANSLATE_SECRET";
+        // Safe single-threaded test key scoped uniquely by name.
+        unsafe {
+            std::env::set_var(key_name, secret);
+        }
+        let toml_src = format!(
+            "[translation]\nbatch_size = 5\n\n[[tiers]]\n[[tiers.entries]]\nprovider = \"openai\"\nmodel = \"gpt-4o-mini\"\napi_key = \"${{{key_name}}}\"\n"
+        );
+        let mut config = parse_config(&toml_src).unwrap();
+        expand_config_env_vars(&mut config).unwrap();
+        unsafe {
+            std::env::remove_var(key_name);
+        }
+        assert_eq!(config.tiers.len(), 1);
+        assert_eq!(config.tiers[0].entries.len(), 1);
+        assert_eq!(config.tiers[0].entries[0].api_key.as_deref(), Some(secret));
     }
 }

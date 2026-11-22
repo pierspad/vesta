@@ -148,6 +148,20 @@ pub fn run_from(args: Vec<std::ffi::OsString>) -> ExitCode {
     }
 }
 
+fn spawn_ctrl_c_token(quiet: bool) -> CancellationToken {
+    let cancel_token = CancellationToken::new();
+    let token = cancel_token.clone();
+    tokio::spawn(async move {
+        if tokio::signal::ctrl_c().await.is_ok() {
+            if !quiet {
+                eprintln!("\nCancelling...");
+            }
+            token.cancel();
+        }
+    });
+    cancel_token
+}
+
 async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
     let cli = Cli::parse_from(args);
 
@@ -177,13 +191,19 @@ async fn run_cli(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
         Command::Download { model_id } => {
+            let cancel_token = spawn_ctrl_c_token(false);
             let label = model_id.clone();
             let progress = move |pct| eprint!("\rDownloading {label}... {pct}%");
             let path = if let Some(vad_id) = vad_variant_id(&model_id) {
-                download_vad_model(vad_id, progress, None).await?
+                download_vad_model(vad_id, progress, Some(&cancel_token)).await
             } else {
-                download_model(&model_id, progress, None).await?
+                download_model(&model_id, progress, Some(&cancel_token)).await
             };
+            if cancel_token.is_cancelled() {
+                eprintln!("\nDownload cancelled.");
+                return Ok(ExitCode::from(130));
+            }
+            let path = path?;
             eprintln!("\nModel saved to {}", path.display());
             Ok(ExitCode::SUCCESS)
         }
@@ -237,18 +257,7 @@ async fn run_transcription(args: RunArgs) -> Result<ExitCode> {
     };
 
     // Ctrl-C → cooperative cancellation.
-    let cancel_token = CancellationToken::new();
-    {
-        let token = cancel_token.clone();
-        tokio::spawn(async move {
-            if tokio::signal::ctrl_c().await.is_ok() {
-                if !args.json {
-                    eprintln!("\nCancelling...");
-                }
-                token.cancel();
-            }
-        });
-    }
+    let cancel_token = spawn_ctrl_c_token(args.json);
 
     if args.json {
         return run_json(config, &args.ffmpeg, &cancel_token).await;

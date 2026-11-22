@@ -25,7 +25,9 @@ pub async fn flashcard_list_audio_tracks(
 
 #[tauri::command]
 pub async fn flashcard_preview(config: FlashcardConfig) -> Result<Vec<PreviewLine>, String> {
-    srt_flashcards::preview(&config)
+    tokio::task::spawn_blocking(move || srt_flashcards::preview(&config))
+        .await
+        .map_err(|e| format!("Flashcard preview failed: {e}"))?
 }
 
 #[tauri::command]
@@ -168,8 +170,7 @@ pub async fn flashcard_generate(
 /// Cancel an in-flight flashcard generation.
 #[tauri::command]
 pub async fn flashcard_cancel(state: State<'_, AppFlashcardState>) -> Result<bool, String> {
-    state.lock().map_err(|e| e.to_string())?.operation.cancel();
-    Ok(true)
+    Ok(state.lock().map_err(|e| e.to_string())?.operation.cancel())
 }
 
 #[tauri::command]
@@ -342,12 +343,14 @@ pub async fn save_temp_subtitles(
     let temp_dir = app_data.join("temp_subs");
     std::fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
 
+    static NEXT_TEMP_SUBS_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let suffix = if use_native { "native" } else { "target" };
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis())
         .unwrap_or(0);
-    let temp_file_path = temp_dir.join(format!("temp_{}_{}.srt", suffix, now));
+    let seq = NEXT_TEMP_SUBS_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let temp_file_path = temp_dir.join(format!("temp_{}_{}_{}.srt", suffix, now, seq));
 
     let mut subtitles = std::collections::HashMap::new();
     let mut counter: u32 = 1;
