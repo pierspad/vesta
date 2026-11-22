@@ -4,6 +4,7 @@ import { mount, tick, unmount } from "svelte";
 import SyncTab from "./SyncTab.svelte";
 import SyncTabActiveHarness from "$lib/test/fixtures/SyncTabActiveHarness.svelte";
 import { whisperModelsStore } from "$lib/stores/whisperModelsStore.svelte";
+import { aiStore } from "$lib/stores/aiStore.svelte";
 import { invokeCommand } from "$lib/services/tauriClient";
 
 const mocks = vi.hoisted(() => ({
@@ -173,6 +174,7 @@ it("pauses active media playback when the tab becomes hidden", async () => {
     await tick();
     expect(pauseSpy).toHaveBeenCalledOnce();
   } finally {
+    aiStore.killSwitchActive = false;
     await unmount(component);
   }
 });
@@ -227,6 +229,7 @@ it("does not play audio or scroll when deactivated while goToCheckpoint is await
     expect(playSpy).not.toHaveBeenCalled();
     expect(scrollIntoViewSpy).not.toHaveBeenCalled();
   } finally {
+    aiStore.killSwitchActive = false;
     await unmount(component);
   }
 });
@@ -277,6 +280,7 @@ it("does not autoplay or scroll if deactivated while goToCheckpoint reloads subt
     expect(playSpy).not.toHaveBeenCalled();
     expect(scrollIntoViewSpy).not.toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
   } finally {
+    aiStore.killSwitchActive = false;
     await unmount(component);
   }
 });
@@ -320,6 +324,29 @@ it("ignores window keydown shortcuts such as Ctrl+Z once the tab is deactivated"
     expect(vi.mocked(invokeCommand).mock.calls.map(([cmd]) => cmd)).not.toContain("sync_undo");
     expect(invokeCommand).not.toHaveBeenCalled();
   } finally {
+    aiStore.killSwitchActive = false;
+    await unmount(component);
+  }
+});
+
+it("hides the speech engine selector in SyncFooterBar when AI Kill Switch is active", async () => {
+  setupSyncInvokeMock();
+  aiStore.killSwitchActive = false;
+  const { target, component } = await mountActiveHarness();
+  try {
+    await flushAsyncAndTimers();
+    const selector = 'input[role="combobox"][aria-label="Transcription engine"]';
+    expect(target.querySelector(selector)).not.toBeNull();
+
+    aiStore.killSwitchActive = true;
+    await flushAsyncAndTimers();
+    expect(target.querySelector(selector)).toBeNull();
+
+    aiStore.killSwitchActive = false;
+    await flushAsyncAndTimers();
+    expect(target.querySelector(selector)).not.toBeNull();
+  } finally {
+    aiStore.killSwitchActive = false;
     await unmount(component);
   }
 });

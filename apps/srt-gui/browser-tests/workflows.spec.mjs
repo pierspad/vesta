@@ -189,7 +189,8 @@ test("Extract previews and runs hardcoded ROI OCR on video frames", async ({ pag
   await chooseFile(page, "/fixtures/movie.mkv", page.getByRole("button", { name: "Browse", exact: true }).first());
 
   const footer = page.locator("[data-footer-actions]:visible");
-  await footer.getByRole("tab", { name: "Hardcoded", exact: true }).click();
+  await footer.getByRole("combobox", { name: "Extract subtitles" }).click();
+  await page.getByRole("option", { name: "Hardcoded", exact: true }).click();
   await expect.poll(() => callsFor(page, "ocr_video_preview_frame")).toHaveLength(1);
 
   const roiOverlay = page.getByTestId("roi-overlay");
@@ -325,18 +326,27 @@ test("Settings runs diagnostics, downloads offline OCR model, and toggles AI Kil
   await expect(killSwitch).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("button", { name: "LLM", exact: true })).toBeHidden();
   await expect(page.getByRole("button", { name: "STT", exact: true })).toBeHidden();
-  await expect(page.getByRole("button", { name: "ITT", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "ITT", exact: true })).toBeHidden();
   await expect(page.locator("#itt-tiers")).toHaveCount(0);
-  await expect(ocrSection).toBeVisible();
+  await expect(ocrSection).toHaveCount(0);
 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.getByRole("button", { name: "Translate", exact: true })).toBeHidden();
   await expect(page.getByRole("button", { name: "Transcribe", exact: true })).toBeHidden();
 
+  await page.getByRole("button", { name: "Synchronize", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "Transcription engine" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Extract subtitles", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "Extract subtitles" })).toHaveCount(0);
+
   await killSwitch.click();
   await expect(killSwitch).toHaveAttribute("aria-checked", "false");
   await expect(page.getByRole("button", { name: "Translate", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Transcribe", exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Extract subtitles" })).toBeVisible();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(page.getByRole("button", { name: "ITT", exact: true })).toBeVisible();
 });
 
 test("First-run setup suggests an OCR model and jumps back from review items", async ({ page }) => {

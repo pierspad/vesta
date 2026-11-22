@@ -331,6 +331,58 @@ it("allows bitmap OCR using a downloaded local OCR model even when aiStore.killS
   expect(mocks.notify).toHaveBeenCalledWith("Saved: /out/with-pgs_en_2.srt", "success");
 });
 
+it("hides hardcoded mode switch and returns to embedded when aiStore.killSwitchActive is enabled", async () => {
+  configureLlmTiers();
+  const target = await render();
+  mocks.invoke.mockImplementation((command: string) => {
+    if (command === "embedded_subtitle_tracks") return Promise.resolve([]);
+    if (command === "ocr_video_preview_frame") {
+      return Promise.resolve({
+        data_url: "data:image/jpeg;base64,AA==",
+        width: 1280,
+        height: 720,
+        duration_ms: 120000,
+        time_ms: 30000,
+      });
+    }
+    return Promise.resolve([]);
+  });
+  mocks.drop!(["/film.mp4"]);
+  await settle();
+
+  const modeCombo = target.querySelector<HTMLInputElement>('input[role="combobox"][aria-label="Extract subtitles"]');
+  expect(modeCombo).not.toBeNull();
+  modeCombo!.focus();
+  await settle();
+  const hardcodedOption = [...document.body.querySelectorAll<HTMLButtonElement>(".searchable-select-option")].find(
+    (opt) => opt.textContent?.trim() === "Hardcoded",
+  );
+  hardcodedOption!.click();
+  await settle();
+  expect(target.querySelector("#hardcoded-roi-panel")).not.toBeNull();
+
+  const lockButton = target.querySelector<HTMLButtonElement>('button[aria-label="Keep aspect ratio"]');
+  expect(lockButton).not.toBeNull();
+  expect(target.querySelectorAll(".number-control-buttons")).toHaveLength(4);
+  lockButton!.click();
+  await settle();
+  expect(lockButton!.getAttribute("aria-pressed")).toBe("true");
+
+  aiStore.killSwitchActive = true;
+  await settle();
+
+  expect(target.querySelector("#hardcoded-roi-panel")).toBeNull();
+  expect(target.querySelector('input[role="combobox"][aria-label="Extract subtitles"]')).toBeNull();
+  const fallbackHardcodedBtn = [...target.querySelectorAll<HTMLButtonElement>("button")].find(
+    (b) => b.textContent?.trim() === "Hardcoded",
+  );
+  expect(fallbackHardcodedBtn).toBeUndefined();
+
+  aiStore.killSwitchActive = false;
+  await settle();
+  expect(target.querySelector('input[role="combobox"][aria-label="Extract subtitles"]')).not.toBeNull();
+});
+
 it("loads preview frame, previews ROI OCR, and runs hardcoded ROI extraction", async () => {
   configureLlmTiers();
   const target = await render();
@@ -355,11 +407,15 @@ it("loads preview frame, previews ROI OCR, and runs hardcoded ROI extraction", a
   mocks.drop!(["/film.mp4"]);
   await settle();
 
-  const hardcodedSwitch = [...target.querySelectorAll<HTMLButtonElement>('button[role="tab"]')].find((b) =>
-    b.textContent?.includes("Hardcoded"),
+  const modeCombo = target.querySelector<HTMLInputElement>('input[role="combobox"][aria-label="Extract subtitles"]');
+  expect(modeCombo).not.toBeNull();
+  modeCombo!.focus();
+  await settle();
+  const hardcodedOption = [...document.body.querySelectorAll<HTMLButtonElement>(".searchable-select-option")].find(
+    (opt) => opt.textContent?.trim() === "Hardcoded",
   );
-  expect(hardcodedSwitch).toBeDefined();
-  hardcodedSwitch!.click();
+  expect(hardcodedOption).toBeDefined();
+  hardcodedOption!.click();
   await settle();
 
   expect(mocks.invoke).toHaveBeenCalledWith("ocr_video_preview_frame", {

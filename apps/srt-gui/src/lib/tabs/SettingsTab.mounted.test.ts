@@ -7,6 +7,7 @@ import SettingsTab from "./SettingsTab.svelte";
 import * as config from "$lib/config/vestaConfig";
 import { uiMode } from "$lib/stores/uiModeStore.svelte";
 import { ankiStore } from "$lib/stores/ankiStore.svelte";
+import { aiStore } from "$lib/stores/aiStore.svelte";
 vi.mock("$lib/services/tauriClient", () => ({
   invokeCommand: vi.fn(async (command: string) => {
     if (command === "transcribe_list_models" || command === "flashcard_list_fonts") return [];
@@ -19,7 +20,7 @@ vi.mock("$lib/services/tauriClient", () => ({
 const mounted: ReturnType<typeof mount>[] = [];
 afterEach(async () => {
   for (const instance of mounted.splice(0)) await unmount(instance);
-  document.body.replaceChildren(); uiMode.expertMode = false;
+  document.body.replaceChildren(); uiMode.expertMode = false; aiStore.killSwitchActive = false;
 });
 async function reset(section: "overview" | "language" | "anki") {
   const target = document.createElement("div"); document.body.append(target);
@@ -129,4 +130,9 @@ it("renders the dedicated ITT section with ITT tiers and offline OCR models and 
   expect(removeTierBtn?.disabled).toBe(true);
   expect(ittTarget.textContent).not.toContain("Run bitmap and hardcoded subtitle OCR locally without cloud LLM costs.");
   expect(ittTarget.textContent).not.toContain("Configure local OpenAI-compatible Vision servers or cloud ITT endpoints for image subtitle OCR.");
+
+  aiStore.killSwitchActive = true;
+  await tick(); await tick();
+  expect(ittTarget.querySelector("#itt-tiers")).toBeNull();
+  expect(ittTarget.querySelector("#ocr-models")).toBeNull();
 });
