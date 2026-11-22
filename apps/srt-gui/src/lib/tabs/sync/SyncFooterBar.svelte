@@ -1,5 +1,6 @@
 <script lang="ts">
   import { locale } from "$lib/i18n";
+  import { aiStore } from "$lib/stores/aiStore.svelte";
   import { autoSyncStore } from "$lib/stores/autoSyncStore.svelte";
   import { localWhisperOperation } from "$lib/utils/asyncControl.svelte";
   import type { TranscribeTierEntry } from "$lib/config/transcribeTiers";
@@ -51,14 +52,16 @@
       </div>
     </div>
 
-    <div class="w-40 min-[961px]:w-56 max-w-full min-w-0">
-      <SpeechEngineSelector
-        purpose="sync"
-        compact
-        disabled={!active || autoSyncStore.isAutoSyncing || localWhisperOperation.busy}
-        onresolve={(entry) => { selectedEngine = entry; }}
-      />
-    </div>
+    {#if !aiStore.killSwitchActive}
+      <div class="w-40 min-[961px]:w-56 max-w-full min-w-0">
+        <SpeechEngineSelector
+          purpose="sync"
+          compact
+          disabled={!active || autoSyncStore.isAutoSyncing || localWhisperOperation.busy}
+          onresolve={(entry) => { selectedEngine = entry; }}
+        />
+      </div>
+    {/if}
   {/snippet}
   {#snippet center()}
     <AutoSyncControls {canAutoSync} onStart={onStartAutoSync} />

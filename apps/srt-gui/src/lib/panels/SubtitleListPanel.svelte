@@ -127,7 +127,7 @@
 <div class="glass-card perf-scroll-card flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden">
   <!-- Header -->
   <div class="px-5 pt-5 pb-2 flex-shrink-0">
-    <h3 class="text-lg font-semibold flex items-center gap-2 text-[var(--accent-text)]">
+    <h3 class="text-lg font-semibold flex items-center gap-2 text-purple-400">
       <svg
         class="w-5 h-5"
         fill="none"
@@ -233,15 +233,15 @@
     {:else}
       {#if !isLoaded}
         {#each Array(pageSize) as _, index (index)}
-          <div aria-hidden="true" class="w-full min-w-0 p-3 border-b border-[var(--border)]">
+          <div aria-hidden="true" class="w-full min-w-0 p-3 border-b border-white/5 opacity-35">
             <div class="flex items-start gap-2">
-              <div class="w-8 flex-shrink-0 pt-1"><div class="h-2 w-5 rounded bg-[var(--surface-2)]"></div></div>
+              <div class="w-8 flex-shrink-0 pt-1"><div class="h-2 w-5 rounded bg-white/10"></div></div>
               <div class="flex-1 min-w-0">
-                <div class="h-5 flex items-center"><div class="h-3 w-4/5 rounded bg-[var(--surface-2)]"></div></div>
+                <div class="h-5 flex items-center"><div class="h-3 w-4/5 rounded bg-white/10"></div></div>
                 <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 min-h-4">
-                  <div class="h-2 w-16 rounded bg-[var(--surface-2)]/70"></div>
-                  <span class="text-xs text-[var(--muted)]/60">→</span>
-                  <div class="h-2 w-16 rounded bg-[var(--surface-2)]/70"></div>
+                  <div class="h-2 w-16 rounded bg-white/[0.06]"></div>
+                  <span class="text-xs text-white/20">→</span>
+                  <div class="h-2 w-16 rounded bg-white/[0.06]"></div>
                 </div>
               </div>
             </div>

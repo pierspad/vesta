@@ -346,6 +346,82 @@ input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.1);
 }
 
+/* Media playback timeline slider — distinct played fill, clean circular thumb */
+input[type="range"].slider-playback {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    #38bdf8 0%,
+    #38bdf8 var(--slider-progress, 0%),
+    rgba(255, 255, 255, 0.14) var(--slider-progress, 0%),
+    rgba(255, 255, 255, 0.14) 100%
+  );
+  transition: opacity 0.15s ease;
+}
+
+input[type="range"].slider-playback::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #f0f9ff;
+  border: 2px solid #38bdf8;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+input[type="range"].slider-playback::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+  background: #ffffff;
+}
+
+input[type="range"].slider-playback:disabled::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(148, 163, 184, 0.45);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+input[type="range"].slider-playback::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+input[type="range"].slider-playback::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: #38bdf8;
+}
+
+input[type="range"].slider-playback::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #f0f9ff;
+  border: 2px solid #38bdf8;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+input[type="range"].slider-playback::-moz-range-thumb:hover {
+  transform: scale(1.12);
+  background: #ffffff;
+}
+
+input[type="range"].slider-playback:disabled::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(148, 163, 184, 0.45);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 /* Resource management slider — clean, no glow, no gradient */
 input[type="range"].slider-resource {
   -webkit-appearance: none;

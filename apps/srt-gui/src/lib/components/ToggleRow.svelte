@@ -64,7 +64,7 @@
       </div>
     {/if}
     <div class="flex-1 min-w-0">
-      <span class="text-sm font-semibold text-white block truncate">{label}</span>
+      <span class="text-sm font-medium text-gray-200 block truncate">{label}</span>
       {#if description}
         <span class="text-xs text-gray-400 block leading-relaxed">{description}</span>
       {/if}

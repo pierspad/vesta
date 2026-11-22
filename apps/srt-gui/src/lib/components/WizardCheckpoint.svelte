@@ -86,6 +86,11 @@
   let t = $derived($locale);
   let canUseCheckpoint = $derived(srtLoaded && !!wizardSubtitle);
   let canControlAudio = $derived(canUseCheckpoint && hasAudio);
+  let playbackProgressPct = $derived(
+    canUseCheckpoint && audioDuration > 0
+      ? Math.max(0, Math.min(100, (currentVideoTime / audioDuration) * 100))
+      : 0,
+  );
 </script>
 
 <div class="glass-card relative flex flex-auto shrink-0 flex-col overflow-visible">
@@ -206,7 +211,8 @@
                   if (audioElement)
                     audioElement.currentTime = currentVideoTime;
                 }}
-                class="flex-1"
+                class="slider-playback flex-1 cursor-pointer disabled:cursor-not-allowed"
+                style:--slider-progress={`${playbackProgressPct.toFixed(2)}%`}
               />
               <span
                 class="text-sm text-gray-400 font-mono w-24 text-right"

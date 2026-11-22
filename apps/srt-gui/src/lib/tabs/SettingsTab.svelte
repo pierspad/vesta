@@ -394,8 +394,8 @@
 
   $effect(() => {
     if (aiStore.killSwitchActive) {
-      if (activeSettingsSection === "llm" || activeSettingsSection === "whisper") activeSettingsSection = "overview";
-      if (requestedSection === "llm" || requestedSection === "whisper") requestedSection = "overview";
+      if (activeSettingsSection === "llm" || activeSettingsSection === "whisper" || activeSettingsSection === "itt") activeSettingsSection = "overview";
+      if (requestedSection === "llm" || requestedSection === "whisper" || requestedSection === "itt") requestedSection = "overview";
     }
   });
 
@@ -536,7 +536,7 @@
           {highlightedModelId}
           {whisperEngine}
         />
-      {:else if activeSettingsSection === "itt"}
+      {:else if activeSettingsSection === "itt" && !aiStore.killSwitchActive}
         <IttSettingsPanel
           {active}
           {s}

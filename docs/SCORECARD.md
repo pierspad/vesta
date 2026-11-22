@@ -14,7 +14,7 @@
 | Registered Tauri IPC commands | 108 | `apps/srt-gui/src-tauri/src/main.rs` |
 | Playwright mock handlers (`vesta-mock.mjs`) | 108/108 | `apps/srt-gui/browser-tests/vesta-mock.mjs` |
 | IPC names referenced in Playwright specs | 108/108 | `apps/srt-gui/browser-tests/*.spec.mjs` |
-| Vitest files / cases | 148 / 661 | `apps/srt-gui/src/**/*.test.*` |
+| Vitest files / cases | 148 / 663 | `apps/srt-gui/src/**/*.test.*` |
 | Playwright spec files / `test()` decls | 6 / 28 | `apps/srt-gui/browser-tests/*.spec.mjs` |
 | MCP tools (`vesta-mcp`) | 12 | `cli/vesta-mcp/src/lib.rs` |
 | Unified `vesta-cli` workflows | 8 | `cli/vesta-cli/src/lib.rs` |

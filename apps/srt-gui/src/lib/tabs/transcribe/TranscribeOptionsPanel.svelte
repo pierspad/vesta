@@ -58,11 +58,11 @@
     {t("transcribe.options")}
   </h3>
   <div class="mb-4 space-y-2 rounded-xl {modelHighlightClass}">
-    <div class="flex items-center gap-2 text-sm font-medium" style="color: var(--text)">
-      <svg aria-hidden="true" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10" />
+    <div class="flex items-center gap-1.5 text-sm text-gray-400 font-medium">
+      <svg aria-hidden="true" class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z" />
       </svg>
-      {t("transcribe.engineTitle")}
+      <span>{t("transcribe.engineTitle")}</span>
     </div>
     <SpeechEngineSelector purpose="transcribe" disabled={isTranscribing || !active} onresolve={(entry) => { selectedEngine = entry; }} />
     {#if onGoToSettings}

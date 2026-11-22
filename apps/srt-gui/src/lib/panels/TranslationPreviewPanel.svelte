@@ -14,7 +14,7 @@
 </script>
 
 <div class="glass-card p-5 min-h-[400px] flex flex-col {className}">
-  <h3 class="mb-4 flex shrink-0 items-center gap-2 text-lg font-semibold text-[var(--accent-text)]">
+  <h3 class="mb-4 flex shrink-0 items-center gap-2 text-lg font-semibold text-purple-400">
     <svg aria-hidden="true" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
     {t("translate.livePreview")}
     {#if pairs.length}<span class="text-xs font-normal text-[var(--muted)]">({pairs.length} {t("translate.subtitles")})</span>{/if}
@@ -30,9 +30,9 @@
               <p class="mt-0.5 whitespace-pre-line break-words text-sm text-[var(--text)]">{subtitle.text}</p>
             </div>
           {:else}
-            <div aria-hidden="true" class="space-y-2">
+            <div aria-hidden="true" class="space-y-2 opacity-35">
               {#each Array(5) as _, index (index)}
-                <div class="rounded-lg border-s-2 border-[var(--border)] bg-[var(--surface-3)]/40 p-3"><div class="mb-3 h-2 w-8 rounded bg-[var(--surface-2)]"></div><div class="h-3 w-4/5 rounded bg-[var(--surface-2)]"></div></div>
+                <div class="rounded-lg border-s-2 border-white/10 bg-white/[0.02] p-3"><div class="mb-3 h-2 w-8 rounded bg-white/10"></div><div class="h-2.5 w-4/5 rounded bg-white/[0.07]"></div></div>
               {/each}
             </div>
           {/each}
@@ -50,9 +50,9 @@
               <p class="mt-0.5 whitespace-pre-line break-words text-sm text-[var(--text)]">{pair.translated}</p>
             </div>
           {:else}
-            <div aria-hidden="true" class="space-y-2">
+            <div aria-hidden="true" class="space-y-2 opacity-35">
               {#each Array(5) as _, index (index)}
-                <div class="rounded-lg border-s-2 border-[var(--border)] bg-[var(--surface-3)]/40 p-3"><div class="mb-3 h-2 w-8 rounded bg-[var(--surface-2)]"></div><div class="h-3 w-4/5 rounded bg-[var(--surface-2)]"></div></div>
+                <div class="rounded-lg border-s-2 border-white/10 bg-white/[0.02] p-3"><div class="mb-3 h-2 w-8 rounded bg-white/10"></div><div class="h-2.5 w-4/5 rounded bg-white/[0.07]"></div></div>
               {/each}
             </div>
           {/each}

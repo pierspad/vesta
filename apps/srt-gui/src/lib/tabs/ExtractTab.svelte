@@ -7,9 +7,11 @@
   import FooterActions from "$lib/components/FooterActions.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import SettingsJumpButton from "$lib/components/SettingsJumpButton.svelte";
+  import AspectRatioLock from "$lib/components/AspectRatioLock.svelte";
   import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import LoadingSpinner from "$lib/components/LoadingSpinner.svelte";
   import ProgressFill from "$lib/components/ProgressFill.svelte";
+  import { numberControl } from "$lib/utils/numberControl";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import { onMount, onDestroy, untrack } from "svelte";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -149,13 +151,36 @@
   ];
 
   let extractMode = $state<"embedded" | "hardcoded">("embedded");
+  $effect(() => {
+    if (aiStore.killSwitchActive && extractMode !== "embedded") {
+      extractMode = "embedded";
+    }
+  });
+  let extractModeOptions = $derived([
+    {
+      value: "embedded",
+      label: t("extract.modeEmbedded"),
+      icon: '<svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 13h4m3 0h3M7 16h10"/></svg>',
+    },
+    {
+      value: "hardcoded",
+      label: t("extract.modeHardcoded"),
+      icon: '<svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M4 16v3a1 1 0 001 1h3m9 0h3a1 1 0 001-1v-3"/><path d="M8 14h8M9 10h6"/></svg>',
+    },
+  ]);
   let roi = $state<VideoRoi>({ ...ROI_PRESET_BOTTOM });
+  let lockedRoiRatio = $state<number | null>(null);
   let sampleFps = $state(2.5);
   let hardcodedLanguage = $state(vestaConfig.getItem("vesta-default-transcribe-language") || "auto");
   let framePreview = $state<VideoFramePreview | null>(null);
   let frameTimeMs = $state<number | null>(null);
   let loadingFrame = $state(false);
   let extractingHardcoded = $state(false);
+  let previewProgressPct = $derived(
+    framePreview && framePreview.duration_ms > 0
+      ? Math.max(0, Math.min(100, ((frameTimeMs ?? framePreview.time_ms) / framePreview.duration_ms) * 100))
+      : 0,
+  );
   let roiContainerEl = $state<HTMLDivElement | null>(null);
   let roiDragState = $state<{
     mode: "move" | "draw" | "resize";
@@ -547,6 +572,9 @@
 
   function setRoiPreset(preset: "bottom" | "top" | "full") {
     roi = preset === "bottom" ? { ...ROI_PRESET_BOTTOM } : preset === "top" ? { ...ROI_PRESET_TOP } : { ...ROI_PRESET_FULL };
+    if (lockedRoiRatio !== null && roi.height > 0) {
+      lockedRoiRatio = roi.width / roi.height;
+    }
   }
 
   function centerRoiHorizontally() {
@@ -558,16 +586,58 @@
     const value = clamp01(percent / 100);
     if (field === "x") {
       const width = Math.min(roi.width, Math.max(0.02, 1 - value));
-      roi = { ...roi, x: roundRoiValue(Math.min(value, 1 - width)), width: roundRoiValue(width) };
+      const x = Math.min(value, 1 - width);
+      if (lockedRoiRatio !== null && roi.height > 0) {
+        const height = Math.max(0.02, Math.min(1 - roi.y, width / lockedRoiRatio));
+        const adjustedWidth = Math.max(0.02, Math.min(1 - x, height * lockedRoiRatio));
+        roi = {
+          ...roi,
+          x: roundRoiValue(x),
+          width: roundRoiValue(adjustedWidth),
+          height: roundRoiValue(height),
+        };
+      } else {
+        roi = { ...roi, x: roundRoiValue(x), width: roundRoiValue(width) };
+      }
     } else if (field === "y") {
       const height = Math.min(roi.height, Math.max(0.02, 1 - value));
-      roi = { ...roi, y: roundRoiValue(Math.min(value, 1 - height)), height: roundRoiValue(height) };
+      const y = Math.min(value, 1 - height);
+      if (lockedRoiRatio !== null && roi.width > 0) {
+        const width = Math.max(0.02, Math.min(1 - roi.x, height * lockedRoiRatio));
+        const adjustedHeight = Math.max(0.02, Math.min(1 - y, width / lockedRoiRatio));
+        roi = {
+          ...roi,
+          y: roundRoiValue(y),
+          width: roundRoiValue(width),
+          height: roundRoiValue(adjustedHeight),
+        };
+      } else {
+        roi = { ...roi, y: roundRoiValue(y), height: roundRoiValue(height) };
+      }
     } else if (field === "width") {
-      const width = Math.max(0.02, Math.min(1 - roi.x, value));
-      roi = { ...roi, width: roundRoiValue(width) };
+      const maxWidth = Math.max(0.02, 1 - roi.x);
+      if (lockedRoiRatio !== null && lockedRoiRatio > 0) {
+        const maxHeight = Math.max(0.02, 1 - roi.y);
+        const clampedWidth = Math.max(0.02, Math.min(maxWidth, value));
+        const height = Math.max(0.02, Math.min(maxHeight, clampedWidth / lockedRoiRatio));
+        const width = Math.max(0.02, Math.min(maxWidth, height * lockedRoiRatio));
+        roi = { ...roi, width: roundRoiValue(width), height: roundRoiValue(height) };
+      } else {
+        const width = Math.max(0.02, Math.min(maxWidth, value));
+        roi = { ...roi, width: roundRoiValue(width) };
+      }
     } else {
-      const height = Math.max(0.02, Math.min(1 - roi.y, value));
-      roi = { ...roi, height: roundRoiValue(height) };
+      const maxHeight = Math.max(0.02, 1 - roi.y);
+      if (lockedRoiRatio !== null && lockedRoiRatio > 0) {
+        const maxWidth = Math.max(0.02, 1 - roi.x);
+        const clampedHeight = Math.max(0.02, Math.min(maxHeight, value));
+        const width = Math.max(0.02, Math.min(maxWidth, clampedHeight * lockedRoiRatio));
+        const height = Math.max(0.02, Math.min(maxHeight, width / lockedRoiRatio));
+        roi = { ...roi, width: roundRoiValue(width), height: roundRoiValue(height) };
+      } else {
+        const height = Math.max(0.02, Math.min(maxHeight, value));
+        roi = { ...roi, height: roundRoiValue(height) };
+      }
     }
   }
 
@@ -902,10 +972,15 @@
           {#if tracks.length > 0 && filtered.length === 0}<p class="mt-4 text-sm text-gray-400" role="status">{t("extract.noMatches")}</p>{/if}
         {:else}
           <div id="hardcoded-roi-panel" class="space-y-4">
-            <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
               <div class="min-w-0">
-                <h3 class="text-base font-semibold text-white">{t("extract.hardcodedTitle")}</h3>
-                <p class="mt-0.5 text-xs text-gray-400">{t("extract.hardcodedDesc")}</p>
+                <h3 class="text-lg font-semibold flex items-center gap-2 text-cyan-400">
+                  <svg aria-hidden="true" class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M4 16v3a1 1 0 001 1h3m9 0h3a1 1 0 001-1v-3" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 14h8M9 10h6" />
+                  </svg>
+                  {t("extract.hardcodedTitle")}
+                </h3>
               </div>
               {#if framePreview}
                 <span class="rounded-lg border border-cyan-400/25 bg-cyan-500/10 px-2.5 py-1 font-mono text-[11px] text-cyan-200">
@@ -941,13 +1016,9 @@
                     <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M5 8l4 4-4 4M19 8l-4 4 4 4"/></svg>
                     {t("extract.hardcodedCenter")}
                   </button>
-                  <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-200 transition-colors hover:bg-emerald-500/25 disabled:opacity-50 cursor-pointer" disabled={loadingFrame || !path} onclick={() => void loadPreviewFrame(frameTimeMs ?? framePreview?.time_ms ?? null)}>
-                    <svg aria-hidden="true" class="h-3.5 w-3.5 {loadingFrame ? 'animate-spin' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                    {t("extract.hardcodedPreviewFrame")}
-                  </button>
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
-                  <div class="flex items-center gap-2 text-xs text-gray-300">
+                  <div class="flex items-center gap-2 text-xs text-gray-400 font-medium">
                     <span>{t("extract.hardcodedLanguage")}</span>
                     <div class="w-44 compact-select">
                       <SearchableSelect
@@ -961,7 +1032,7 @@
                       />
                     </div>
                   </div>
-                  <div class="flex items-center gap-2 text-xs text-gray-300">
+                  <div class="flex items-center gap-2 text-xs text-gray-400 font-medium">
                     <span>{t("extract.hardcodedFps")}</span>
                     <div class="w-28 compact-select">
                       <SearchableSelect
@@ -978,90 +1049,120 @@
                 </div>
               </div>
 
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <div
-                bind:this={roiContainerEl}
-                class="relative mx-auto overflow-hidden rounded-xl border border-white/15 bg-black/50 select-none touch-none cursor-crosshair {framePreview?.data_url ? 'w-fit max-w-3xl' : 'w-full max-w-3xl'}"
-                onpointerdown={handleRoiPointerDown}
-              >
-                {#if framePreview?.data_url}
-                  <img
-                    src={framePreview.data_url}
-                    alt={t("extract.hardcodedTitle")}
-                    class="block max-h-[380px] w-auto max-w-full pointer-events-none select-none"
-                    draggable="false"
-                  />
-                {:else}
-                  <div class="flex aspect-video max-h-[380px] w-full items-center justify-center text-xs text-gray-400">
-                    {#if loadingFrame}
-                      <LoadingSpinner />
+              <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
+                <div class="min-w-0 space-y-3">
+                  <!-- svelte-ignore a11y_no_static_element_interactions -->
+                  <div
+                    bind:this={roiContainerEl}
+                    class="relative mx-auto overflow-hidden rounded-xl border border-white/15 bg-black/50 select-none touch-none cursor-crosshair {framePreview?.data_url ? 'w-fit max-w-3xl' : 'w-full max-w-3xl'}"
+                    onpointerdown={handleRoiPointerDown}
+                  >
+                    {#if framePreview?.data_url}
+                      <img
+                        src={framePreview.data_url}
+                        alt={t("extract.hardcodedTitle")}
+                        class="block max-h-[380px] w-auto max-w-full pointer-events-none select-none"
+                        draggable="false"
+                      />
                     {:else}
-                      {t("extract.hardcodedDesc")}
+                      <div class="relative flex aspect-video max-h-[380px] w-full items-center justify-center text-xs text-gray-400">
+                        {#if loadingFrame}
+                          <LoadingSpinner />
+                        {:else}
+                          <EmptyStatusLabel message={t("media.noMediaLoaded")} />
+                        {/if}
+                      </div>
                     {/if}
+                    <div
+                      data-testid="roi-overlay"
+                      class="pointer-events-none absolute border-2 border-cyan-400 bg-cyan-400/15 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
+                      style:left={`${(roi.x * 100).toFixed(2)}%`}
+                      style:top={`${(roi.y * 100).toFixed(2)}%`}
+                      style:width={`${(roi.width * 100).toFixed(2)}%`}
+                      style:height={`${(roi.height * 100).toFixed(2)}%`}
+                    >
+                      {#each ROI_HANDLES as item (item.handle)}
+                        <button
+                          type="button"
+                          aria-label={`${t("extract.hardcodedTitle")} (${item.handle.toUpperCase()})`}
+                          class="pointer-events-auto absolute border-gray-950 bg-cyan-300 {item.className}"
+                          onpointerdown={(e) => handleRoiResizeDown(e, item.handle)}
+                        ></button>
+                      {/each}
+                    </div>
                   </div>
-                {/if}
-                <div
-                  data-testid="roi-overlay"
-                  class="pointer-events-none absolute border-2 border-cyan-400 bg-cyan-400/15 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
-                  style:left={`${(roi.x * 100).toFixed(2)}%`}
-                  style:top={`${(roi.y * 100).toFixed(2)}%`}
-                  style:width={`${(roi.width * 100).toFixed(2)}%`}
-                  style:height={`${(roi.height * 100).toFixed(2)}%`}
-                >
-                  {#each ROI_HANDLES as item (item.handle)}
-                    <button
-                      type="button"
-                      aria-label={`${t("extract.hardcodedTitle")} (${item.handle.toUpperCase()})`}
-                      class="pointer-events-auto absolute border-gray-950 bg-cyan-300 {item.className}"
-                      onpointerdown={(e) => handleRoiResizeDown(e, item.handle)}
-                    ></button>
-                  {/each}
-                </div>
-              </div>
 
-              {#if framePreview && framePreview.duration_ms > 0}
-                <div class="mx-auto flex w-full max-w-3xl items-center gap-2.5">
-                  <button type="button" class="inline-flex items-center gap-1 rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-40 cursor-pointer" disabled={loadingFrame} onclick={() => seekPreviewFrame(-5000)} title="-5s">
-                    <svg aria-hidden="true" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m11 17-5-5 5-5M18 17l-5-5 5-5"/></svg>
-                    5s
-                  </button>
-                  <span class="w-14 shrink-0 text-right font-mono text-xs text-gray-400">{formatTimestamp(frameTimeMs ?? framePreview.time_ms)}</span>
-                  <input
-                    type="range"
-                    aria-label={t("extract.hardcodedPreviewFrame")}
-                    min="0"
-                    max={framePreview.duration_ms}
-                    step="500"
-                    value={frameTimeMs ?? framePreview.time_ms}
-                    oninput={(e) => { frameTimeMs = Number(e.currentTarget.value); }}
-                    onchange={() => void loadPreviewFrame(frameTimeMs)}
-                    class="h-1.5 flex-1 cursor-pointer accent-cyan-400"
-                  />
-                  <span class="w-14 shrink-0 font-mono text-xs text-gray-500">{formatTimestamp(framePreview.duration_ms)}</span>
-                  <button type="button" class="inline-flex items-center gap-1 rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-40 cursor-pointer" disabled={loadingFrame} onclick={() => seekPreviewFrame(5000)} title="+5s">
-                    5s
-                    <svg aria-hidden="true" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 17 5-5-5-5M13 17l5-5-5-5"/></svg>
-                  </button>
-                </div>
-              {/if}
+                  <div class="mx-auto flex w-full max-w-3xl flex-col gap-3">
+                    <div class="flex items-center gap-4">
+                      <span class="w-16 font-mono text-sm text-gray-400">{formatTimestamp(frameTimeMs ?? framePreview?.time_ms ?? 0)}</span>
+                      <input
+                        type="range"
+                        aria-label={t("extract.hardcodedPreviewFrame")}
+                        min="0"
+                        max={framePreview?.duration_ms || 100}
+                        step="500"
+                        disabled={loadingFrame || !framePreview || framePreview.duration_ms <= 0}
+                        value={frameTimeMs ?? framePreview?.time_ms ?? 0}
+                        oninput={(e) => { frameTimeMs = Number(e.currentTarget.value); }}
+                        onchange={() => void loadPreviewFrame(frameTimeMs)}
+                        class="slider-playback flex-1 cursor-pointer disabled:cursor-not-allowed"
+                        style:--slider-progress={`${previewProgressPct.toFixed(2)}%`}
+                      />
+                      <span class="w-16 font-mono text-sm text-gray-400 text-right">{formatTimestamp(framePreview?.duration_ms ?? 0)}</span>
+                    </div>
 
-              <div class="mx-auto grid w-full max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
-                <label class="flex flex-col gap-1 text-[11px] text-gray-400">
-                  <span>X (%)</span>
-                  <input type="number" min="0" max="98" step="1" aria-label="X (%)" value={Math.round(roi.x * 100)} oninput={(e) => updateRoiPercent("x", Number(e.currentTarget.value))} class="rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400" />
-                </label>
-                <label class="flex flex-col gap-1 text-[11px] text-gray-400">
-                  <span>Y (%)</span>
-                  <input type="number" min="0" max="98" step="1" aria-label="Y (%)" value={Math.round(roi.y * 100)} oninput={(e) => updateRoiPercent("y", Number(e.currentTarget.value))} class="rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400" />
-                </label>
-                <label class="flex flex-col gap-1 text-[11px] text-gray-400">
-                  <span>W (%)</span>
-                  <input type="number" min="2" max="100" step="1" aria-label="W (%)" value={Math.round(roi.width * 100)} oninput={(e) => updateRoiPercent("width", Number(e.currentTarget.value))} class="rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400" />
-                </label>
-                <label class="flex flex-col gap-1 text-[11px] text-gray-400">
-                  <span>H (%)</span>
-                  <input type="number" min="2" max="100" step="1" aria-label="H (%)" value={Math.round(roi.height * 100)} oninput={(e) => updateRoiPercent("height", Number(e.currentTarget.value))} class="rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400" />
-                </label>
+                    <div class="flex flex-wrap items-center justify-center gap-3">
+                      <div class="flex items-center gap-1 rounded-xl bg-white/5 px-2 py-1.5">
+                        <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(-30000)} title="-30s" class="w-11 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">−30s</button>
+                        <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(-5000)} title="-5s" class="w-11 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">−5s</button>
+                        <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(-1000)} title="-1s" class="w-10 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">−1s</button>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={loadingFrame || !path}
+                        onclick={() => void loadPreviewFrame(frameTimeMs ?? framePreview?.time_ms ?? null)}
+                        title={t("extract.hardcodedPreviewFrame")}
+                        aria-label={t("extract.hardcodedPreviewFrame")}
+                        class="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        <svg aria-hidden="true" class="w-5 h-5 text-cyan-400 {loadingFrame ? 'animate-spin' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      </button>
+                      <div class="flex items-center gap-1 rounded-xl bg-white/5 px-2 py-1.5">
+                        <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(1000)} title="+1s" class="w-10 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">+1s</button>
+                        <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(5000)} title="+5s" class="w-11 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">+5s</button>
+                        <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(30000)} title="+30s" class="w-11 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">+30s</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
+                  <div class="dimensions-row">
+                    <label class="flex flex-col gap-1 text-xs text-gray-400 font-medium min-w-0">
+                      <span>X (%)</span>
+                      <input use:numberControl type="number" min="0" max="98" step="1" aria-label="X (%)" value={Math.round(roi.x * 100)} oninput={(e) => updateRoiPercent("x", Number(e.currentTarget.value))} class="input-modern w-full text-xs" />
+                    </label>
+                    <div aria-hidden="true" class="w-12"></div>
+                    <label class="flex flex-col gap-1 text-xs text-gray-400 font-medium min-w-0">
+                      <span>Y (%)</span>
+                      <input use:numberControl type="number" min="0" max="98" step="1" aria-label="Y (%)" value={Math.round(roi.y * 100)} oninput={(e) => updateRoiPercent("y", Number(e.currentTarget.value))} class="input-modern w-full text-xs" />
+                    </label>
+                  </div>
+
+                  <div class="dimensions-row" class:dimensions-linked={lockedRoiRatio !== null}>
+                    <label class="flex flex-col gap-1 text-xs text-gray-400 font-medium min-w-0">
+                      <span>W (%)</span>
+                      <input use:numberControl type="number" min="2" max="100" step="1" aria-label="W (%)" value={Math.round(roi.width * 100)} oninput={(e) => updateRoiPercent("width", Number(e.currentTarget.value))} class="input-modern w-full text-xs" />
+                    </label>
+                    <AspectRatioLock bind:ratio={lockedRoiRatio} width={Math.round(roi.width * 100)} height={Math.round(roi.height * 100)} />
+                    <label class="flex flex-col gap-1 text-xs text-gray-400 font-medium min-w-0">
+                      <span>H (%)</span>
+                      <input use:numberControl type="number" min="2" max="100" step="1" aria-label="H (%)" value={Math.round(roi.height * 100)} oninput={(e) => updateRoiPercent("height", Number(e.currentTarget.value))} class="input-modern w-full text-xs" />
+                    </label>
+                  </div>
+                </div>
               </div>
             {/if}
           </div>
@@ -1070,36 +1171,23 @@
     </WorkflowWorkspace>
   </div>
 
-  <FooterActions>
-    {#snippet left()}
-      <div class="relative grid grid-cols-2 rounded-xl border border-white/10 bg-black/30 p-1 select-none" role="tablist" aria-label={t("nav.extract")}>
-        <span
-          aria-hidden="true"
-          class="absolute bottom-1 top-1 left-1 w-[calc(50%-4px)] rounded-lg border transition-transform duration-200 ease-out {extractMode === 'embedded' ? 'translate-x-0 border-teal-400/40 bg-teal-500/20' : 'translate-x-[calc(100%+4px)] border-cyan-400/40 bg-cyan-500/20'}"
-        ></span>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={extractMode === "embedded"}
-          onclick={() => setExtractMode("embedded")}
-          class="relative z-10 inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold transition-colors cursor-pointer {extractMode === 'embedded' ? 'text-teal-100' : 'text-gray-400 hover:text-gray-200'}"
-        >
-          <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 13h4m3 0h3M7 16h10"/></svg>
-          {t("extract.modeEmbedded")}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={extractMode === "hardcoded"}
-          onclick={() => setExtractMode("hardcoded")}
-          class="relative z-10 inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold transition-colors cursor-pointer {extractMode === 'hardcoded' ? 'text-cyan-100' : 'text-gray-400 hover:text-gray-200'}"
-        >
-          <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M4 16v3a1 1 0 001 1h3m9 0h3a1 1 0 001-1v-3"/><path d="M8 14h8M9 10h6"/></svg>
-          {t("extract.modeHardcoded")}
-        </button>
-      </div>
-    {/snippet}
+  {#snippet centerModeSelect()}
+    <div class="w-48">
+      <SearchableSelect
+        options={extractModeOptions}
+        value={extractMode}
+        onchange={(val) => {
+          if (val === "embedded" || val === "hardcoded") setExtractMode(val);
+        }}
+        searchable={false}
+        placement="up"
+        portal={true}
+        ariaLabel={t("nav.extract")}
+      />
+    </div>
+  {/snippet}
 
+  <FooterActions center={aiStore.killSwitchActive ? undefined : centerModeSelect}>
     {#snippet right()}
       {#if (downloadingIndex !== null || extractingHardcoded) && (ocrProgress || ocrCancelling || aiStore.isOcring)}
         <div class="flex items-center gap-3">
@@ -1122,7 +1210,7 @@
         <div class="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
-            class="inline-flex items-center gap-2 rounded-xl border border-indigo-400/35 bg-indigo-500/20 px-4 py-2.5 text-xs font-semibold text-indigo-200 transition-colors hover:bg-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+            class="inline-flex items-center gap-2 rounded-xl border border-indigo-400/25 bg-indigo-500/15 px-4 py-2.5 text-xs font-semibold text-indigo-200 transition-colors hover:bg-indigo-500/25 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
             disabled={busy || extractingHardcoded || downloadingIndex !== null || !isVideoMedia || !canOcr || aiStore.isOcring}
             onclick={() => void previewHardcoded()}
           >
@@ -1131,7 +1219,7 @@
           </button>
           <button
             type="button"
-            class="inline-flex items-center gap-2 rounded-xl border border-teal-400/40 bg-teal-500/25 px-4 py-2.5 text-xs font-semibold text-teal-100 shadow-lg shadow-teal-500/15 transition-colors hover:bg-teal-500/35 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+            class="inline-flex items-center gap-2 rounded-xl border border-teal-500/25 bg-teal-600/20 px-4 py-2.5 text-xs font-semibold text-teal-100 transition-colors hover:bg-teal-600/30 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
             disabled={busy || extractingHardcoded || downloadingIndex !== null || !isVideoMedia || !canOcr || aiStore.isOcring}
             onclick={() => void extractHardcoded()}
           >
@@ -1144,11 +1232,11 @@
           {#if !canOcr && onGoToSettings}
             <SettingsJumpButton label={t("settings.section.itt")} section="itt" onjump={onGoToSettings} variant="amber" />
           {/if}
-          {#if tracksScanned && tracks.length === 0 && isVideoMedia}
+          {#if !aiStore.killSwitchActive && tracksScanned && tracks.length === 0 && isVideoMedia}
             <button
               type="button"
               onclick={() => setExtractMode("hardcoded")}
-              class="inline-flex items-center gap-2 rounded-xl border border-cyan-400/35 bg-cyan-500/20 px-4 py-2.5 text-xs font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/30 cursor-pointer"
+              class="inline-flex items-center gap-2 rounded-xl border border-cyan-400/25 bg-cyan-500/15 px-4 py-2.5 text-xs font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/25 cursor-pointer"
             >
               <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M4 16v3a1 1 0 001 1h3m9 0h3a1 1 0 001-1v-3"/><path d="M8 14h8M9 10h6"/></svg>
               {t("extract.modeHardcoded")}
@@ -1159,6 +1247,17 @@
     {/snippet}
   </FooterActions>
 </div>
+
+<style>
+  .dimensions-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr);
+    align-items: end;
+    gap: 6px;
+  }
+  .dimensions-row > :global(*) { min-width: 0; }
+  .dimensions-row.dimensions-linked :global(.number-control > input) { border-color: var(--control-focus-border); }
+</style>
 
 {#if previewOpen}
   <SubtitlePreviewModal
