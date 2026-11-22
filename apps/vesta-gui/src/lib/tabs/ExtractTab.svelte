@@ -156,18 +156,6 @@
       extractMode = "embedded";
     }
   });
-  let extractModeOptions = $derived([
-    {
-      value: "embedded",
-      label: t("extract.modeEmbedded"),
-      icon: '<svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 13h4m3 0h3M7 16h10"/></svg>',
-    },
-    {
-      value: "hardcoded",
-      label: t("extract.modeHardcoded"),
-      icon: '<svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M4 16v3a1 1 0 001 1h3m9 0h3a1 1 0 001-1v-3"/><path d="M8 14h8M9 10h6"/></svg>',
-    },
-  ]);
   let roi = $state<VideoRoi>({ ...ROI_PRESET_BOTTOM });
   let lockedRoiRatio = $state<number | null>(null);
   let sampleFps = $state(2.5);
@@ -871,7 +859,7 @@
 </script>
 <div class="h-full flex flex-col bg-gray-900 overflow-hidden">
   <div class="flex flex-1 flex-col overflow-hidden p-6 min-h-0 text-gray-100">
-    <WorkflowWorkspace>
+    <WorkflowWorkspace fillViewport>
       {#snippet files()}
       <div class="glass-card p-5" class:ring-2={isDraggingOver} class:ring-teal-400={isDraggingOver}>
         <h3 class="mb-4 text-lg font-semibold panel-title-files-output flex items-center gap-2">
@@ -887,8 +875,8 @@
       </div>
       {/snippet}
 
-      <div class="glass-card p-5">
-        <div role="status" aria-live="polite">
+      <div class="glass-card perf-scroll-card p-5 flex-1 min-h-[280px] flex flex-col overflow-hidden">
+        <div role="status" aria-live="polite" class="shrink-0">
         {#if error || busy || ((downloadingIndex !== null || extractingHardcoded) && (ocrProgress || ocrCancelling || aiStore.isOcring))}
           <div class="mb-3 flex flex-col gap-2 text-sm">
             {#if error}
@@ -932,7 +920,7 @@
         </div>
 
         {#if extractMode === "embedded"}
-          <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center justify-between gap-3 shrink-0">
             <div class="relative w-full sm:w-80">
               <svg aria-hidden="true" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4 4" /></svg>
             <input disabled={busy || tracks.length === 0} type="search" value={search} oninput={(event) => { search = event.currentTarget.value; page = 0; }} aria-label={t("extract.search")} placeholder={t("extract.search")} class="w-full rounded-lg border border-white/10 bg-black/30 pl-10 pr-4 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 disabled:opacity-50" />
@@ -948,31 +936,39 @@
               </button>
             </div>
           </div>
-          <div class="relative mt-4 grid min-h-[520px] grid-cols-1 lg:grid-cols-2 content-start gap-3" aria-busy={busy}>
+          <div class="relative mt-4 flex min-h-0 flex-1 flex-col" aria-busy={busy}>
             {#if !path && !busy}
               <EmptyStatusLabel message={t("media.noMediaLoaded")} />
             {/if}
-            {#each visible as group (group.key)}
-              <SubtitleTrackCard {group} busy={busy || extractingHardcoded} {downloaded} {downloadingIndex} selectedIndex={selections[group.key]} {canOcr} onselect={(index) => selections = { ...selections, [group.key]: index }} ondownload={extract} onpreview={preview} />
-            {/each}
-            {#if visible.length === 0}
-              {#each Array(SUBTITLE_PAGE_SIZE) as _, index (index)}
-                <div aria-hidden="true" class="flex min-h-[108px] items-center justify-between rounded-xl border border-white/5 bg-black/10 p-4 {busy ? 'animate-pulse motion-reduce:animate-none' : ''}">
-                  <div class="space-y-2"><div class="h-3 w-36 rounded bg-white/5"></div><div class="h-2 w-24 rounded bg-white/[0.03]"></div></div>
-                  <div class="h-10 w-10 rounded-lg border border-white/5"></div>
-                </div>
-              {/each}
-            {/if}
             {#if tracksScanned && tracks.length === 0}
-              <div class="pointer-events-none absolute inset-0 flex items-center justify-center p-4" role="status" aria-live="polite">
+              <div class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-4" role="status" aria-live="polite">
                 <span class="rounded-xl border border-red-400/25 bg-gray-900/95 px-5 py-3 text-center text-sm font-semibold text-red-300 shadow-lg">{t("extract.empty")}</span>
               </div>
             {/if}
+            {#if tracks.length > 0 && filtered.length === 0}
+              <div class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-4" role="status">
+                <span class="rounded-lg bg-gray-900/95 px-4 py-2 text-center text-sm text-gray-400">{t("extract.noMatches")}</span>
+              </div>
+            {/if}
+            <div class="min-h-0 flex-1 overflow-y-auto pr-1 custom-scrollbar">
+              <div class="grid grid-cols-1 lg:grid-cols-2 content-start gap-3">
+                {#each visible as group (group.key)}
+                  <SubtitleTrackCard {group} busy={busy || extractingHardcoded} {downloaded} {downloadingIndex} selectedIndex={selections[group.key]} {canOcr} onselect={(index) => selections = { ...selections, [group.key]: index }} ondownload={extract} onpreview={preview} />
+                {/each}
+                {#if visible.length === 0}
+                  {#each Array(SUBTITLE_PAGE_SIZE) as _, index (index)}
+                    <div aria-hidden="true" class="flex min-h-[108px] items-center justify-between rounded-xl border border-white/5 bg-black/10 p-4 {busy ? 'animate-pulse motion-reduce:animate-none' : ''}">
+                      <div class="space-y-2"><div class="h-3 w-36 rounded bg-white/5"></div><div class="h-2 w-24 rounded bg-white/[0.03]"></div></div>
+                      <div class="h-10 w-10 rounded-lg border border-white/5"></div>
+                    </div>
+                  {/each}
+                {/if}
+              </div>
+            </div>
           </div>
-          {#if tracks.length > 0 && filtered.length === 0}<p class="mt-4 text-sm text-gray-400" role="status">{t("extract.noMatches")}</p>{/if}
         {:else}
-          <div id="hardcoded-roi-panel" class="space-y-4">
-            <div class="flex flex-wrap items-center justify-between gap-3">
+          <div id="hardcoded-roi-panel" class="flex min-h-0 flex-1 flex-col gap-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 shrink-0">
               <div class="min-w-0">
                 <h3 class="text-lg font-semibold flex items-center gap-2 text-cyan-400">
                   <svg aria-hidden="true" class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -990,15 +986,15 @@
             </div>
 
             {#if !path}
-              <div class="relative flex aspect-video max-h-[360px] w-full items-center justify-center rounded-xl border border-white/10 bg-black/30">
+              <div class="relative flex min-h-0 flex-1 items-center justify-center rounded-xl border border-white/10 bg-black/30">
                 <EmptyStatusLabel message={t("media.noMediaLoaded")} />
               </div>
             {:else if !isVideoMedia}
-              <div class="flex min-h-[220px] items-center justify-center rounded-xl border border-amber-400/20 bg-amber-500/5 p-6 text-center text-sm text-amber-200">
+              <div class="flex min-h-[220px] flex-1 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-500/5 p-6 text-center text-sm text-amber-200">
                 {t("extract.hardcodedVideoRequired")}
               </div>
             {:else}
-              <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="flex flex-wrap items-center justify-between gap-3 shrink-0">
                 <div class="flex flex-wrap items-center gap-2">
                   <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-sky-400/30 bg-sky-500/15 px-3 py-1.5 text-xs font-semibold text-sky-200 transition-colors hover:bg-sky-500/25 cursor-pointer" onclick={() => setRoiPreset("bottom")}>
                     <svg aria-hidden="true" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 16h10"/></svg>
@@ -1049,7 +1045,8 @@
                 </div>
               </div>
 
-              <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
+              <div class="min-h-0 flex-1 overflow-y-auto pr-1 custom-scrollbar">
+                <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
                 <div class="min-w-0 space-y-3">
                   <!-- svelte-ignore a11y_no_static_element_interactions -->
                   <div
@@ -1163,6 +1160,7 @@
                     </label>
                   </div>
                 </div>
+                </div>
               </div>
             {/if}
           </div>
@@ -1172,18 +1170,35 @@
   </div>
 
   {#snippet centerModeSelect()}
-    <div class="w-48">
-      <SearchableSelect
-        options={extractModeOptions}
-        value={extractMode}
-        onchange={(val) => {
-          if (val === "embedded" || val === "hardcoded") setExtractMode(val);
-        }}
-        searchable={false}
-        placement="up"
-        portal={true}
-        ariaLabel={t("nav.extract")}
-      />
+    <div
+      class="relative grid max-w-full grid-cols-2 rounded-xl border border-white/10 bg-white/[0.04] p-1 select-none"
+      role="tablist"
+      aria-label={t("nav.extract")}
+    >
+      <span
+        aria-hidden="true"
+        class="pointer-events-none absolute bottom-1 top-1 left-1 w-[calc(50%-4px)] rounded-lg border transition-transform duration-200 ease-out {extractMode === 'embedded' ? 'translate-x-0 border-teal-400/30 bg-teal-500/15' : 'translate-x-[calc(100%+4px)] border-cyan-400/30 bg-cyan-500/15'}"
+      ></span>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={extractMode === "embedded"}
+        onclick={() => setExtractMode("embedded")}
+        class="relative z-10 inline-flex items-center justify-center gap-2 whitespace-nowrap px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer {extractMode === 'embedded' ? 'text-teal-100' : 'text-gray-400 hover:text-gray-200'}"
+      >
+        <svg aria-hidden="true" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 13h4m3 0h3M7 16h10"/></svg>
+        {t("extract.modeEmbedded")}
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={extractMode === "hardcoded"}
+        onclick={() => setExtractMode("hardcoded")}
+        class="relative z-10 inline-flex items-center justify-center gap-2 whitespace-nowrap px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer {extractMode === 'hardcoded' ? 'text-cyan-100' : 'text-gray-400 hover:text-gray-200'}"
+      >
+        <svg aria-hidden="true" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M4 16v3a1 1 0 001 1h3m9 0h3a1 1 0 001-1v-3"/><path d="M8 14h8M9 10h6"/></svg>
+        {t("extract.modeHardcoded")}
+      </button>
     </div>
   {/snippet}
 

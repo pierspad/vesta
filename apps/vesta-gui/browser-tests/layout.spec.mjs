@@ -51,3 +51,60 @@ for (const { language, width, height } of scenarios) {
     }
   });
 }
+
+test("Revise and Extract pin empty-state labels and toolbars while scrolling content", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/browser-tests/harness.html?language=en");
+
+  // Revise (AlignTab)
+  await page.getByRole("navigation").getByRole("button", { name: "Revise", exact: true }).click();
+  await expect(page.getByText("Waiting for the translation file...")).toHaveCount(0);
+  await expect(page.getByText("No Subtitle", { exact: true })).toHaveCount(30);
+
+  const alignEmpty = page.locator("span:visible", { hasText: /^No subtitles loaded$/ });
+  await expect(alignEmpty).toBeVisible();
+  const alignLabelBefore = await alignEmpty.boundingBox();
+  expect(alignLabelBefore).not.toBeNull();
+  expect(alignLabelBefore.y).toBeGreaterThan(100);
+  expect(alignLabelBefore.y + alignLabelBefore.height).toBeLessThan(800);
+
+  const nextBtn = page.getByRole("button", { name: /Next/i }).first();
+  const nextBefore = await nextBtn.boundingBox();
+
+  const alignScroller = page.locator("div.overflow-y-auto.custom-scrollbar:visible").first();
+  const alignCanScroll = await alignScroller.evaluate((el) => {
+    const before = el.scrollTop;
+    el.scrollTop = 300;
+    return el.scrollHeight > el.clientHeight && el.scrollTop > before;
+  });
+  expect(alignCanScroll).toBe(true);
+
+  const alignLabelAfter = await alignEmpty.boundingBox();
+  const nextAfter = await nextBtn.boundingBox();
+  expect(Math.abs(alignLabelAfter.y - alignLabelBefore.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(nextAfter.y - nextBefore.y)).toBeLessThanOrEqual(1);
+
+  // Extract subtitles (ExtractTab)
+  await page.getByRole("navigation").getByRole("button", { name: "Extract subtitles", exact: true }).click();
+  const extractEmpty = page.locator("span:visible", { hasText: /^No media loaded$/ });
+  await expect(extractEmpty).toBeVisible();
+  const extractLabelBefore = await extractEmpty.boundingBox();
+  expect(extractLabelBefore).not.toBeNull();
+  expect(extractLabelBefore.y + extractLabelBefore.height).toBeLessThan(800);
+
+  const searchInput = page.getByRole("searchbox", { name: /Search language, title or format/ });
+  const searchBefore = await searchInput.boundingBox();
+
+  const extractScroller = page.locator("div.overflow-y-auto.custom-scrollbar:visible").first();
+  const extractCanScroll = await extractScroller.evaluate((el) => {
+    const before = el.scrollTop;
+    el.scrollTop = 200;
+    return el.scrollHeight > el.clientHeight && el.scrollTop > before;
+  });
+  expect(extractCanScroll).toBe(true);
+
+  const extractLabelAfter = await extractEmpty.boundingBox();
+  const searchAfter = await searchInput.boundingBox();
+  expect(Math.abs(extractLabelAfter.y - extractLabelBefore.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(searchAfter.y - searchBefore.y)).toBeLessThanOrEqual(1);
+});

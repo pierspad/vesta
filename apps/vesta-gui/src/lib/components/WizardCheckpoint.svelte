@@ -194,11 +194,33 @@
         </div>
 
         <div class="relative flex-shrink-0">
-          {#if !audioSrc && !isPreparingMedia && !audioError}<EmptyStatusLabel message={t("media.noMediaLoaded")} />{/if}
-          {#if !canUseCheckpoint || (audioSrc && !audioError)}
-            <div class="flex items-center gap-4">
+          {#if !audioSrc && !isPreparingMedia && !audioError}
+            <EmptyStatusLabel message={t("media.noMediaLoaded")} />
+          {:else if isPreparingMedia}
+            <div
+              class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-2"
+              role="status"
+              aria-live="polite"
+              title={t("sync.transcodingHint")}
+            >
+              <div class="flex max-w-full flex-col gap-1.5 rounded-xl border border-purple-400/25 bg-gray-900/95 px-4 py-2 shadow-lg">
+                <div class="flex items-center justify-center gap-2 text-xs font-medium text-purple-200">
+                  <svg class="animate-spin h-4 w-4 shrink-0 text-purple-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span class="truncate">{t("sync.transcodingMedia")}</span>
+                </div>
+                <div aria-hidden="true" class="h-1 w-48 max-w-full overflow-hidden rounded-full bg-purple-500/20 mx-auto">
+                  <div class="h-full w-1/3 rounded-full bg-purple-400 loading-bar-indeterminate"></div>
+                </div>
+              </div>
+            </div>
+          {/if}
+          {#if !audioError}
+            <div class="flex items-center gap-4 {isPreparingMedia ? 'opacity-30' : ''}">
               <span class="text-sm text-gray-400 font-mono w-24"
-                >{formatTime(canUseCheckpoint ? currentVideoTime * 1000 : 0)}</span
+                >{formatTime(canUseCheckpoint && audioSrc ? currentVideoTime * 1000 : 0)}</span
               >
               <input
                 type="range"
@@ -216,28 +238,8 @@
               />
               <span
                 class="text-sm text-gray-400 font-mono w-24 text-right"
-                >{formatTime(canUseCheckpoint ? audioDuration * 1000 : 0)}</span
+                >{formatTime(canUseCheckpoint && audioSrc ? audioDuration * 1000 : 0)}</span
               >
-            </div>
-          {:else if isPreparingMedia}
-            <div class="text-center py-4">
-              <div class="flex items-center justify-center gap-3">
-                <svg class="animate-spin h-5 w-5 text-purple-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p class="text-purple-300">{t("sync.transcodingMedia")}</p>
-              </div>
-              <p class="text-xs text-gray-500 mt-2">
-                {t("sync.transcodingHint")}
-              </p>
-            </div>
-          {:else if !audioSrc && !audioError}
-            <div class="text-center py-4">
-              <p class="text-gray-500">{t("sync.audioPlaceholder")}</p>
-              <p class="text-xs text-gray-600 mt-1">
-                {t("sync.audioFormats")}
-              </p>
             </div>
           {:else if audioError}
             <div class="text-center py-4 max-w-xl mx-auto">

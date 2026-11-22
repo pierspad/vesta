@@ -15,6 +15,7 @@ pub fn suggest_media_for_srt(srt_path: &Path) -> std::io::Result<Option<PathBuf>
     let srt_tokens = normalized_tokens(srt_stem);
     let srt_ep = extract_episode_number(srt_stem);
     let srt_joined = srt_tokens.join(" ");
+    let srt_stem_simplified = simplify_subtitle_stem(srt_stem);
 
     let mut candidates: Vec<(PathBuf, i32)> = Vec::new();
     for entry in std::fs::read_dir(parent)? {
@@ -34,6 +35,13 @@ pub fn suggest_media_for_srt(srt_path: &Path) -> std::io::Result<Option<PathBuf>
         let mut score: i32 = 0;
         if stem.eq_ignore_ascii_case(srt_stem) {
             score += 100;
+        }
+
+        let media_stem_simplified = simplify_subtitle_stem(stem);
+        if !srt_stem_simplified.is_empty()
+            && media_stem_simplified.eq_ignore_ascii_case(&srt_stem_simplified)
+        {
+            score += 80;
         }
 
         let media_joined = media_tokens.join(" ");
@@ -680,5 +688,31 @@ mod tests {
 
         let c = vec![(PathBuf::from("a"), 50), (PathBuf::from("b"), 46)];
         assert_eq!(best_confident(c, 12), None);
+    }
+
+    #[test]
+    fn suggest_media_for_srt_matches_release_year_and_ignores_clips() {
+        let dir = tempfile::tempdir().unwrap();
+        let srt = dir.path().join("Detour-en.srt");
+        let film = dir.path().join("Detour(1945).mp4");
+        let clip = dir.path().join("Detour_Hardcoded_Subs_Clip.mp4");
+        std::fs::write(&srt, b"").unwrap();
+        std::fs::write(&film, b"").unwrap();
+        std::fs::write(&clip, b"").unwrap();
+
+        assert_eq!(suggest_media_for_srt(&srt).unwrap(), Some(film));
+    }
+
+    #[test]
+    fn suggest_media_for_srt_disambiguates_movies_by_year_token() {
+        let dir = tempfile::tempdir().unwrap();
+        let srt = dir.path().join("Blade Runner 2049-en.srt");
+        let sequel = dir.path().join("Blade Runner 2049.mp4");
+        let original = dir.path().join("Blade Runner (1982).mp4");
+        std::fs::write(&srt, b"").unwrap();
+        std::fs::write(&sequel, b"").unwrap();
+        std::fs::write(&original, b"").unwrap();
+
+        assert_eq!(suggest_media_for_srt(&srt).unwrap(), Some(sequel));
     }
 }

@@ -59,6 +59,7 @@
   let audioError = $state<string | null>(null);
   let hasAutoPaused = $state(false);
   let isPreparingMedia = $state(false);
+  let preparingMediaPath = $state<string | null>(null);
 
   let showResetModal = $state(false);
 
@@ -160,6 +161,18 @@
   }
 
 
+  async function attachMediaFile(filePath: string) {
+    audioError = null;
+    cleanupAudioSrc();
+    preparingMediaPath = filePath;
+    try {
+      audioSrc = await loadMediaFile(filePath);
+      status = await invoke<SyncStatus>("sync_set_video", { path: filePath });
+    } finally {
+      preparingMediaPath = null;
+    }
+  }
+
   async function tryAutoSelectMediaForSrt(srtPath: string) {
     try {
       const suggestedPath = await invoke<string | null>("sync_suggest_media_for_srt", {
@@ -167,10 +180,7 @@
       });
       if (!suggestedPath) return;
 
-      audioError = null;
-      cleanupAudioSrc();
-      audioSrc = await loadMediaFile(suggestedPath);
-      status = await invoke<SyncStatus>("sync_set_video", { path: suggestedPath });
+      await attachMediaFile(suggestedPath);
       showSnackbar(`${t("sync.inputMediaFile")} · ${getFileName(suggestedPath)}`, "success");
     } catch (e) {
       syncDebug("auto-media-suggestion-failed", { error: String(e) });
@@ -314,6 +324,7 @@
   }
 
   async function selectSrtFile() {
+    if (isPreparingMedia) return;
     try {
       const selected = await guardedOpen({
         multiple: false,
@@ -344,6 +355,7 @@
   }
 
   async function selectAudioFile() {
+    if (isPreparingMedia) return;
     try {
       const selected = await guardedOpen({
         multiple: false,
@@ -355,11 +367,7 @@
         ],
       });
       if (selected) {
-        const path = selected as string;
-        audioError = null;
-        cleanupAudioSrc();
-        audioSrc = await loadMediaFile(path);
-        status = await invoke<SyncStatus>("sync_set_video", { path });
+        await attachMediaFile(selected as string);
       }
     } catch (e) {
       showSnackbar(`${t("sync.errorLoadingAudio")} ${errorMessage(e)}`, "error");
@@ -596,7 +604,7 @@
   }
 
   async function handleDroppedPaths(paths: string[]) {
-    if (paths.length === 0) return;
+    if (paths.length === 0 || isPreparingMedia) return;
 
     // Sort paths so SRT files are processed first
     const sortedPaths = [...paths].sort((a, b) => {
@@ -629,12 +637,7 @@
           return;
         }
         try {
-          audioError = null;
-          cleanupAudioSrc();
-          audioSrc = await loadMediaFile(filePath);
-          status = await invoke<SyncStatus>("sync_set_video", {
-            path: filePath,
-          });
+          await attachMediaFile(filePath);
         } catch (e: any) {
           showSnackbar(`${t("sync.errorLoadingAudio")} ${errorMessage(e)}`, "error");
         }
@@ -906,8 +909,9 @@
     {#if panelId === "files"}
       <FilesPanel
         srtPath={status?.srt_path ?? null}
-        mediaPath={status?.video_path ?? null}
+        mediaPath={preparingMediaPath ?? status?.video_path ?? null}
         srtLoaded={!!status?.is_loaded}
+        {isPreparingMedia}
         onExpandSrt={() => (expandedPathField = "srt")}
         onExpandMedia={() => (expandedPathField = "media")}
         onBrowseSrt={selectSrtFile}

@@ -56,21 +56,30 @@
   let t = $derived($locale);
 </script>
 
-<div class="md:col-span-5 glass-card perf-scroll-card p-5 flex flex-col min-h-0 overflow-hidden">
+<div class="md:col-span-5 glass-card perf-scroll-card p-5 flex flex-col min-h-[260px] md:min-h-0 overflow-hidden">
   <div class="mb-3 flex shrink-0 items-center gap-2">
     <SearchInput bind:value={searchQuery} placeholder={t("refine.searchPlaceholder")} class="w-full" />
     <HistoryButton direction="undo" disabled={!canUndo || operationBusy} onclick={() => onHistory("undo")} />
     <HistoryButton direction="redo" disabled={!canRedo || operationBusy} onclick={() => onHistory("redo")} />
   </div>
 
-  <div
-    bind:this={cardsContainerEl}
-    onscroll={onScroll}
-    bind:clientHeight={cardListViewportHeight}
-    class="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable] p-2 bg-white/[0.03] border border-white/10 rounded-xl scrollbar-thin"
-  >
+  <div class="relative flex flex-1 min-h-0 flex-col bg-white/[0.03] border border-white/10 rounded-xl overflow-hidden">
     {#if cards.length === 0}
-      <div class="relative min-h-full">
+      <div class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-4 text-xs text-gray-400 italic">
+        <span class="rounded-lg bg-gray-900/95 px-4 py-2 text-center">{t("refine.noFlashcardsLoaded")}</span>
+      </div>
+    {:else if filteredCount === 0}
+      <div class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-4 text-xs text-gray-400">
+        <span>{t("common.noResults")}</span>
+      </div>
+    {/if}
+    <div
+      bind:this={cardsContainerEl}
+      onscroll={onScroll}
+      bind:clientHeight={cardListViewportHeight}
+      class="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable] p-2 scrollbar-thin"
+    >
+      {#if cards.length === 0}
         <div aria-hidden="true" class="space-y-1.5">
           {#each Array(6) as _}
             <div class="h-[88px] rounded-xl border border-white/5 bg-white/[0.02] p-3 space-y-2">
@@ -80,14 +89,8 @@
             </div>
           {/each}
         </div>
-        <div class="absolute inset-0 flex items-center justify-center text-xs text-gray-400 italic">
-          <span class="rounded-lg bg-gray-900/90 px-4 py-2">{t("refine.noFlashcardsLoaded")}</span>
-        </div>
-      </div>
-    {:else if filteredCount === 0}
-      <div class="flex min-h-full items-center justify-center text-xs text-gray-400">{t("common.noResults")}</div>
-    {:else}
-      <div style="height: {totalVirtualHeight}px; position: relative; width: 100%;">
+      {:else if filteredCount > 0}
+        <div style="height: {totalVirtualHeight}px; position: relative; width: 100%;">
         <div style="position: absolute; top: {virtualTopOffset}px; left: 0; right: 0; display: flex; flex-direction: column; gap: 6px;">
           {#each virtualVisibleCards as card (card.id)}
             {@const isSelected = selectedCardIndex !== null && cards[selectedCardIndex]?.id === card.id}
@@ -129,6 +132,7 @@
           {/each}
         </div>
       </div>
-    {/if}
+      {/if}
+    </div>
   </div>
 </div>

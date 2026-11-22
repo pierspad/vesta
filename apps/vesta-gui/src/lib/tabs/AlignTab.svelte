@@ -587,7 +587,7 @@
     </div>
   {/if}
   <div class="flex-1 overflow-hidden p-6 min-h-0 flex flex-col">
-    <WorkflowWorkspace>
+    <WorkflowWorkspace fillViewport>
       {#snippet files()}
         <!-- Top Panel: Files and Output -->
         <div class="glass-card p-5 shrink-0">
@@ -646,7 +646,7 @@
       {/snippet}
 
       <!-- Bottom Section: Editor Area (Single Unified Card) -->
-      <div class="glass-card perf-scroll-card p-5 flex-1 flex flex-col overflow-hidden">
+      <div class="glass-card perf-scroll-card p-5 flex-1 min-h-[280px] flex flex-col overflow-hidden">
         <!-- Pagination Top -->
         <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between mb-4 gap-3 shrink-0">
           <div class="flex items-center gap-2 flex-wrap">
@@ -696,10 +696,11 @@
         </div>
 
         <!-- Content Grid -->
-        <div class="relative pr-3 pl-1 space-y-6 custom-scrollbar pb-4 min-w-0 overflow-y-auto flex-1">
+        <div class="relative flex min-h-0 flex-1 flex-col">
           {#if !isLoaded}
             <EmptyStatusLabel message={t("media.noSubtitlesLoaded")} />
           {/if}
+          <div class="min-h-0 flex-1 overflow-y-auto pr-3 pl-1 space-y-6 custom-scrollbar pb-4 min-w-0">
           {#each currentPageItems as item (item.index)}
             {@const isMissingPair = targetPath && sourcePath && (
               (!!item.source && (!item.source.text || item.source.text.trim() === '')) ||
@@ -756,27 +757,16 @@
                     placeholder={t("align.typeSubtitle")}
                   ></textarea>
                 {:else}
-                  <div class="flex flex-col h-full min-w-0">
-                    <div class="flex justify-between items-center text-xs text-indigo-400/30 bg-indigo-950/20 px-3 py-2 border-b border-indigo-500/10 font-mono tracking-wider truncate">
-                      <span class="bg-indigo-900/20 flex-shrink-0 text-indigo-300/30 px-2 py-0.5 rounded max-w-full">#{item.index + 1}</span>
-                      <span class="flex items-center gap-1.5 md:gap-2 truncate ml-2">
-                        <span class="text-blue-400/20 truncate min-w-0">00:00:00,000</span>
-                        <svg class="w-3 h-3 mx-0.5 text-indigo-500/20 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                        <span class="text-indigo-400/20 truncate min-w-0">00:00:00,000</span>
-                      </span>
-                    </div>
-                    <textarea
-                      class="flex-1 w-full bg-transparent p-3 text-[15px] leading-relaxed text-indigo-100/30 resize-none min-h-[90px] focus:outline-none placeholder-indigo-900/30 min-w-0 cursor-not-allowed"
-                      disabled
-                      value=""
-                      placeholder={t("align.waitingTranslation")}
-                    ></textarea>
+                  <div class="h-full min-h-[125px] flex flex-col items-center justify-center text-indigo-300/60 text-sm">
+                    <svg class="w-6 h-6 mb-2 opacity-65" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
+                    <span>{t("align.noSubtitle")}</span>
                   </div>
                 {/if}
               </div>
 
             </div>
           {/each}
+          </div>
         </div>
 
       </div>

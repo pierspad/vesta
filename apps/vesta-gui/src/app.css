@@ -763,3 +763,18 @@ kbd {
 .icon-action-danger:hover:not(:disabled) { color: var(--color-red-300); background: color-mix(in srgb, var(--color-red-500) 10%, transparent); }
 .icon-action-danger:focus-visible { outline: 2px solid var(--control-focus-border); outline-offset: 2px; }
 .icon-action-danger:disabled { opacity: .35; cursor: default; }
+
+@keyframes vesta-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+.loading-bar-indeterminate {
+  animation: vesta-indeterminate 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-bar-indeterminate {
+    animation: none;
+    transform: translateX(0);
+    width: 100%;
+  }
+}

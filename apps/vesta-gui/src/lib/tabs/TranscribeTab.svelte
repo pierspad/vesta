@@ -530,7 +530,11 @@
             onToggleQuality={setQualityMode}
           />
         </div>
-        <div class="min-w-0"><TranscriptionSegmentsPanel segments={transcribedSegments} /></div>
+        <div class="flex min-h-0 min-w-0 flex-col xl:relative xl:self-stretch">
+          <div class="flex max-h-[42rem] min-h-0 flex-col xl:absolute xl:inset-0 xl:max-h-none">
+            <TranscriptionSegmentsPanel segments={transcribedSegments} />
+          </div>
+        </div>
       </div>
     </WorkflowWorkspace>
   </div>

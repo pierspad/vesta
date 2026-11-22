@@ -350,14 +350,10 @@ it("hides hardcoded mode switch and returns to embedded when aiStore.killSwitchA
   mocks.drop!(["/film.mp4"]);
   await settle();
 
-  const modeCombo = target.querySelector<HTMLInputElement>('input[role="combobox"][aria-label="Extract subtitles"]');
-  expect(modeCombo).not.toBeNull();
-  modeCombo!.focus();
-  await settle();
-  const hardcodedOption = [...document.body.querySelectorAll<HTMLButtonElement>(".searchable-select-option")].find(
-    (opt) => opt.textContent?.trim() === "Hardcoded",
-  );
-  hardcodedOption!.click();
+  const hardcodedTab = target.querySelector<HTMLButtonElement>('button[role="tab"][aria-selected="false"]');
+  expect(hardcodedTab).not.toBeNull();
+  expect(hardcodedTab!.textContent?.trim()).toBe("Hardcoded");
+  hardcodedTab!.click();
   await settle();
   expect(target.querySelector("#hardcoded-roi-panel")).not.toBeNull();
 
@@ -372,7 +368,7 @@ it("hides hardcoded mode switch and returns to embedded when aiStore.killSwitchA
   await settle();
 
   expect(target.querySelector("#hardcoded-roi-panel")).toBeNull();
-  expect(target.querySelector('input[role="combobox"][aria-label="Extract subtitles"]')).toBeNull();
+  expect(target.querySelector('[role="tablist"][aria-label="Extract subtitles"]')).toBeNull();
   const fallbackHardcodedBtn = [...target.querySelectorAll<HTMLButtonElement>("button")].find(
     (b) => b.textContent?.trim() === "Hardcoded",
   );
@@ -380,7 +376,7 @@ it("hides hardcoded mode switch and returns to embedded when aiStore.killSwitchA
 
   aiStore.killSwitchActive = false;
   await settle();
-  expect(target.querySelector('input[role="combobox"][aria-label="Extract subtitles"]')).not.toBeNull();
+  expect(target.querySelector('[role="tablist"][aria-label="Extract subtitles"]')).not.toBeNull();
 });
 
 it("loads preview frame, previews ROI OCR, and runs hardcoded ROI extraction", async () => {
@@ -407,15 +403,9 @@ it("loads preview frame, previews ROI OCR, and runs hardcoded ROI extraction", a
   mocks.drop!(["/film.mp4"]);
   await settle();
 
-  const modeCombo = target.querySelector<HTMLInputElement>('input[role="combobox"][aria-label="Extract subtitles"]');
-  expect(modeCombo).not.toBeNull();
-  modeCombo!.focus();
-  await settle();
-  const hardcodedOption = [...document.body.querySelectorAll<HTMLButtonElement>(".searchable-select-option")].find(
-    (opt) => opt.textContent?.trim() === "Hardcoded",
-  );
-  expect(hardcodedOption).toBeDefined();
-  hardcodedOption!.click();
+  const hardcodedTab = target.querySelector<HTMLButtonElement>('button[role="tab"][aria-selected="false"]');
+  expect(hardcodedTab).not.toBeNull();
+  hardcodedTab!.click();
   await settle();
 
   expect(mocks.invoke).toHaveBeenCalledWith("ocr_video_preview_frame", {

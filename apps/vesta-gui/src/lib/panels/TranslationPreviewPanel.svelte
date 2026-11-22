@@ -13,7 +13,7 @@
   let originals = $derived(pairs.length ? pairs.map((pair: SubtitlePair) => ({ id: pair.id, text: pair.original })) : source);
 </script>
 
-<div class="glass-card p-5 min-h-[400px] flex flex-col {className}">
+<div class="glass-card p-5 min-h-[320px] flex flex-col {className}">
   <h3 class="mb-4 flex shrink-0 items-center gap-2 text-lg font-semibold text-purple-400">
     <svg aria-hidden="true" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
     {t("translate.livePreview")}
@@ -22,7 +22,7 @@
   <div class="grid grid-cols-1 gap-4 md:grid-cols-2 flex-1 min-h-0">
     <section class="flex min-w-0 flex-col rounded-xl bg-[var(--glass-bg)] p-4 flex-1 min-h-0">
       <h4 class="mb-3 shrink-0 text-xs uppercase tracking-wide text-[var(--muted)]">{t("translate.original")}</h4>
-      <div class="relative min-h-[280px] flex-1 flex flex-col">
+      <div class="relative min-h-[220px] flex-1 flex flex-col">
         <div class="max-h-[340px] xl:max-h-none flex-1 space-y-2 overflow-y-auto scrollbar-thin">
           {#each originals as subtitle (subtitle.id)}
             <div class="rounded-lg border-s-2 border-[var(--border)] bg-[var(--surface-3)]/70 p-2">
@@ -42,7 +42,7 @@
     </section>
     <section class="flex min-w-0 flex-col rounded-xl bg-[var(--glass-bg)] p-4 flex-1 min-h-0">
       <h4 class="mb-3 shrink-0 text-xs uppercase tracking-wide text-[var(--muted)]">{t("translate.translated")}</h4>
-      <div class="relative min-h-[280px] flex-1 flex flex-col" aria-busy={translating}>
+      <div class="relative min-h-[220px] flex-1 flex flex-col" aria-busy={translating}>
         <div class="max-h-[340px] xl:max-h-none flex-1 space-y-2 overflow-y-auto scrollbar-thin">
           {#each pairs as pair (pair.id)}
             <div class="rounded-lg border-s-2 border-[var(--done)]/60 bg-[var(--done)]/10 p-2">

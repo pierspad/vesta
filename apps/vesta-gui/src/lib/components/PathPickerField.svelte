@@ -22,6 +22,7 @@
     browseFirst?: boolean;
     clearLabel?: string;
     containerClass?: string;
+    loading?: boolean;
   }
 
   let {
@@ -43,6 +44,7 @@
     browseFirst = false,
     clearLabel,
     containerClass = "",
+    loading = false,
   }: Props = $props();
   let effectiveBrowseLabel = $derived(browseLabel ?? t("flashcards.browse"));
 </script>
@@ -51,7 +53,7 @@
     <button
       type="button"
       onclick={onbrowse}
-      {disabled}
+      disabled={disabled || loading}
       class="{browseButtonClass} flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
       title={browseTitle}
       aria-label={browseTitle}
@@ -94,10 +96,11 @@
     <button
       type="button"
       onclick={onexpand}
-      disabled={disabled || !onexpand}
+      disabled={disabled || loading || !onexpand}
+      aria-busy={loading ? "true" : undefined}
       class={inputClass
-        ? `${inputClass} flex-1 text-sm text-left transition-colors truncate disabled:opacity-50 ${onexpand ? 'cursor-pointer disabled:cursor-not-allowed' : 'cursor-default disabled:opacity-100'}`
-        : `input-modern flex-1 text-sm text-left transition-colors truncate disabled:opacity-50 ${onexpand ? 'cursor-pointer disabled:cursor-not-allowed' : 'cursor-default disabled:opacity-100'}`}
+        ? `${inputClass} relative overflow-hidden flex-1 text-sm text-left transition-colors truncate ${loading ? 'cursor-wait' : 'disabled:opacity-50'} ${onexpand && !loading ? 'cursor-pointer disabled:cursor-not-allowed' : loading ? 'cursor-wait' : 'cursor-default disabled:opacity-100'}`
+        : `input-modern relative overflow-hidden flex-1 text-sm text-left transition-colors truncate ${loading ? 'cursor-wait' : 'disabled:opacity-50'} ${onexpand && !loading ? 'cursor-pointer disabled:cursor-not-allowed' : loading ? 'cursor-wait' : 'cursor-default disabled:opacity-100'}`}
       style="direction: rtl; text-align: left;"
       title={value || placeholder}
     >
@@ -107,6 +110,11 @@
       >
         {value || placeholder}
       </span>
+      {#if loading}
+        <span aria-hidden="true" class="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 overflow-hidden bg-purple-500/20">
+          <span class="block h-full w-1/3 rounded-full bg-purple-400 loading-bar-indeterminate"></span>
+        </span>
+      {/if}
     </button>
 
     {#if !browseFirst}{@render browseButton()}{/if}
@@ -115,7 +123,7 @@
       <button
         type="button"
         onclick={onclear}
-        disabled={disabled || !value}
+        disabled={disabled || loading || !value}
         class={clearButtonClass || (clearLabel ? "btn-secondary btn-compact shrink-0 disabled:opacity-50" : "inline-flex py-2 px-3 flex-shrink-0 items-center justify-center rounded-lg border transition-colors cursor-pointer disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-gray-600 disabled:opacity-60 border-red-500/30 bg-red-500/10 text-red-300 hover:border-red-400/60 hover:bg-red-500/20")}
         title={clearLabel ?? t("settings.remove")}
         aria-label={clearLabel ?? t("settings.remove")}

@@ -558,7 +558,7 @@
   {/if}
 
   <div class="flex flex-1 flex-col overflow-hidden p-6 min-h-0">
-    <WorkflowWorkspace>
+    <WorkflowWorkspace fillViewport>
       {#snippet files()}
         <RefineFilesPanel
           {filePath}
@@ -570,7 +570,7 @@
         />
       {/snippet}
 
-      <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch flex-1 min-h-0">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch shrink-0 md:shrink md:flex-1 md:min-h-[280px]">
         <RefineCardListPanel
           {cards}
           filteredCount={filteredCards.length}

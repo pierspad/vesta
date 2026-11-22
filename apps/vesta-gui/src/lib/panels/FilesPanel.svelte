@@ -6,6 +6,7 @@
     srtPath: string | null;
     mediaPath: string | null;
     srtLoaded: boolean;
+    isPreparingMedia?: boolean;
     onExpandSrt: () => void;
     onExpandMedia: () => void;
     onBrowseSrt: () => void;
@@ -16,6 +17,7 @@
     srtPath,
     mediaPath,
     srtLoaded,
+    isPreparingMedia = false,
     onExpandSrt,
     onExpandMedia,
     onBrowseSrt,
@@ -53,6 +55,7 @@
       value={srtPath || ""}
       placeholder={t("sync.noSrtFileSelected")}
       browseTitle={t("sync.tooltip.loadSrt")}
+      disabled={isPreparingMedia}
       onexpand={() => {
         if (srtPath) onExpandSrt();
       }}
@@ -67,7 +70,8 @@
       value={mediaPath || ""}
       placeholder={t("sync.noMediaFileSelected")}
       browseTitle={t("sync.tooltip.loadVideo")}
-      disabled={!srtLoaded}
+      disabled={!srtLoaded || isPreparingMedia}
+      loading={isPreparingMedia}
       onexpand={() => {
         if (mediaPath) onExpandMedia();
       }}

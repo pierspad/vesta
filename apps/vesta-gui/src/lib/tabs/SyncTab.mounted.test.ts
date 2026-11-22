@@ -350,3 +350,47 @@ it("hides the speech engine selector in SyncFooterBar when AI Kill Switch is act
     await unmount(component);
   }
 });
+
+it("shows the pending media path, disables Browse, and overlays extracting status without removing the slider", async () => {
+  let resolvePrepare!: (value: string) => void;
+  const preparePromise = new Promise<string>((resolve) => {
+    resolvePrepare = resolve;
+  });
+  setupSyncInvokeMock({
+    sync_suggest_media_for_srt: () => "/films/Detour(1945).mp4",
+    sync_prepare_media_for_playback: () => preparePromise,
+    sync_set_video: () => makeStatus({ video_path: "/films/Detour(1945).mp4" }),
+  });
+
+  const { target, component } = await mountActiveHarness();
+  try {
+    mocks.onDrop!(["/films/Detour-en.srt"]);
+    await vi.waitFor(() => {
+      expect(vi.mocked(invokeCommand)).toHaveBeenCalledWith("sync_prepare_media_for_playback", {
+        path: "/films/Detour(1945).mp4",
+      });
+    });
+    await tick();
+
+    // Top-right media picker immediately shows the detected film and disables Browse while loading.
+    const busyField = target.querySelector<HTMLButtonElement>('button[aria-busy="true"]');
+    expect(busyField).not.toBeNull();
+    expect(busyField!.textContent).toContain("/films/Detour(1945).mp4");
+    const browseMedia = target.querySelector<HTMLButtonElement>('button[title="Load video file"]');
+    expect(browseMedia).not.toBeNull();
+    expect(browseMedia!.disabled).toBe(true);
+
+    // Wizard overlays the extracting status while keeping the playback range slider mounted.
+    expect(target.textContent).toContain("Extracting audio track...");
+    expect(target.querySelector('input[type="range"]')).not.toBeNull();
+
+    resolvePrepare("/cache/detour.wav");
+    await flushAsyncAndTimers();
+
+    expect(target.querySelector('button[aria-busy="true"]')).toBeNull();
+    expect(browseMedia!.disabled).toBe(false);
+    expect(target.textContent).not.toContain("Extracting audio track...");
+  } finally {
+    await unmount(component);
+  }
+});
