@@ -3,16 +3,16 @@
   "description": "Structural contract hashes for Vesta macro-areas and micro-areas. Run `python3 build-scripts/check_doc_contracts.py --update` after updating affected documentation.",
   "macro_areas": {
     "tauri_ipc": {
-      "hash": "1bd9243e7964cb9f",
-      "defined_count": 108,
-      "registered_count": 108,
+      "hash": "2425b8ab3bb3ffa6",
+      "defined_count": 109,
+      "registered_count": 109,
       "groups": {
         "auto_sync": "1ddf2385d7490a26",
         "config": "e64b09924b1a5799",
         "experimental": "d07d248dff0f5be4",
         "extract": "9c8f97a1538145ba",
         "flashcards": "9829f77ba3c867b9",
-        "info": "960263349360c76a",
+        "info": "265d481335c689da",
         "main": "838097f6f9c01b6d",
         "net": "03f68af50294afd7",
         "plugins": "e40515cdd8e5984d",
@@ -72,7 +72,7 @@
       ]
     },
     "cli_adapters": {
-      "hash": "bc94f9de1883d6e8",
+      "hash": "f09fc2780a429e23",
       "crates": {
         "srt-autosync-cli": {
           "hash": "1d2908a1939ffe04",
@@ -481,11 +481,12 @@
           ]
         },
         "vesta-cli": {
-          "hash": "a1802ca3ea2dfa2e",
+          "hash": "b0f82c1286b867ff",
           "subcommands": [
             "autosync",
             "extract",
             "flashcards",
+            "mcp",
             "ocr",
             "refine",
             "sync",

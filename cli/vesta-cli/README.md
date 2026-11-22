@@ -1,18 +1,18 @@
 # Vesta CLI
 
-One headless entry point for Vesta's eight existing command-line workflows.
-It calls their Rust implementations directly and does not depend on Tauri.
+One headless entry point for Vesta's eight processing workflows plus the local stdio MCP server (`vesta-cli mcp`).
+It calls their Rust implementations directly, does not depend on Tauri, and is bundled inside official desktop installers alongside `vesta`.
 
 ```sh
 cargo install --path cli/vesta-cli
 vesta-cli --help
 vesta-cli flashcards generate --help
-vesta-cli translate --help
+vesta-cli mcp --help
 ```
 
 Operations: `flashcards`, `extract`, `ocr`, `sync`, `autosync`, `transcribe`,
-`translate`, `refine`. Each exposes its full options with `--help`.
-Standalone `vesta-*` executables (`vesta-flashcards`, `vesta-extract`, `vesta-ocr`, `vesta-sync`, `vesta-autosync`, `vesta-transcribe`, `vesta-translate`, `vesta-refine`) provide the same individual commands.
+`translate`, `refine`, `mcp`. Each exposes its full options with `--help`.
+Standalone `vesta-*` executables (`vesta-flashcards`, `vesta-extract`, `vesta-ocr`, `vesta-sync`, `vesta-autosync`, `vesta-transcribe`, `vesta-translate`, `vesta-refine`, `vesta-mcp`) provide the same individual commands.
 
 The desktop executable also accepts these operations as `vesta <operation>`;
 running `vesta` without arguments opens the GUI. On Windows, use the standalone

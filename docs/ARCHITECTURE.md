@@ -368,8 +368,8 @@ reload that reconstructs the stores.
 For repeatable setup, installer and internal-update checks on installed builds,
 see [setup testing](SETUP_TESTING.md).
 
-Support logging, external plugin hosting, and installer updates are desktop services, not feature engines:
-`commands/support_logs.rs` owns log files; `commands/plugins.rs` and `src-tauri/src/plugins/` manage external JSON-RPC 2.0 plugin processes (`plugin_inspect`, `plugin_install`, `plugin_list`, `plugin_enable`, `plugin_disable`, `plugin_uninstall`, `plugin_update`, `plugin_get_settings`, `plugin_save_settings`, `plugin_render`, `plugin_dispatch_event`; see [PLUGINS.md](PLUGINS.md)); `commands/updates.rs` chooses an official
+Support logging, external plugin hosting, MCP CLI path discovery, and installer updates are desktop services, not feature engines:
+`commands/support_logs.rs` owns log files; `commands/info.rs` exposes `get_app_info`, `get_system_diagnostics`, and `get_mcp_cli_info` (resolving the bundled sibling or `PATH` `vesta-cli` binary plus default media/export roots for the Settings MCP configuration card); `commands/plugins.rs` and `src-tauri/src/plugins/` manage external JSON-RPC 2.0 plugin processes (`plugin_inspect`, `plugin_install`, `plugin_list`, `plugin_enable`, `plugin_disable`, `plugin_uninstall`, `plugin_update`, `plugin_get_settings`, `plugin_save_settings`, `plugin_render`, `plugin_dispatch_event`; see [PLUGINS.md](PLUGINS.md)); `commands/updates.rs` chooses an official
 stable-release installer for the installed channel/architecture, verifies its
 digest, and opens it. Package-manager channels remain managed externally. Release
 creation and package builds are separate GitHub workflows; a published tag alone

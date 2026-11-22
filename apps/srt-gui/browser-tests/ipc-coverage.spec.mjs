@@ -10,8 +10,19 @@ test("Diagnostics UI, Support Logs, and AlignTab parse/save work end-to-end", as
   await page.goto("/browser-tests/harness.html");
   await expect(page.getByRole("navigation")).toBeVisible();
 
-  // Open Settings -> Diagnostics section
+  // Open Settings -> Overview shows MCP card (hidden when AI Kill Switch is active) -> Diagnostics section
   await page.locator("aside > div button").first().click();
+  const mcpCard = page.locator("#settings-mcp-card");
+  await expect(mcpCard).toBeVisible();
+  await expect(mcpCard).toContainText("/usr/bin/vesta-cli");
+  await expect(mcpCard).toContainText('"mcp"');
+
+  const killSwitch = page.getByRole("switch", { name: "AI Kill Switch", exact: true });
+  await killSwitch.click();
+  await expect(mcpCard).toBeHidden();
+  await killSwitch.click();
+  await expect(mcpCard).toBeVisible();
+
   await page.getByRole("button", { name: "Diagnostics" }).click();
 
   await expect.poll(() => callsFor(page, "get_system_diagnostics")).toHaveLength(1);
@@ -56,6 +67,7 @@ test("All registered IPC commands accept documented payloads and pass browser co
     await inv("config_replace_all", { values: snapshot.entries });
 
     out.mediaInfo = await inv("get_media_server_info");
+    out.mcpCliInfo = await inv("get_mcp_cli_info");
     out.diagnostics = await inv("get_system_diagnostics");
     out.supportStatus = await inv("support_log_status");
     out.supportAppend = await inv("support_log_append", {
@@ -186,6 +198,12 @@ test("All registered IPC commands accept documented payloads and pass browser co
 
   expect(results.configLoaded).toBe(true);
   expect(results.mediaInfo).toEqual([12345, "fixture"]);
+  expect(results.mcpCliInfo).toEqual({
+    command: "/usr/bin/vesta-cli",
+    bundled: true,
+    default_read_root: "/fixtures",
+    default_output_root: "/exports",
+  });
   expect(results.cpuCount).toBe(4);
   expect(results.ramMb).toBe(16384);
   expect(results.pluginSettings).toEqual({ limit: 10 });

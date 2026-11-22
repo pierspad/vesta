@@ -137,6 +137,13 @@ mockIPC((command, args) => {
       return null;
     case "get_app_info":
       return { version: "0.34.0", name: "Vesta", license: "GPL-3.0-only" };
+    case "get_mcp_cli_info":
+      return {
+        command: "/usr/bin/vesta-cli",
+        bundled: true,
+        default_read_root: "/fixtures",
+        default_output_root: "/exports",
+      };
     case "get_update_installation":
       return { channel: "tarball", os: "linux", arch: "x86_64" };
     case "install_release_update":

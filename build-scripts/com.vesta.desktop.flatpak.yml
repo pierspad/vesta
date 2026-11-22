@@ -23,6 +23,7 @@ modules:
     buildsystem: simple
     build-commands:
       - install -Dm755 flatpak-files/vesta /app/bin/vesta
+      - install -Dm755 flatpak-files/vesta-cli /app/bin/vesta-cli
       - install -Dm644 flatpak-files/com.vesta.desktop.png /app/share/icons/hicolor/512x512/apps/com.vesta.desktop.png
       - install -Dm644 flatpak-files/com.vesta.desktop.desktop /app/share/applications/com.vesta.desktop.desktop
     sources:

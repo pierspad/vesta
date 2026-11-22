@@ -176,6 +176,19 @@ jobs:
         working-directory: ${{ env.TAURI_APP_DIR }}
         run: npx tauri icon src-tauri/icons/icon.svg -o src-tauri/icons
 
+      - name: Build and stage vesta-cli sidecar
+        shell: pwsh
+        env:
+          GGML_NATIVE: "OFF"
+          GGML_CCACHE: "OFF"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          cargo build --release --locked --target aarch64-pc-windows-msvc -p vesta-cli
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $binariesDir = Join-Path $env:TAURI_APP_DIR 'src-tauri\binaries'
+          New-Item -ItemType Directory -Force -Path $binariesDir | Out-Null
+          Copy-Item 'target\aarch64-pc-windows-msvc\release\vesta-cli.exe' (Join-Path $binariesDir 'vesta-cli-aarch64-pc-windows-msvc.exe') -Force
+
       - name: Build Tauri app
         working-directory: ${{ env.TAURI_APP_DIR }}
         shell: pwsh
@@ -183,7 +196,7 @@ jobs:
           NO_STRIP: true
           GGML_NATIVE: "OFF"
           GGML_CCACHE: "OFF"
-        run: npx tauri build --target aarch64-pc-windows-msvc --bundles nsis -- --locked
+        run: npx tauri build --target aarch64-pc-windows-msvc --bundles nsis --config src-tauri/tauri.release-cli.conf.json -- --locked
 
       - name: Upload NSIS installer
         uses: actions/upload-artifact@v6
@@ -229,6 +242,19 @@ jobs:
           }
           if ($app.ExitCode -ne 0) {
             throw "The installed executable failed with exit code $($app.ExitCode)"
+          }
+
+          $cliExecutable = Join-Path $installDir 'vesta-cli.exe'
+          if (-not (Test-Path $cliExecutable)) {
+            throw "Bundled vesta-cli.exe missing from $installDir"
+          }
+          & $cliExecutable --version
+          if ($LASTEXITCODE -ne 0) {
+            throw "Bundled vesta-cli.exe --version failed with exit code $LASTEXITCODE"
+          }
+          & $cliExecutable mcp --help | Out-Null
+          if ($LASTEXITCODE -ne 0) {
+            throw "Bundled vesta-cli.exe mcp --help failed with exit code $LASTEXITCODE"
           }
 
       - name: Attach Windows ARM64 installer to release
@@ -328,12 +354,23 @@ jobs:
         working-directory: ${{ env.TAURI_APP_DIR }}
         run: npx tauri icon src-tauri/icons/icon.svg -o src-tauri/icons
 
+      - name: Build and stage vesta-cli sidecar
+        shell: bash
+        env:
+          GGML_NATIVE: "OFF"
+        run: |
+          set -euo pipefail
+          cargo build --release --locked --target aarch64-apple-darwin -p vesta-cli
+          mkdir -p "${TAURI_APP_DIR}/src-tauri/binaries"
+          cp target/aarch64-apple-darwin/release/vesta-cli "${TAURI_APP_DIR}/src-tauri/binaries/vesta-cli-aarch64-apple-darwin"
+          chmod +x "${TAURI_APP_DIR}/src-tauri/binaries/vesta-cli-aarch64-apple-darwin"
+
       - name: Build Tauri app
         working-directory: ${{ env.TAURI_APP_DIR }}
         env:
           APPLE_SIGNING_IDENTITY: '-'
           GGML_NATIVE: "OFF"
-        run: npx tauri build --target aarch64-apple-darwin --bundles dmg -- --locked
+        run: npx tauri build --target aarch64-apple-darwin --bundles dmg --config src-tauri/tauri.release-cli.conf.json -- --locked
 
       - name: Verify macOS disk image and app
         shell: bash
@@ -348,6 +385,9 @@ jobs:
           lipo "${app[0]}/Contents/MacOS/$executable" -verify_arch arm64
           codesign --verify --deep --strict "${app[0]}"
           "${app[0]}/Contents/MacOS/$executable" --version
+          lipo "${app[0]}/Contents/MacOS/vesta-cli" -verify_arch arm64
+          "${app[0]}/Contents/MacOS/vesta-cli" --version
+          "${app[0]}/Contents/MacOS/vesta-cli" mcp --help >/dev/null
 
       - name: Upload macOS disk image
         uses: actions/upload-artifact@v6

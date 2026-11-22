@@ -4,18 +4,100 @@ mod paths;
 mod provider_config;
 mod requests;
 
+use clap::Parser;
 pub use jobs::{JobSnapshot, Jobs, OcrTarget, Status};
 pub use paths::Paths;
 pub use provider_config::{ProviderConfig, TranscriptionProfile, TranslationProfile};
 use requests::*;
 use rmcp::{
-    Json, ServerHandler,
+    Json, ServerHandler, ServiceExt,
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     model::{Implementation, ServerCapabilities, ServerConfig},
     tool, tool_handler, tool_router,
 };
 use serde_json::{Value, json};
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
+use std::process::ExitCode;
+
+#[derive(Parser, Debug)]
+#[command(
+    name = "vesta-mcp",
+    version,
+    about = "Local MCP server for Vesta (stdio, no GUI or listening port)",
+    after_help = "Example:\n  vesta-cli mcp --read-root /absolute/path/to/media --output-root /absolute/path/to/exports\n  vesta-mcp --read-root /absolute/path/to/media --output-root /absolute/path/to/exports\n\nBoth roots must already exist. Repeat --read-root for more input directories.\nStart this command from an MCP client: stdin/stdout carry protocol messages, not an interactive prompt.\nTools cover subtitle inspection, embedded tracks, previews, cancellable flashcard exports, OCR, and installed plugins; translation/transcription/OCR require --provider-config.\nUse vesta-cli <operation> --help for terminal workflows."
+)]
+pub struct McpCliArgs {
+    /// Existing input directory; repeat to allow more directories.
+    #[arg(long, required = true)]
+    pub read_root: Vec<PathBuf>,
+    /// Existing directory for fresh per-job output subdirectories.
+    #[arg(long)]
+    pub output_root: PathBuf,
+    /// Optional server-side JSON profiles; credentials are resolved from named environment variables.
+    #[arg(long)]
+    pub provider_config: Option<PathBuf>,
+    /// Optional directory containing installed Vesta plugins.
+    #[arg(long)]
+    pub plugins_dir: Option<PathBuf>,
+}
+
+/// Serve the Vesta MCP protocol over stdin/stdout until client disconnect or Ctrl+C.
+pub async fn serve_stdio(args: McpCliArgs) -> anyhow::Result<()> {
+    let providers = args
+        .provider_config
+        .map(ProviderConfig::load)
+        .transpose()
+        .map_err(anyhow::Error::msg)?
+        .unwrap_or_default();
+    let server = VestaMcp::with_plugins_dir(
+        Paths::new(args.read_root, args.output_root)?,
+        providers,
+        args.plugins_dir,
+    );
+    let jobs = server.jobs();
+    // stdout belongs exclusively to the SDK's JSON-RPC transport.
+    let service = server.serve(rmcp::transport::stdio()).await?;
+    let cancel = service.cancellation_token();
+    let finished = service.waiting();
+    tokio::pin!(finished);
+    let result = tokio::select! {
+        result = &mut finished => result,
+        _ = tokio::signal::ctrl_c() => { cancel.cancel(); finished.await }
+    };
+    jobs.shutdown().await;
+    result?;
+    Ok(())
+}
+
+/// Dispatch CLI arguments for the stdio MCP server (`vesta-mcp` or `vesta-cli mcp`).
+pub fn run_from(args: Vec<OsString>) -> ExitCode {
+    let parsed = match McpCliArgs::try_parse_from(args) {
+        Ok(parsed) => parsed,
+        Err(err) => {
+            let code = err.exit_code() as u8;
+            let _ = err.print();
+            return ExitCode::from(code);
+        }
+    };
+    let runtime = match tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(rt) => rt,
+        Err(err) => {
+            eprintln!("Failed to start Tokio runtime: {err}");
+            return ExitCode::FAILURE;
+        }
+    };
+    match runtime.block_on(serve_stdio(parsed)) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            eprintln!("Error: {err:#}");
+            ExitCode::FAILURE
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct VestaMcp {

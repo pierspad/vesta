@@ -123,6 +123,24 @@ def main():
     require("if: ${{ github.event_name == 'workflow_dispatch'" in arm64,
             'ARM64 build jobs must run only on workflow_dispatch')
 
+    release_cli_conf = json.loads(
+        (ROOT / 'apps/srt-gui/src-tauri/tauri.release-cli.conf.json').read_text(encoding='utf-8')
+    )
+    require(release_cli_conf.get('bundle', {}).get('externalBin') == ['binaries/vesta-cli'],
+            'tauri.release-cli.conf.json must declare binaries/vesta-cli as externalBin')
+    require('tauri.release-cli.conf.json' in build and 'vesta-cli-x86_64-unknown-linux-gnu' in build
+            and 'vesta-cli-${{ matrix.target }}.exe' in build
+            and 'externalBin: ["binaries/vesta-cli"]' in build,
+            'build.yml must bundle vesta-cli in Linux and Windows installers')
+    require('install -Dm755 flatpak-files/vesta-cli /app/bin/vesta-cli' in flatpak_manifest
+            and 'cp "$CLI_BINARY" build-scripts/flatpak-files/vesta-cli' in build,
+            'Flatpak packaging must include /app/bin/vesta-cli')
+    require('vesta-cli-aarch64-pc-windows-msvc.exe' in arm64
+            and 'vesta-cli-aarch64-apple-darwin' in arm64
+            and 'Contents/MacOS/vesta-cli' in arm64
+            and 'vesta-cli.exe' in arm64,
+            'build-arm64.yml must bundle and smoke-check vesta-cli in Windows ARM64 and macOS ARM64 installers')
+
     check_shell_behavior(build, arm64)
     print('Release workflow safety checks passed (including executable shell fixtures).')
 

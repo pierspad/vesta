@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   rawInvoke: vi.fn<(cmd: string) => Promise<unknown>>(),
   save: vi.fn(),
   open: vi.fn(),
-  copy: vi.fn(),
+  copy: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("$lib/services/tauriClient", () => ({
@@ -42,9 +42,11 @@ import AnkiSettingsPanel from "./AnkiSettingsPanel.svelte";
 import ApiKeysCard from "./ApiKeysCard.svelte";
 import DiagnosticsSettingsPanel from "./DiagnosticsSettingsPanel.svelte";
 import IttSettingsPanel from "./IttSettingsPanel.svelte";
+import McpSettingsCard from "$lib/components/McpSettingsCard.svelte";
 import OverviewSettingsPanel from "./OverviewSettingsPanel.svelte";
 import SupportLogsPanel from "./SupportLogsPanel.svelte";
 import WhisperSettingsPanel from "./WhisperSettingsPanel.svelte";
+import { aiStore } from "$lib/stores/aiStore.svelte";
 
 const mounted: ReturnType<typeof mount>[] = [];
 const sCopy = (key: string) => key;
@@ -100,11 +102,21 @@ beforeEach(() => {
     }
     if (cmd === "flashcard_get_cpu_count") return 4;
     if (cmd === "flashcard_get_total_memory_mb") return 8192;
+    if (cmd === "get_mcp_cli_info") {
+      return {
+        command: "/opt/vesta/vesta-cli",
+        bundled: true,
+        default_read_root: "/media/shows",
+        default_output_root: "/media/decks",
+      };
+    }
     return null;
   });
+  mocks.copy.mockResolvedValue(true);
 });
 
 afterEach(async () => {
+  aiStore.killSwitchActive = false;
   for (const component of mounted.splice(0)) {
     await unmount(component);
   }
@@ -179,7 +191,7 @@ describe("Settings panels", () => {
     expect(target.textContent).toContain("{{Meaning}}");
   });
 
-  it("OverviewSettingsPanel renders snippet content and export backup controls", async () => {
+  it("OverviewSettingsPanel renders snippet content, MCP card, and hides MCP card when AI Kill Switch is active", async () => {
     const defaultLanguagesCard = createRawSnippet(() => ({
       render: () => `<div data-default-langs="1">Default Languages Slot</div>`,
     }));
@@ -188,6 +200,47 @@ describe("Settings panels", () => {
     await settle();
 
     expect(target.querySelector('[data-default-langs="1"]')).not.toBeNull();
+    expect(target.querySelector("#settings-mcp-card")).not.toBeNull();
+
+    aiStore.killSwitchActive = true;
+    await settle();
+    expect(target.querySelector("#settings-mcp-card")).toBeNull();
+  });
+
+  it("McpSettingsCard resolves CLI info, updates folders, and copies valid MCP JSON", async () => {
+    const target = targetEl();
+    mounted.push(mount(McpSettingsCard, { target }));
+    await settle();
+
+    const snippet = target.querySelector("pre")!.textContent!;
+    const parsed = JSON.parse(snippet);
+    expect(parsed).toEqual({
+      mcpServers: {
+        vesta: {
+          command: "/opt/vesta/vesta-cli",
+          args: ["mcp", "--read-root", "/media/shows", "--output-root", "/media/decks"],
+        },
+      },
+    });
+
+    mocks.open.mockResolvedValueOnce("/custom/anime");
+    const chooseButtons = Array.from(target.querySelectorAll<HTMLButtonElement>("button")).filter((b) =>
+      b.textContent?.includes("Choose folder"),
+    );
+    expect(chooseButtons).toHaveLength(2);
+    chooseButtons[0].click();
+    await settle();
+
+    const updated = JSON.parse(target.querySelector("pre")!.textContent!);
+    expect(updated.mcpServers.vesta.args[2]).toBe("/custom/anime");
+
+    const copyBtn = Array.from(target.querySelectorAll<HTMLButtonElement>("button")).find((b) =>
+      b.textContent?.includes("Copy MCP configuration"),
+    )!;
+    copyBtn.click();
+    await settle();
+    expect(mocks.copy).toHaveBeenCalledTimes(1);
+    expect(mocks.copy.mock.calls[0][0]).toContain('"/custom/anime"');
   });
 
   it("IttSettingsPanel renders Vision endpoints and priority tiers", async () => {

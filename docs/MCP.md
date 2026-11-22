@@ -22,8 +22,8 @@ over a single structured stdio protocol.
 
 | Interface | Best fit | Current coverage |
 |---|---|---|
-| `vesta-cli` / `vesta <operation>` | Shell scripts and terminal users | Eight processing workflows; see the [CLI coverage matrix](CLI.md). |
-| `vesta-mcp` | MCP clients discovering structured tools and tracking export jobs | Subtitle inspection, embedded track listing, paged card previews, TSV/APKG exports, translation, transcription, bitmap OCR, and installed plugins (12 tools). |
+| `vesta-cli` / `vesta <operation>` | Shell scripts and terminal users | Nine subcommands: eight processing workflows plus `vesta-cli mcp` (`vesta mcp`); see the [CLI coverage matrix](CLI.md). |
+| `vesta-cli mcp` / `vesta-mcp` | MCP clients discovering structured tools and tracking export jobs | Subtitle inspection, embedded track listing, paged card previews, TSV/APKG exports, translation, transcription, bitmap OCR, and installed plugins (12 tools). |
 | Rust libraries | Applications that need APIs/options not exposed by an adapter | All public engine APIs; caller owns orchestration, configuration and lifecycle. |
 
 The client starts a local subprocess for its connection. That process uses local
@@ -32,9 +32,15 @@ listening port or system background service is required.
 
 ## Build and connect
 
-From the repository root:
+Desktop release installers (`deb`, `rpm`, Arch Linux, Flatpak, Windows NSIS/MSI, and macOS `.dmg`) bundle `vesta-cli` alongside the GUI app, and **Settings → Overview** includes an **AI assistant integration (MCP)** card that detects the bundled `vesta-cli` path, lets you pick your media and export folders, and copies a ready-to-paste client snippet.
+
+When building from source from the repository root (either via `vesta-cli mcp` or standalone `vesta-mcp`):
 
 ```sh
+cargo install --locked --path cli/vesta-cli
+vesta-cli mcp --help
+
+# Or standalone MCP-only executable:
 cargo install --locked --path cli/vesta-mcp
 vesta-mcp --help
 ```
@@ -46,8 +52,9 @@ configuration format depends on the client):
 {
   "mcpServers": {
     "vesta": {
-      "command": "/absolute/path/to/vesta-mcp",
+      "command": "/absolute/path/to/vesta-cli",
       "args": [
+        "mcp",
         "--read-root", "/absolute/path/to/media",
         "--output-root", "/absolute/path/to/exports"
       ]
@@ -56,7 +63,7 @@ configuration format depends on the client):
 }
 ```
 
-Use `vesta-mcp.exe` on Windows. Create the directories before connecting; the
+Use `vesta-cli.exe` (or `vesta-mcp.exe`) on Windows. Standalone `vesta-mcp` omits the leading `"mcp"` item in `args`. Create the directories before connecting; the
 server requires existing roots and does not create them. Repeat
 `--read-root` for additional input directories. Pass `--provider-config <PATH>`
 to enable translation and transcription profiles, and `--plugins-dir <PATH>` to
@@ -67,8 +74,7 @@ Subtitle inputs are limited to 16 MiB and supported subtitle extensions.
 These checks are an application policy, not an OS sandbox against a separate
 process deliberately changing files or symlinks during execution.
 
-The server is optional and independent of `vesta` / `vesta-cli`. Running
-`vesta` without arguments still opens the desktop app. A bare `vesta-mcp` requires
+`vesta` without arguments still opens the desktop app, whereas `vesta mcp ...` or `vesta-cli mcp ...` starts the local MCP stdio server without opening a window. A bare `vesta-mcp` requires
 its directory arguments; a configured server then waits for an MCP client.
 
 ## Tools

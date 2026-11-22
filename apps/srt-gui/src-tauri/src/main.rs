@@ -242,6 +242,7 @@ fn main() -> std::process::ExitCode {
             ocr_uninstall_model,
             open_output_path,
             get_app_info,
+            get_mcp_cli_info,
             get_update_installation,
             install_release_update,
             get_system_diagnostics,

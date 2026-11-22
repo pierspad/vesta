@@ -62,6 +62,7 @@ config.toml
 __pycache__/
 *.pyc
 build-scripts/vesta-*.*.*.deb
+apps/*/src-tauri/binaries/
 # LICENSE/.SRCINFO sono scaricati/generati da makepkg: se restano committati,
 # updpkgsums li trova già presenti e salta il download da GitHub, congelando
 # un hash vecchio invece di quello reale (causa del validity check FAILED).

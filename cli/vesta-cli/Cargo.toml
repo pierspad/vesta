@@ -21,12 +21,13 @@ srt-refine-cli = { path = "../srt-refine-cli" }
 srt-sync-cli = { path = "../srt-sync-cli" }
 srt-transcribe-cli = { path = "../srt-transcribe-cli" }
 srt-translate-cli = { path = "../srt-translate-cli" }
+vesta-mcp = { path = "../vesta-mcp" }
 
 [dev-dependencies]
 tempfile.workspace = true
 
 [features]
-vulkan = ["srt-transcribe-cli/vulkan"]
-cuda = ["srt-transcribe-cli/cuda"]
-rocm = ["srt-transcribe-cli/rocm"]
-sycl = ["srt-transcribe-cli/sycl"]
+vulkan = ["srt-transcribe-cli/vulkan", "vesta-mcp/vulkan"]
+cuda = ["srt-transcribe-cli/cuda", "vesta-mcp/cuda"]
+rocm = ["srt-transcribe-cli/rocm", "vesta-mcp/rocm"]
+sycl = ["srt-transcribe-cli/sycl", "vesta-mcp/sycl"]

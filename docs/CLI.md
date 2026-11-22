@@ -1,6 +1,6 @@
 # Command-Line Reference
 
-`vesta-cli` runs Vesta workflows without Tauri or desktop dependencies. The installed desktop binary also accepts `vesta <operation>` before launching the window (`vesta` with no arguments opens the GUI; `vesta-cli` with no arguments prints help). On Windows, use `vesta-cli.exe` for terminal output.
+`vesta-cli` runs Vesta workflows without Tauri or desktop dependencies, and is bundled inside official desktop installers alongside the GUI app. The installed desktop binary also accepts `vesta <operation>` before launching the window (`vesta` with no arguments opens the GUI; `vesta-cli` with no arguments prints help). On Windows, use `vesta-cli.exe` for terminal output.
 
 ```sh
 cargo install --locked --path cli/vesta-cli
@@ -8,7 +8,7 @@ vesta-cli --help
 vesta-cli help flashcards generate
 ```
 
-Each subcommand invokes the corresponding standalone `vesta-*` CLI parser (`vesta-flashcards`, `vesta-extract`, `vesta-ocr`, `vesta-sync`, `vesta-autosync`, `vesta-transcribe`, `vesta-translate`, `vesta-refine`) and library engine directly; standalone binaries do not need to be installed separately at runtime. Delegated usage output displays the matching standalone `vesta-*` command name. Package build paths (`cli/srt-*-cli`) and Rust library APIs are listed in the [module index](modules/README.md).
+Each subcommand invokes the corresponding standalone `vesta-*` CLI parser (`vesta-flashcards`, `vesta-extract`, `vesta-ocr`, `vesta-sync`, `vesta-autosync`, `vesta-transcribe`, `vesta-translate`, `vesta-refine`) or the embedded `vesta-mcp` server (`vesta-cli mcp`) directly; standalone binaries do not need to be installed separately at runtime. Delegated usage output displays the matching standalone `vesta-*` command name. Package build paths (`cli/srt-*-cli`) and Rust library APIs are listed in the [module index](modules/README.md).
 
 CLI configuration is isolated from desktop preferences: commands do not read the GUI's stored API keys, provider tiers, AI Kill Switch, or note templates. Translation TOML files expand `${VAR_NAME}` from the environment or `.env`; refinement JSON files do not. For the stdio Model Context Protocol server, see [MCP.md](MCP.md).
 
@@ -24,6 +24,7 @@ CLI configuration is isolated from desktop preferences: commands do not read the
 | Transcribe | Single local or cloud endpoint per run; model list/download/removal; default Silero VAD, beam-search quality, segmentation, and JSON-Lines progress | Multi-tier provider failover, remote model discovery, and per-run custom VAD variant or model directory selection |
 | Translate | Tiered TOML provider pools, batch size, resume overlap, language list, and completeness check | Context preview/editing, interactive subtitle table editing, and remote model discovery |
 | Refine | JSON card inspection (`inspect`) and tiered LLM annotation (`enrich`) for TSV/APKG decks | Interactive card selection/editing, custom TSV column mapping, and GUI auto-run controls |
+| MCP | `vesta-cli mcp --read-root ... --output-root ...` stdio JSON-RPC server (12 tools; see [MCP.md](MCP.md)) | Settings card (`AI assistant integration (MCP)`) detects the bundled `vesta-cli` path and copies ready client JSON |
 | AnkiConnect & Desktop | No dedicated CLI command | Direct AnkiConnect import (`srt-ankiconnect`), setup wizard, update installer, support logs, and local media playback server |
 
 ## Subcommands and Options
@@ -154,6 +155,7 @@ vesta-cli refine enrich --input deck.apkg --output deck.annotated.apkg --config 
 | `transcribe` | Final output path, or JSON-Lines stream with `--json` | Progress and errors (`-q, --quiet` or `--json` hides progress) |
 | `translate` | Progress, summary, or `--check-missing` report | Errors and cancellation notice |
 | `refine` | `inspect` card JSON or `enrich` summary JSON | Progress and errors |
+| `mcp` | JSON-RPC 2.0 MCP protocol stream (owned exclusively by `rmcp`) | Server startup/shutdown errors |
 
 - `0`: Completed without error.
 - `1`: Validation, I/O, or runtime processing error (including partial refinement with `--allow-partial`).

@@ -167,9 +167,14 @@ def extract_mcp_contracts() -> Dict[str, Any]:
         }
 
     main_content = main_rs.read_text(encoding="utf-8")
+    args_content = lib_content + "\n" + main_content
     cli_flags = sorted(
-        re.findall(r"#\[arg[^\]]*\]\s*pub?\s*([a-zA-Z0-9_]+)\s*:", main_content)
-        or re.findall(r"#\[arg[^\]]*\]\s*([a-zA-Z0-9_]+)\s*:", main_content)
+        set(
+            re.findall(
+                r"#\[arg[^\]]*\]\s*(?:pub\s+)?([a-zA-Z0-9_]+)\s*:",
+                args_content,
+            )
+        )
     )
 
     return {

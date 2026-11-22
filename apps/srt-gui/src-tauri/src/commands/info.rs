@@ -78,6 +78,89 @@ pub fn get_app_info() -> AppInfo {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct McpCliInfo {
+    pub command: String,
+    pub bundled: bool,
+    pub default_read_root: String,
+    pub default_output_root: String,
+}
+
+fn default_mcp_roots() -> (String, String) {
+    let read_fallback = if cfg!(windows) {
+        r"C:\Users\Public\Videos"
+    } else {
+        "/path/to/media"
+    };
+    let output_fallback = if cfg!(windows) {
+        r"C:\Users\Public\Documents"
+    } else {
+        "/path/to/exports"
+    };
+    let read_root = dirs::video_dir()
+        .or_else(dirs::home_dir)
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|| read_fallback.to_string());
+    let output_root = dirs::document_dir()
+        .or_else(dirs::home_dir)
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|| output_fallback.to_string());
+    (read_root, output_root)
+}
+
+pub(crate) fn resolve_mcp_cli_info_from(
+    exe_path: Option<&std::path::Path>,
+    path_env: Option<&std::ffi::OsStr>,
+) -> McpCliInfo {
+    let bin_name = if cfg!(windows) {
+        "vesta-cli.exe"
+    } else {
+        "vesta-cli"
+    };
+    let (default_read_root, default_output_root) = default_mcp_roots();
+
+    if let Some(sibling) = exe_path
+        .and_then(|p| p.parent())
+        .map(|dir| dir.join(bin_name))
+        .filter(|candidate| candidate.is_file())
+    {
+        return McpCliInfo {
+            command: sibling.to_string_lossy().into_owned(),
+            bundled: true,
+            default_read_root,
+            default_output_root,
+        };
+    }
+
+    if let Some(paths) = path_env {
+        for dir in std::env::split_paths(paths) {
+            let candidate = dir.join(bin_name);
+            if candidate.is_file() {
+                return McpCliInfo {
+                    command: candidate.to_string_lossy().into_owned(),
+                    bundled: true,
+                    default_read_root,
+                    default_output_root,
+                };
+            }
+        }
+    }
+
+    McpCliInfo {
+        command: bin_name.to_string(),
+        bundled: false,
+        default_read_root,
+        default_output_root,
+    }
+}
+
+#[tauri::command]
+pub fn get_mcp_cli_info() -> McpCliInfo {
+    let exe_path = std::env::current_exe().ok();
+    let path_env = std::env::var_os("PATH");
+    resolve_mcp_cli_info_from(exe_path.as_deref(), path_env.as_deref())
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct SystemDiagnostics {
     pub os: String,
@@ -263,5 +346,41 @@ mod tests {
         .await
         .unwrap_err();
         assert!(err.contains("Invalid start timestamp"));
+    }
+
+    #[test]
+    fn mcp_cli_info_prefers_sibling_then_path_then_fallback() {
+        let dir = tempfile::tempdir().unwrap();
+        let app_dir = dir.path().join("app");
+        let path_dir = dir.path().join("path");
+        std::fs::create_dir_all(&app_dir).unwrap();
+        std::fs::create_dir_all(&path_dir).unwrap();
+
+        let bin_name = if cfg!(windows) {
+            "vesta-cli.exe"
+        } else {
+            "vesta-cli"
+        };
+        let app_exe = app_dir.join(if cfg!(windows) { "vesta.exe" } else { "vesta" });
+        let sibling_cli = app_dir.join(bin_name);
+        let path_cli = path_dir.join(bin_name);
+
+        let fallback = super::resolve_mcp_cli_info_from(Some(&app_exe), Some(path_dir.as_os_str()));
+        assert!(!fallback.bundled);
+        assert_eq!(fallback.command, bin_name);
+        assert!(!fallback.default_read_root.is_empty());
+        assert!(!fallback.default_output_root.is_empty());
+
+        std::fs::write(&path_cli, b"path-cli").unwrap();
+        let from_path =
+            super::resolve_mcp_cli_info_from(Some(&app_exe), Some(path_dir.as_os_str()));
+        assert!(from_path.bundled);
+        assert_eq!(from_path.command, path_cli.to_string_lossy());
+
+        std::fs::write(&sibling_cli, b"sibling-cli").unwrap();
+        let from_sibling =
+            super::resolve_mcp_cli_info_from(Some(&app_exe), Some(path_dir.as_os_str()));
+        assert!(from_sibling.bundled);
+        assert_eq!(from_sibling.command, sibling_cli.to_string_lossy());
     }
 }

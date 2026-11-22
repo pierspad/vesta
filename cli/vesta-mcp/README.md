@@ -22,4 +22,4 @@ Translation and transcription are opt-in: pass `--provider-config /path/to/provi
 with named server-side profiles. The client sends a profile ID rather than credentials.
 See the guide for the schema, environment-variable references, model-download policy
 and examples. The default build is CPU-only; optional GPU features match `vesta-cli`.
-The MCP executable is built separately; desktop installer updates do not replace it.
+Desktop installers bundle `vesta-cli` (which exposes the identical server via `vesta-cli mcp` / `vesta mcp`); standalone `vesta-mcp` remains available when you only want the MCP binary.

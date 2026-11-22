@@ -6154,6 +6154,7 @@ dependencies = [
  "srt-transcribe-cli",
  "srt-translate-cli",
  "tempfile",
+ "vesta-mcp",
 ]
 
 [[package]]

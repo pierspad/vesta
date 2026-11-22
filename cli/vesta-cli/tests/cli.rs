@@ -24,6 +24,7 @@ fn top_level_help_lists_operations_and_no_arguments_show_help() {
             "refine",
             "extract",
             "ocr",
+            "mcp",
         ] {
             assert!(
                 stdout.contains(operation),
@@ -98,6 +99,7 @@ fn every_operation_exposes_help() {
         "refine",
         "extract",
         "ocr",
+        "mcp",
     ] {
         let result = run(&[operation, "--help"]);
         assert!(
@@ -148,6 +150,24 @@ fn help_subcommand_forwards_nested_help() {
         assert!(output.status.success());
         assert!(String::from_utf8_lossy(&output.stdout).contains("Usage:"));
     }
+}
+
+#[test]
+fn mcp_subcommand_exposes_server_flags_and_requires_roots() {
+    let help = run(&["mcp", "--help"]);
+    assert!(help.status.success());
+    let stdout = String::from_utf8_lossy(&help.stdout);
+    for flag in [
+        "--read-root",
+        "--output-root",
+        "--provider-config",
+        "--plugins-dir",
+    ] {
+        assert!(stdout.contains(flag), "missing {flag} in {stdout}");
+    }
+
+    let missing = run(&["mcp"]);
+    assert_eq!(missing.status.code(), Some(2));
 }
 
 #[test]

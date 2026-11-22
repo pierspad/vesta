@@ -15,6 +15,14 @@ const tauriMocks = vi.hoisted(() => ({
     if (command === "flashcard_get_cpu_count") return 4;
     if (command === "flashcard_get_total_memory_mb") return 4096;
     if (command === "get_system_diagnostics") return { os: "linux", arch: "x86_64" };
+    if (command === "get_mcp_cli_info") {
+      return {
+        command: "vesta-cli",
+        bundled: false,
+        default_read_root: "/path/to/media",
+        default_output_root: "/path/to/exports",
+      };
+    }
     return undefined;
   }),
 }));

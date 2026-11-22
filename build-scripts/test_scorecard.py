@@ -55,7 +55,7 @@ class ScorecardTests(unittest.TestCase):
         self.assertEqual(errors, [])
         metrics = compute_metrics(REPO_ROOT)
         self.assertEqual(metrics.workspace_crates, 24)
-        self.assertEqual(metrics.ipc_total, 108)
+        self.assertEqual(metrics.ipc_total, 109)
         self.assertEqual(metrics.mcp_tools, 12)
         self.assertEqual(metrics.plugin_widgets, 23)
         self.assertEqual(metrics.locales, 15)

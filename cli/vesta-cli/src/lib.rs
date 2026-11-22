@@ -8,7 +8,7 @@ fn command() -> Command {
         .version(env!("CARGO_PKG_VERSION"))
         .about("Vesta headless subtitle and flashcard workflows")
         .long_about("Run headless Vesta operations. Each operation forwards its options to the same CLI implementation used by its standalone vesta-* command.")
-        .after_help("Examples:\n  vesta flashcards preview --help\n  vesta translate --language-list\n  vesta transcribe run --help\n\nEach command accepts the standalone adapter's options; use its --help for requirements and examples.")
+        .after_help("Examples:\n  vesta flashcards preview --help\n  vesta translate --language-list\n  vesta transcribe run --help\n  vesta mcp --help\n\nEach command accepts the standalone adapter's options; use its --help for requirements and examples.")
         .subcommand_required(false)
         .arg_required_else_help(false)
         .subcommand(Command::new("flashcards").about("Create or inspect flashcards (vesta-flashcards options)"))
@@ -19,6 +19,7 @@ fn command() -> Command {
         .subcommand(Command::new("refine").about("Inspect or annotate flashcard decks (vesta-refine options)"))
         .subcommand(Command::new("extract").about("Inspect SRT files or list/extract embedded subtitle tracks (vesta-extract options)"))
         .subcommand(Command::new("ocr").about("Extract and OCR bitmap subtitle tracks or hardcoded video ROI subtitles to SRT (vesta-ocr options)"))
+        .subcommand(Command::new("mcp").about("Run the local stdio MCP server for AI clients (vesta-mcp options)"))
 }
 
 /// Dispatch arguments to the existing command implementations without requiring
@@ -61,6 +62,7 @@ pub fn run_from(args: Vec<OsString>) -> ExitCode {
         "refine" => "vesta-refine",
         "extract" => "vesta-extract",
         "ocr" => "vesta-ocr",
+        "mcp" => "vesta-mcp",
         unknown => {
             let error = command().error(
                 ErrorKind::InvalidSubcommand,
@@ -90,6 +92,7 @@ pub fn run_from(args: Vec<OsString>) -> ExitCode {
             }
         },
         "vesta-ocr" => srt_ocr_cli::run_from(forwarded),
+        "vesta-mcp" => vesta_mcp::run_from(forwarded),
         _ => unreachable!("operation mapped above"),
     }
 }

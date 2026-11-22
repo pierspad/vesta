@@ -8,6 +8,8 @@
   import { cpuRamStore } from "$lib/stores/cpuRamStore.svelte";
   import { exportFormatStore } from "$lib/stores/exportFormatStore.svelte";
   import { ankiStore } from "$lib/stores/ankiStore.svelte";
+  import { aiStore } from "$lib/stores/aiStore.svelte";
+  import McpSettingsCard from "$lib/components/McpSettingsCard.svelte";
   import UpdateSettingsCard from "$lib/components/UpdateSettingsCard.svelte";
   import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
   import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
@@ -406,6 +408,10 @@
   </div>
   </div>
 </div>
+
+{#if !aiStore.killSwitchActive}
+  <McpSettingsCard />
+{/if}
 
 <style>
   .ui-language-grid {
