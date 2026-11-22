@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Maintain and query a local SQLite cache (`scorecard/.cache/scorecard.db`) for `scorecard/*.toml`."""
+"""Maintain, verify, and query the tracked SQLite database (`scorecard/scorecard.db`) for `scorecard/*.toml`."""
 
 from __future__ import annotations
 
@@ -153,7 +153,7 @@ CREATE INDEX idx_bugs_severity ON bugs(severity);
 
 
 def _db_path(repo_root: pathlib.Path) -> pathlib.Path:
-    return repo_root / "scorecard" / ".cache" / "scorecard.db"
+    return repo_root / "scorecard" / "scorecard.db"
 
 
 def _toml_str(value: str) -> str:
@@ -198,6 +198,69 @@ def _serialize_toml(
     return "\n".join(lines)
 
 
+def _db_matches_parsed(
+    db_file: pathlib.Path,
+    parsed: dict[str, dict[str, Any]],
+) -> tuple[bool, list[str]]:
+    """Verify SQLite schema and logical table rows match parsed `scorecard/*.toml`."""
+    mismatches: list[str] = []
+    try:
+        conn = sqlite3.connect(f"file:{db_file}?mode=ro", uri=True)
+        try:
+            ver = conn.execute("PRAGMA user_version").fetchone()[0]
+            if ver != SCHEMA_USER_VERSION:
+                mismatches.append(f"user_version={ver} (expected {SCHEMA_USER_VERSION})")
+                return False, mismatches
+            tables = {
+                row[0]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()
+            }
+            required = {"meta", *TOML_FILES.keys()}
+            if not required <= tables:
+                missing = sorted(required - tables)
+                mismatches.append(f"missing tables: {missing}")
+                return False, mismatches
+
+            expected_meta = [
+                (
+                    source,
+                    int(parsed[source]["schema_version"]),
+                    str(parsed[source]["last_updated"]),
+                    str(parsed[source].get("audit_wave", "")),
+                )
+                for source in sorted(TOML_FILES)
+            ]
+            actual_meta = conn.execute(
+                "SELECT source, schema_version, last_updated, audit_wave FROM meta ORDER BY source"
+            ).fetchall()
+            if actual_meta != expected_meta:
+                mismatches.append("meta table out of sync")
+
+            for source in TOML_FILES:
+                fields = TABLE_FIELDS[source]
+                cols = ", ".join(["seq", *fields])
+                expected_rows = [
+                    tuple([seq, *(str(item[f]) for f in fields)])
+                    for seq, item in enumerate(parsed[source]["item"], start=1)
+                ]
+                actual_rows = conn.execute(
+                    f"SELECT {cols} FROM {source} ORDER BY seq"
+                ).fetchall()
+                if actual_rows != expected_rows:
+                    mismatches.append(
+                        f"{source} table out of sync ({len(actual_rows)} vs {len(expected_rows)} rows)"
+                    )
+        finally:
+            conn.close()
+    except sqlite3.Error as exc:
+        mismatches.append(f"sqlite error: {exc}")
+        return False, mismatches
+
+    return len(mismatches) == 0, mismatches
+
+
 def _needs_rebuild(repo_root: pathlib.Path, db_file: pathlib.Path) -> bool:
     if not db_file.is_file():
         return True
@@ -205,8 +268,6 @@ def _needs_rebuild(repo_root: pathlib.Path, db_file: pathlib.Path) -> bool:
         db_mtime = db_file.stat().st_mtime
         newest_toml = max((repo_root / "scorecard" / fname).stat().st_mtime for fname in TOML_FILES.values())
     except OSError:
-        return True
-    if newest_toml > db_mtime:
         return True
     try:
         conn = sqlite3.connect(f"file:{db_file}?mode=ro", uri=True)
@@ -226,6 +287,14 @@ def _needs_rebuild(repo_root: pathlib.Path, db_file: pathlib.Path) -> bool:
             conn.close()
     except sqlite3.Error:
         return True
+    if newest_toml > db_mtime:
+        # On fresh clones / checkouts, TOML mtimes may exceed db_mtime even when
+        # the tracked database already matches the TOMLs. Avoid dirtying git status.
+        parsed, errors = gs.load_and_validate(repo_root)
+        if errors:
+            return True
+        matches, _ = _db_matches_parsed(db_file, parsed)
+        return not matches
     return False
 
 
@@ -255,7 +324,7 @@ def _populate_db(conn: sqlite3.Connection, parsed: dict[str, dict[str, Any]]) ->
 
 
 def ensure_db(repo_root: pathlib.Path, *, force: bool = False) -> pathlib.Path:
-    """Ensure `scorecard/.cache/scorecard.db` exists and is fresher than `scorecard/*.toml`."""
+    """Ensure `scorecard/scorecard.db` exists and matches `scorecard/*.toml`."""
     repo_root = repo_root.resolve()
     db_file = _db_path(repo_root)
     if not force and not _needs_rebuild(repo_root, db_file):
@@ -265,9 +334,9 @@ def ensure_db(repo_root: pathlib.Path, *, force: bool = False) -> pathlib.Path:
     if errors:
         raise RuntimeError("Invalid scorecard TOML:\n  - " + "\n  - ".join(errors))
 
-    cache_dir = db_file.parent
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(dir=cache_dir, prefix="scorecard-", suffix=".db.tmp")
+    db_dir = db_file.parent
+    db_dir.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(dir=db_dir, prefix="scorecard-", suffix=".db.tmp")
     os.close(fd)
     tmp_path = pathlib.Path(tmp_name)
     try:
@@ -277,6 +346,7 @@ def ensure_db(repo_root: pathlib.Path, *, force: bool = False) -> pathlib.Path:
             conn.commit()
         finally:
             conn.close()
+        os.chmod(tmp_path, 0o644)
         os.replace(tmp_path, db_file)
     except Exception:
         tmp_path.unlink(missing_ok=True)
@@ -329,6 +399,43 @@ def _cmd_sync(args: argparse.Namespace) -> int:
             f"Synced {db_file} (wave={payload['audit_wave']}, updated={payload['last_updated']}): "
             + ", ".join(f"{k}={v}" for k, v in counts.items())
         )
+    return 0
+
+
+def _cmd_check(args: argparse.Namespace) -> int:
+    repo_root = args.repo_root.resolve()
+    parsed, errors = gs.load_and_validate(repo_root)
+    if errors:
+        if args.json:
+            print(json.dumps({"ok": False, "errors": errors}, indent=2))
+        else:
+            print("Invalid scorecard TOML:\n  - " + "\n  - ".join(errors), file=sys.stderr)
+        return 1
+
+    db_file = _db_path(repo_root)
+    rel_db = db_file.relative_to(repo_root).as_posix()
+    if not db_file.is_file():
+        msg = f"{rel_db} is out of date; run 'python3 build-scripts/scorecard_db.py sync'"
+        if args.json:
+            print(json.dumps({"ok": False, "db_path": str(db_file), "errors": [msg]}, indent=2))
+        else:
+            print(msg, file=sys.stderr)
+        return 1
+
+    matches, mismatches = _db_matches_parsed(db_file, parsed)
+    if not matches:
+        detail = f" ({'; '.join(mismatches)})" if mismatches else ""
+        msg = f"{rel_db} is out of date; run 'python3 build-scripts/scorecard_db.py sync'{detail}"
+        if args.json:
+            print(json.dumps({"ok": False, "db_path": str(db_file), "errors": [msg]}, indent=2))
+        else:
+            print(msg, file=sys.stderr)
+        return 1
+
+    if args.json:
+        print(json.dumps({"ok": True, "db_path": str(db_file)}, indent=2))
+    else:
+        print(f"{rel_db} is up to date.")
     return 0
 
 
@@ -828,8 +935,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="subcommand", required=True)
 
-    p_sync = sub.add_parser("sync", parents=[common], help="Rebuild SQLite cache from scorecard/*.toml.")
+    p_sync = sub.add_parser("sync", parents=[common], help="Rebuild scorecard/scorecard.db from scorecard/*.toml.")
     p_sync.set_defaults(func=_cmd_sync)
+
+    p_check = sub.add_parser("check", parents=[common], help="Verify scorecard/scorecard.db matches scorecard/*.toml.")
+    p_check.set_defaults(func=_cmd_check)
 
     p_summary = sub.add_parser("summary", parents=[common], help="Print compact summary metrics and per-area gaps.")
     p_summary.set_defaults(func=_cmd_summary)

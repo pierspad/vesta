@@ -133,6 +133,7 @@ def main():
                 (ROOT, ['python3', 'build-scripts/test_browser_ipc_contract.py']),
                 (ROOT, ['python3', 'build-scripts/check_library_integration.py']),
                 (ROOT, ['python3', 'build-scripts/generate_scorecard.py', '--check']),
+                (ROOT, ['python3', 'build-scripts/scorecard_db.py', 'check']),
                 (ROOT, ['python3', 'build-scripts/test_scorecard.py']),
                 (ROOT / 'apps/srt-gui', ['npm', 'run', 'check']),
                 (ROOT / 'apps/srt-gui', ['npm', 'test']),

@@ -6,6 +6,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import pathlib
 import re
 import shutil
@@ -76,6 +77,7 @@ class ScorecardTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             shutil.copytree(REPO_ROOT / "scorecard", root / "scorecard")
+            (root / "scorecard" / "scorecard.db").unlink(missing_ok=True)
             shutil.rmtree(root / "scorecard" / ".cache", ignore_errors=True)
 
             def run_cli(*argv: str) -> tuple[int, str, str]:
@@ -89,6 +91,9 @@ class ScorecardTests(unittest.TestCase):
             sync_payload = json.loads(out)
             self.assertEqual(sync_payload["counts"]["features"], 50)
             self.assertEqual(sync_payload["counts"]["bugs"], 98)
+
+            rc, _, _ = run_cli("check", "--json")
+            self.assertEqual(rc, 0)
 
             rc, out, _ = run_cli("summary", "--json")
             self.assertEqual(rc, 0)
@@ -124,10 +129,28 @@ class ScorecardTests(unittest.TestCase):
             self.assertEqual(rc, 0)
             self.assertEqual(json.loads(out), [{"cnt": 98}])
 
+            # Touching TOML mtimes after checkout without content changes must not rewrite scorecard.db.
+            db_path = root / "scorecard" / "scorecard.db"
+            before_stat = db_path.stat()
+            features_toml = root / "scorecard" / "features.toml"
+            os.utime(features_toml, (before_stat.st_atime, before_stat.st_mtime + 10.0))
+            rc, _, _ = run_cli("summary", "--json")
+            self.assertEqual(rc, 0)
+            after_stat = db_path.stat()
+            self.assertEqual(after_stat.st_ino, before_stat.st_ino)
+            self.assertEqual(after_stat.st_mtime_ns, before_stat.st_mtime_ns)
+
+            # Mutating TOML without syncing must fail `check`.
+            text = features_toml.read_text(encoding="utf-8")
+            features_toml.write_text(text.replace("notes = \"", "notes = \"Changed: ", 1), encoding="utf-8")
+            rc, _, _ = run_cli("check", "--json")
+            self.assertEqual(rc, 1)
+
     def test_sqlite_mutations_roundtrip_toml_and_markdown(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             shutil.copytree(REPO_ROOT / "scorecard", root / "scorecard")
+            (root / "scorecard" / "scorecard.db").unlink(missing_ok=True)
             shutil.rmtree(root / "scorecard" / ".cache", ignore_errors=True)
             (root / "docs").mkdir(parents=True)
 

@@ -51,12 +51,13 @@ All 15 locale catalogs in `apps/srt-gui/src/lib/i18n/locales/` (`ar`, `de`, `en`
 Vesta tracks feature coverage (GUI, CLI, MCP, Docs, Unit Tests, Playwright, Smoke), reliability controls, performance opportunities, and verified bugs across 12 areas in [`scorecard/*.toml`](scorecard/features.toml):
 - [`docs/SCORECARD.md`](docs/SCORECARD.md) — Auto-generated dashboard (`python3 build-scripts/generate_scorecard.py`, validated by `quality_check.py`).
 - [`docs/AUDIT_LOG.md`](docs/AUDIT_LOG.md) — Chronological audit wave history and prioritized **Wave 2 Resume Guide**.
-- **Queryable SQLite cache (`build-scripts/scorecard_db.py`)**: Instead of reading large `scorecard/*.toml` files into context, query the gitignored auto-synced SQLite database at `scorecard/.cache/scorecard.db`:
+- **Queryable SQLite database (`build-scripts/scorecard_db.py`)**: Instead of reading large `scorecard/*.toml` files into context, query the tracked SQLite database at [`scorecard/scorecard.db`](scorecard/scorecard.db) (kept in sync with `scorecard/*.toml` via `python3 build-scripts/scorecard_db.py check` in CI and `quality_check.py`):
   - `python3 build-scripts/scorecard_db.py summary` — Compact status totals and per-area coverage counts.
   - `python3 build-scripts/scorecard_db.py open` — Non-fixed bugs & performance items (`--area`, `--severity`, `--no-include-deferred`).
   - `python3 build-scripts/scorecard_db.py gaps --dim playwright` — Missing/partial coverage across any dimension (`gui`, `cli`, `mcp`, `docs`, `unit_tests`, `playwright`, `smoke`, `audit_status`).
   - `python3 build-scripts/scorecard_db.py show <ID>` / `query "<SQL>"` — Inspect a single item or run read-only SQLite queries (`--json` supported).
-  - `python3 build-scripts/scorecard_db.py update-bug|update-perf|update-feature|update-reliability|add-bug ...` — Atomically update `scorecard/*.toml`, validate schema, refresh `scorecard.db`, and regenerate `docs/SCORECARD.md` (then verify with `python3 build-scripts/test_scorecard.py`).
+  - `python3 build-scripts/scorecard_db.py sync` / `check` — Rebuild or verify `scorecard/scorecard.db` against `scorecard/*.toml`.
+  - `python3 build-scripts/scorecard_db.py update-bug|update-perf|update-feature|update-reliability|add-bug ...` — Atomically update `scorecard/*.toml`, validate schema, refresh `scorecard/scorecard.db`, and regenerate `docs/SCORECARD.md` (then verify with `python3 build-scripts/test_scorecard.py`).
 
 ## Build Artifacts & Disk Hygiene
 

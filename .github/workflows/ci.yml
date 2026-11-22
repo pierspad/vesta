@@ -40,6 +40,7 @@ jobs:
       - run: python3 build-scripts/browser_ipc_contract.py --check
       - run: python3 build-scripts/test_browser_ipc_contract.py
       - run: python3 build-scripts/generate_scorecard.py --check
+      - run: python3 build-scripts/scorecard_db.py check
       - run: python3 build-scripts/test_scorecard.py
 
   security:
