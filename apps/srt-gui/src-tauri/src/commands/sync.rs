@@ -5,6 +5,7 @@ use tauri::State;
 
 use srt_sync::SyncEngine;
 
+use crate::media_stream::MediaAllowlist;
 use crate::state::AppSyncState;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -350,6 +351,12 @@ pub fn sync_suggest_subtitles_for_media(
     })
 }
 
+fn allow_playback_media_path(allowlist: Option<&MediaAllowlist>, path: &Path) {
+    if let Some(allowlist) = allowlist {
+        let _ = allowlist.allow_file(path);
+    }
+}
+
 #[tauri::command]
 pub async fn sync_prepare_media_for_playback(
     app: tauri::AppHandle,
@@ -357,7 +364,9 @@ pub async fn sync_prepare_media_for_playback(
 ) -> Result<String, String> {
     use tauri::Manager;
 
+    let allowlist = app.try_state::<MediaAllowlist>();
     if srt_sync::playback::is_natively_playable(Path::new(&path)) {
+        allow_playback_media_path(allowlist.as_deref(), Path::new(&path));
         return Ok(path);
     }
     let ffmpeg_cmd = super::media::resolve_ffmpeg_path(Some(&app)).await;
@@ -376,6 +385,7 @@ pub async fn sync_prepare_media_for_playback(
     .map_err(|e| format!("Transcoding task panicked: {}", e))?
     .map_err(|e| e.to_string())?;
 
+    allow_playback_media_path(allowlist.as_deref(), &output_path);
     Ok(output_path.to_string_lossy().to_string())
 }
 
@@ -425,5 +435,49 @@ mod history_tests {
         assert_eq!(undone.anchor_count, 0);
         assert!(undone.can_redo);
         assert_eq!(change_history(&state, true).unwrap().anchor_count, 1);
+    }
+
+    #[test]
+    fn sync_registers_video_session_and_playback_paths_in_media_allowlist() {
+        let dir = tempfile::tempdir().unwrap();
+        let srt_path = dir.path().join("subs.srt");
+        let video_path = dir.path().join("episode.mp4");
+        let transcoded_path = dir.path().join("cached.wav");
+        let secret_path = dir.path().join("secret.txt");
+        std::fs::write(&srt_path, "1\n00:00:01,000 --> 00:00:02,000\nHello\n").unwrap();
+        std::fs::write(&video_path, b"mp4-bytes").unwrap();
+        std::fs::write(&transcoded_path, b"wav-bytes").unwrap();
+        std::fs::write(&secret_path, b"secret").unwrap();
+
+        let allowlist = MediaAllowlist::default();
+        let mut sync_state = crate::state::SyncState::with_allowlist(allowlist.clone());
+        let engine = SyncEngine::new(&srt_path).unwrap();
+        sync_state.replace_engine(Some(engine)).unwrap();
+        sync_state
+            .set_video_path(video_path.to_str().unwrap())
+            .unwrap();
+        assert!(allowlist.is_allowed(&video_path));
+        assert!(!allowlist.is_allowed(&secret_path));
+        assert!(!allowlist.is_allowed(Path::new("/etc/passwd")));
+
+        // Session reload restores video_path into a fresh allowlist.
+        let session_path = dir.path().join("session.json");
+        sync_state
+            .engine
+            .as_ref()
+            .unwrap()
+            .save_session(&session_path)
+            .unwrap();
+        let reloaded_allowlist = MediaAllowlist::default();
+        let mut reloaded_state =
+            crate::state::SyncState::with_allowlist(reloaded_allowlist.clone());
+        let loaded_engine = SyncEngine::load_session(&session_path).unwrap();
+        reloaded_state.replace_engine(Some(loaded_engine)).unwrap();
+        assert!(reloaded_allowlist.is_allowed(&video_path));
+        assert!(!reloaded_allowlist.is_allowed(&secret_path));
+
+        // Playback preparation registers native and transcoded files in allowlist.
+        allow_playback_media_path(Some(&reloaded_allowlist), &transcoded_path);
+        assert!(reloaded_allowlist.is_allowed(&transcoded_path));
     }
 }

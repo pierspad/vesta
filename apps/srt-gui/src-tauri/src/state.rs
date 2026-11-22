@@ -3,6 +3,8 @@ use std::sync::Mutex;
 use srt_sync::SyncEngine;
 use tokio_util::sync::CancellationToken;
 
+use crate::media_stream::MediaAllowlist;
+
 // The token's presence is the running state: cancellation requests stop work,
 // while only the owning guard releases the slot after that work has ended.
 #[derive(Default)]
@@ -75,11 +77,25 @@ impl<T: HasOperation> Drop for OperationGuard<'_, T> {
 pub struct SyncState {
     pub engine: Option<SyncEngine>,
     pub operation: OperationState,
+    pub allowlist: MediaAllowlist,
 }
 
 impl SyncState {
+    pub fn with_allowlist(allowlist: MediaAllowlist) -> Self {
+        Self {
+            engine: None,
+            operation: OperationState::default(),
+            allowlist,
+        }
+    }
+
     pub fn replace_engine(&mut self, engine: Option<SyncEngine>) -> Result<(), String> {
         self.operation.ensure_idle()?;
+        if let Some(ref loaded) = engine
+            && let Some(video_path) = loaded.get_video_path()
+        {
+            let _ = self.allowlist.allow_file(video_path);
+        }
         self.engine = engine;
         Ok(())
     }
@@ -90,6 +106,7 @@ impl SyncState {
             .as_mut()
             .ok_or("No SRT file loaded")?
             .set_video_path(path);
+        let _ = self.allowlist.allow_file(path);
         Ok(())
     }
 }

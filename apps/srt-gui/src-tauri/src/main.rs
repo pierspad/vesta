@@ -8,64 +8,15 @@ mod media_stream;
 mod plugins;
 mod state;
 
-use axum::{
-    Router,
-    extract::{Query, Request},
-    response::IntoResponse,
-    routing::get,
-};
-use tower::ServiceExt;
-use tower_http::{
-    cors::{Any, CorsLayer},
-    services::ServeFile,
-};
-
-#[derive(serde::Deserialize)]
-struct MediaParams {
-    path: String,
-    #[serde(default)]
-    token: String,
-}
-
 #[derive(Clone)]
 struct MediaServerInfo {
     port: u16,
     token: String,
 }
 
-fn generate_media_token() -> String {
-    use std::hash::{BuildHasher, Hasher};
-    let mut token = String::with_capacity(32);
-    for _ in 0..2 {
-        let mut h = std::collections::hash_map::RandomState::new().build_hasher();
-        h.write_u128(
-            std::time::UNIX_EPOCH
-                .elapsed()
-                .map(|d| d.as_nanos())
-                .unwrap_or(0),
-        );
-        token.push_str(&format!("{:016x}", h.finish()));
-    }
-    token
-}
-
 #[tauri::command]
 fn get_media_server_info(info: tauri::State<MediaServerInfo>) -> (u16, String) {
     (info.port, info.token.clone())
-}
-
-async fn media_handler(
-    axum::extract::State(expected_token): axum::extract::State<String>,
-    Query(params): Query<MediaParams>,
-    req: Request,
-) -> Result<impl IntoResponse, axum::http::StatusCode> {
-    if params.token != expected_token {
-        return Err(axum::http::StatusCode::FORBIDDEN);
-    }
-    ServeFile::new(&params.path)
-        .oneshot(req)
-        .await
-        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 use commands::auto_sync::*;
@@ -107,30 +58,44 @@ fn main() -> std::process::ExitCode {
         std::env::set_var("WEBKIT_DISABLE_MEDIA_STREAM", "1");
     }
 
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
-    listener.set_nonblocking(true).unwrap();
-    let port = listener.local_addr().unwrap().port();
-    let media_token = generate_media_token();
+    let (listener, port) = match media_stream::bind_media_listener("127.0.0.1:0") {
+        Ok(bound) => bound,
+        Err(err) => {
+            eprintln!("Failed to bind local media server: {err}");
+            return std::process::ExitCode::FAILURE;
+        }
+    };
+    let media_token = match media_stream::generate_media_token() {
+        Ok(token) => token,
+        Err(err) => {
+            eprintln!("Failed to generate media server token: {err}");
+            return std::process::ExitCode::FAILURE;
+        }
+    };
+    let media_allowlist = media_stream::MediaAllowlist::default();
+    let media_auth = media_stream::MediaAuthState {
+        token: media_token.clone(),
+        allowlist: media_allowlist.clone(),
+    };
 
     {
-        let media_token = media_token.clone();
+        let media_auth = media_auth.clone();
         tauri::async_runtime::spawn(async move {
-            let cors = CorsLayer::new()
-                .allow_origin(Any)
-                .allow_methods(Any)
-                .allow_headers(Any);
-
-            let app = Router::new()
-                .route("/media", get(media_handler))
-                .with_state(media_token)
-                .layer(cors);
-
-            let tokio_listener = tokio::net::TcpListener::from_std(listener).unwrap();
-            axum::serve(tokio_listener, app).await.unwrap();
+            let app = media_stream::build_media_router(media_auth);
+            match tokio::net::TcpListener::from_std(listener) {
+                Ok(tokio_listener) => {
+                    if let Err(err) = axum::serve(tokio_listener, app).await {
+                        eprintln!("Media HTTP server error: {err}");
+                    }
+                }
+                Err(err) => {
+                    eprintln!("Failed to initialize async media listener: {err}");
+                }
+            }
         });
     }
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(
             tauri_plugin_opener::Builder::new()
                 .open_js_links_on_click(false)
@@ -139,17 +104,24 @@ fn main() -> std::process::ExitCode {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .register_asynchronous_uri_scheme_protocol("stream", |_ctx, request, responder| {
-            std::thread::spawn(move || responder.respond(media_stream::response(&request)));
+        .register_asynchronous_uri_scheme_protocol("stream", {
+            let media_auth = media_auth.clone();
+            move |_ctx, request, responder| {
+                let media_auth = media_auth.clone();
+                std::thread::spawn(move || {
+                    responder.respond(media_stream::response(&request, &media_auth))
+                });
+            }
         })
-        .manage(Mutex::new(SyncState::default()) as AppSyncState)
+        .manage(Mutex::new(SyncState::with_allowlist(media_allowlist.clone())) as AppSyncState)
         .manage(Mutex::new(TranslateState::default()) as AppTranslateState)
         .manage(Mutex::new(FlashcardState::default()) as AppFlashcardState)
         .manage(Mutex::new(TranscribeState::default()) as AppTranscribeState)
         .manage(Mutex::new(RefineState::default()) as AppRefineState)
         .manage(Mutex::new(OcrState::default()) as AppOcrState)
         .manage(commands::config::ConfigState::default())
-        .manage(commands::flashcards::preview::PreviewWorkspace::default())
+        .manage(media_allowlist.clone())
+        .manage(commands::flashcards::preview::PreviewWorkspace::with_allowlist(media_allowlist))
         .manage(std::sync::Arc::new(plugins::PluginManager::new(
             dirs::data_dir()
                 .unwrap_or_else(std::env::temp_dir)
@@ -279,6 +251,8 @@ fn main() -> std::process::ExitCode {
             support_log_stop,
             support_log_export,
             read_subtitle_file,
+            parse_subtitle_file,
+            save_subtitle_file,
             http_fetch,
             load_srt_for_translate,
             suggest_translation_context,
@@ -360,8 +334,26 @@ fn main() -> std::process::ExitCode {
             plugin_save_settings,
             plugin_render,
             plugin_dispatch_event,
-        ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        ]);
+
+    if let Err(err) = builder.run(tauri::generate_context!()) {
+        eprintln!("Error while running tauri application: {err}");
+        return std::process::ExitCode::FAILURE;
+    }
     std::process::ExitCode::SUCCESS
+}
+
+#[cfg(test)]
+mod tests {
+    use super::media_stream;
+
+    #[test]
+    fn media_bootstrap_helpers_are_panic_free() {
+        let token = media_stream::generate_media_token().unwrap();
+        assert_eq!(token.len(), 64);
+        let (listener, port) = media_stream::bind_media_listener("127.0.0.1:0").unwrap();
+        assert!(port > 0);
+        drop(listener);
+        assert!(media_stream::bind_media_listener("256.256.256.256:0").is_err());
+    }
 }

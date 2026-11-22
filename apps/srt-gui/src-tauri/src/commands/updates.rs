@@ -104,6 +104,27 @@ fn expected_digest(asset: &ReleaseAsset) -> Result<String, String> {
     Ok(digest.to_lowercase())
 }
 
+fn validate_installer_url(url_str: &str, tag_name: &str) -> Result<(), String> {
+    let parsed = reqwest::Url::parse(url_str).map_err(|_| "Invalid installer URL".to_string())?;
+    let expected_prefix = format!("/pierspad/vesta/releases/download/{tag_name}/");
+    if parsed.scheme() != "https"
+        || parsed.host_str() != Some("github.com")
+        || parsed.port().is_some()
+        || !parsed.username().is_empty()
+        || parsed.password().is_some()
+        || !parsed.path().starts_with(&expected_prefix)
+        || parsed.path().len() <= expected_prefix.len()
+        || parsed
+            .path_segments()
+            .is_some_and(|mut segs| segs.any(|segment| segment == ".."))
+        || parsed.query().is_some()
+        || parsed.fragment().is_some()
+    {
+        return Err("Invalid installer URL".into());
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn install_release_update(app: tauri::AppHandle, version: String) -> Result<(), String> {
     INSTALLING
@@ -149,13 +170,7 @@ pub async fn install_release_update(app: tauri::AppHandle, version: String) -> R
     if asset.size == 0 || asset.size > MAX_INSTALLER_SIZE {
         return Err("Invalid installer size".into());
     }
-    let prefix = format!(
-        "https://github.com/pierspad/vesta/releases/download/{}/",
-        release.tag_name
-    );
-    if !asset.browser_download_url.starts_with(&prefix) {
-        return Err("Invalid installer URL".into());
-    }
+    validate_installer_url(&asset.browser_download_url, &release.tag_name)?;
     let directory = app
         .path()
         .app_cache_dir()
@@ -257,5 +272,26 @@ mod tests {
         assert_eq!(expected_digest(&candidate).unwrap(), "a".repeat(64));
         candidate.digest = Some("sha256:invalid".into());
         assert!(expected_digest(&candidate).is_err());
+    }
+
+    #[test]
+    fn installer_url_validation_requires_clean_https_github_release_path() {
+        assert!(
+            validate_installer_url(
+                "https://github.com/pierspad/vesta/releases/download/v0.34.1/vesta_0.34.1_amd64.deb",
+                "v0.34.1",
+            )
+            .is_ok()
+        );
+        for bad in [
+            "http://github.com/pierspad/vesta/releases/download/v0.34.1/a.deb",
+            "https://github.com@evil.example/pierspad/vesta/releases/download/v0.34.1/a.deb",
+            "https://github.com:8443/pierspad/vesta/releases/download/v0.34.1/a.deb",
+            "https://github.com/pierspad/vesta/releases/download/v0.34.1/../../evil/a.deb",
+            "https://github.com/pierspad/vesta/releases/download/v0.34.1/a.deb?x=1",
+            "https://github.com/pierspad/vesta/releases/download/v0.34.1/",
+        ] {
+            assert!(validate_installer_url(bad, "v0.34.1").is_err(), "{bad}");
+        }
     }
 }
