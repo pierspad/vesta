@@ -18,13 +18,12 @@ vi.mock("$lib/utils/dragDrop", () => ({
   }),
 }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
-vi.mock("@tauri-apps/plugin-fs", () => ({ writeTextFile: vi.fn() }));
 
-const srt = (text: string) => `1\n00:00:01,000 --> 00:00:02,000\n${text}\n`;
-const contents: Record<string, string> = {
-  "old-target.srt": srt("Original line"),
-  "old-source.srt": srt("Translated line"),
-  "new-target.srt": srt("New document"),
+const entry = (text: string) => [{ id: 1, start: "00:00:01,000", end: "00:00:02,000", text }];
+const contents: Record<string, { id: number; start: string; end: string; text: string }[]> = {
+  "old-target.srt": entry("Original line"),
+  "old-source.srt": entry("Translated line"),
+  "new-target.srt": entry("New document"),
 };
 
 const mounted: object[] = [];
@@ -38,7 +37,8 @@ afterEach(async () => {
 
 async function renderWithPair() {
   mocks.invoke.mockImplementation(async (command: string, args?: { path?: string; srtPath?: string }) => {
-    if (command === "read_subtitle_file") return contents[args?.path ?? ""];
+    if (command === "parse_subtitle_file") return contents[args?.path ?? ""];
+    if (command === "save_subtitle_file") return null;
     if (command === "sync_suggest_companion_subtitle_for_srt") return null;
     throw new Error(`Unexpected command: ${command}`);
   });

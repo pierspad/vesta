@@ -105,4 +105,29 @@ describe('update checker', () => {
     expect(updates.updateStatus).toBe('offline');
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
+  it('fetches release notes strictly for the installed version rather than overwriting with newer latest notes', async () => {
+    mocks.fetch
+      .mockResolvedValueOnce(response({ tag_name: 'v0.34.1', html_url: 'https://github.com/pierspad/vesta/releases/tag/v0.34.1', body: 'Newer v0.34.1 notes', assets: [] }))
+      .mockResolvedValueOnce(response({ tag_name: 'v0.33.0', body: 'Installed v0.33.0 notes', draft: false }));
+    const updates = await store();
+    updates.appVersionNum = 'v0.33.0';
+    await updates.checkForUpdates();
+    expect(updates.latestVersion).toBe('v0.34.1');
+    expect(updates.releaseNotes).toBe('Newer v0.34.1 notes');
+    expect(updates.installedReleaseNotes).toBe('');
+    await updates.loadInstalledReleaseNotes();
+    expect(mocks.fetch.mock.calls[1][0]).toBe('https://api.github.com/repos/pierspad/vesta/releases/tags/v0.33.0');
+    expect(updates.installedReleaseNotes).toBe('Installed v0.33.0 notes');
+  });
+  it('handles 404 or offline gracefully when loading installed release notes without setting updateError', async () => {
+    mocks.fetch.mockResolvedValueOnce({ ok: false, status: 404 });
+    const updates = await store();
+    updates.appVersionNum = 'v0.33.0';
+    await updates.loadInstalledReleaseNotes();
+    expect(updates.installedReleaseNotes).toBe('');
+    expect(updates.updateError).toBe('');
+    // Second call for same 404 tag should not re-fetch
+    await updates.loadInstalledReleaseNotes();
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+  });
 });

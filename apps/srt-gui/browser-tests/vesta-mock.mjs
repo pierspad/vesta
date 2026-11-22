@@ -150,6 +150,17 @@ mockIPC((command, args) => {
       };
     case "read_subtitle_file":
       return `1\n00:00:01,000 --> 00:00:02,000\n${args.path.endsWith("reference.srt") ? "Reference subtitle" : text}\n`;
+    case "parse_subtitle_file":
+      return [
+        {
+          id: 1,
+          start: "00:00:01,000",
+          end: "00:00:02,000",
+          text: args.path.endsWith("reference.srt") ? "Reference subtitle" : text,
+        },
+      ];
+    case "save_subtitle_file":
+      return null;
     case "sync_load_srt":
     case "sync_get_status":
       return syncStatus();

@@ -7,7 +7,6 @@ import { guardedOpen } from "$lib/utils/dialogGuard";
 vi.mock("$lib/utils/dialogGuard", () => ({ guardedOpen: vi.fn().mockResolvedValue(null), guardedSave: vi.fn().mockResolvedValue(null) }));
 vi.mock("$lib/utils/dragDrop", () => ({ setupWebviewDragDrop: vi.fn(() => () => {}) }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
-vi.mock("@tauri-apps/plugin-fs", () => ({ writeTextFile: vi.fn() }));
 
 type HarnessInstance = { setActive: (value: boolean) => void };
 const mounted: HarnessInstance[] = [];

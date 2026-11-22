@@ -86,6 +86,34 @@ describe("apiKeyEditorStore", () => {
       expect(apiKeyEditorStore.newKeyUrl).toBe("");
     });
 
+    it("allows switching provider when editing a custom key but protects builtin endpoints", () => {
+      apiKeyEditorStore.openEdit(
+        {
+          id: "custom-user-key",
+          apiType: "openai",
+          name: "User key",
+          apiKey: "sk-test",
+          apiUrl: "https://api.openai.com/v1",
+        },
+        "llm",
+      );
+      apiKeyEditorStore.selectProvider("groq");
+      expect(apiKeyEditorStore.newKeyType).toBe("groq");
+
+      apiKeyEditorStore.openEdit(
+        {
+          id: "local",
+          apiType: "local",
+          name: "Ollama",
+          apiKey: "",
+          apiUrl: "http://localhost:11434/v1",
+        },
+        "llm",
+      );
+      apiKeyEditorStore.selectProvider("openai");
+      expect(apiKeyEditorStore.newKeyType).toBe("local");
+    });
+
     it("resets state on reset() and close()", () => {
       apiKeyEditorStore.openAdd("llm");
       apiKeyEditorStore.newKeyValue = "test-key";

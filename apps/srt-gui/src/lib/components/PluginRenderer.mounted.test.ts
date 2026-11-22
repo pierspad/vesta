@@ -917,3 +917,66 @@ it("renders active plugin:progress indicators for its pluginId and clears them a
   await tick();
   expect(target.querySelector('[data-testid="plugin-active-progress"]')).toBeNull();
 });
+
+it("renders widget type select using SearchableSelect and updates value on option pick", async () => {
+  const schema: WidgetNode = {
+    type: "column",
+    children: [
+      {
+        type: "select",
+        id: "quality",
+        label: "Video Quality",
+        options: [
+          { label: "1080p Full HD", value: "1080" },
+          { label: "720p HD", value: "720" },
+        ],
+        defaultValue: "1080",
+      },
+      { type: "button", id: "apply", label: "Apply", variant: "primary" },
+    ],
+  };
+
+  mockDispatch.mockResolvedValueOnce({ root: schema });
+
+  const target = document.createElement("div");
+  document.body.append(target);
+
+  components.push(
+    mount(PluginRenderer, {
+      target,
+      props: {
+        pluginId: "test-plugin",
+        screen: "main",
+        active: true,
+        initialRoot: schema,
+      },
+    })
+  );
+  await tick();
+
+  expect(target.querySelector("#widget-quality select")).toBeNull();
+  const combo = target.querySelector<HTMLElement>("#widget-quality [role='combobox']")!;
+  expect(combo).not.toBeNull();
+  combo.focus();
+  await tick();
+
+  const option720 = Array.from(target.querySelectorAll<HTMLElement>('[role="option"]')).find((el) =>
+    el.textContent?.includes("720p HD")
+  );
+  expect(option720).toBeDefined();
+  option720!.click();
+  await tick();
+
+  target.querySelector<HTMLButtonElement>("#widget-apply")!.click();
+  await tick();
+
+  expect(mockDispatch).toHaveBeenCalledWith(
+    "test-plugin",
+    expect.objectContaining({
+      widgetId: "apply",
+      values: expect.objectContaining({ quality: "720" }),
+    }),
+    expect.any(String),
+    expect.any(Boolean)
+  );
+});

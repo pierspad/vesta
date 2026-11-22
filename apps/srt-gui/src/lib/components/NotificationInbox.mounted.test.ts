@@ -5,9 +5,10 @@ import NotificationInbox from "./NotificationInbox.svelte";
 import Sidebar from "./Sidebar.svelte";
 
 const updates = vi.hoisted(() => ({
-  updateStatus: "available", latestVersion: "v9.0.0", managerHint: "", canInstall: true,
-  installing: false, downloadPercent: 0, releaseNotes: "<img src=x> Release notes",
-  init: vi.fn(), openRelease: vi.fn(), installUpdate: vi.fn(),
+  updateStatus: "available", latestVersion: "v9.0.0", appVersionNum: "v0.33.0", managerHint: "", canInstall: true,
+  installing: false, downloadPercent: 0, releaseNotes: "Newer v9.0.0 notes",
+  installedReleaseNotes: "## Changes\n\n* **Audio:** v0.33.0 note\n\n<img src=x onerror=alert(1)>",
+  init: vi.fn(), openRelease: vi.fn(), installUpdate: vi.fn(), loadInstalledReleaseNotes: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("$lib/stores/updateCheckerStore.svelte", () => ({ updateCheckerStore: updates }));
 vi.mock("$lib/services/tauriClient", () => ({ invokeCommand: vi.fn().mockResolvedValue({ version: "1.0.0", license: "GPL-3.0-only" }) }));
@@ -19,7 +20,10 @@ beforeEach(() => {
   Object.defineProperty(HTMLDialogElement.prototype, "showModal", { configurable: true, value: function (this: HTMLDialogElement) { this.setAttribute("open", ""); } });
   Object.defineProperty(HTMLDialogElement.prototype, "close", { configurable: true, value: function (this: HTMLDialogElement) { this.removeAttribute("open"); } });
   updates.managerHint = "";
-  updates.releaseNotes = "## Changes\n\n* **Audio:** improved previews ([commit](https://github.com/pierspad/vesta/commit/123))\n\n<img src=x onerror=alert(1)>";
+  updates.latestVersion = "v9.0.0";
+  updates.appVersionNum = "v0.33.0";
+  updates.releaseNotes = "Newer v9.0.0 notes";
+  updates.installedReleaseNotes = "## Changes\n\n* **Audio:** improved previews ([commit](https://github.com/pierspad/vesta/commit/123))\n\n<img src=x onerror=alert(1)>";
   vi.clearAllMocks();
 });
 afterEach(async () => {
@@ -108,13 +112,17 @@ it("preserves the opener scroll and restores focus without scrolling on close", 
  expect(focus).toHaveBeenCalledWith({preventScroll:true}); expect(scroller.scrollTop).toBe(160);
 });
 
-it("keeps release notes collapsed and exposes a single disclosure action", async () => {
+it("keeps release notes collapsed, shows installed version details, and exposes a single disclosure action", async () => {
   const { target } = await renderInbox();
+  expect(updates.loadInstalledReleaseNotes).toHaveBeenCalledOnce();
   const details = target.querySelector<HTMLButtonElement>(".release-summary")!;
   expect(details.getAttribute("aria-expanded")).toBe("false");
+  expect(target.querySelector(".release-version")?.textContent).toBe("v0.33.0");
   expect(target.querySelectorAll("article:first-child button")).toHaveLength(1);
   details.click();
   await vi.waitFor(() => expect(details.getAttribute("aria-expanded")).toBe("true"));
+  await vi.waitFor(() => expect(target.querySelector("#notification-release-notes")?.textContent).toContain("improved previews"));
+  expect(target.querySelector("#notification-release-notes")?.textContent).not.toContain("Newer v9.0.0 notes");
   expect(updates.openRelease).not.toHaveBeenCalled();
   details.click();
   await vi.waitFor(() => expect(details.getAttribute("aria-expanded")).toBe("false"));
