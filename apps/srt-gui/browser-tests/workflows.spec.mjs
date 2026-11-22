@@ -140,7 +140,7 @@ test("Settings shortcuts detect conflicts and persist a new binding", async ({ p
   await action.click();
   await page.keyboard.press("Control+Alt+y");
   await expect.poll(() => callsFor(page, "config_set")).toEqual(expect.arrayContaining([
-    { key: "srt-tools-shortcut-overrides", value: JSON.stringify({ "flashcards-preview": "Ctrl+Alt+Y" }) },
+    { key: "vesta-shortcut-overrides", value: JSON.stringify({ "flashcards-preview": "Ctrl+Alt+Y" }) },
   ]));
   await page.getByRole("button", { name: "KEYS", exact: true }).click();
   const recorder = page.getByRole("button", { name: "Search by keys...", exact: true });

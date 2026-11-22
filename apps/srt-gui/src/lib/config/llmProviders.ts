@@ -626,7 +626,7 @@ export function getModelsForProvider(providerId: string): ModelInfo[] {
   const defaultModels = modelsByProvider[providerId] || [];
 
   // Carica modelli personalizzati
-  const customModelsJson = vestaConfig.getItem("srt-tools-custom-models");
+  const customModelsJson = vestaConfig.getItem("vesta-custom-models");
   if (customModelsJson) {
     try {
       const customModels: CustomModel[] = JSON.parse(customModelsJson);

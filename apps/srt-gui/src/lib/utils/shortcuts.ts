@@ -94,7 +94,7 @@ export function isReservedShortcut(key: string): boolean {
 
 // Funzione per ottenere le shortcut (con override utente)
 export function getShortcuts(): ShortcutDefinition[] {
-  const overridesJson = vestaConfig.getItem("srt-tools-shortcut-overrides");
+  const overridesJson = vestaConfig.getItem("vesta-shortcut-overrides");
   if (!overridesJson) return defaultShortcuts;
 
   try {
@@ -113,7 +113,7 @@ export function getShortcuts(): ShortcutDefinition[] {
 export function saveShortcutOverride(shortcutId: string, newKey: string): void {
   if (!defaultShortcuts.some(shortcut => shortcut.id === shortcutId && shortcut.category !== "global")
     || isReservedShortcut(newKey)) return;
-  const overridesJson = vestaConfig.getItem("srt-tools-shortcut-overrides");
+  const overridesJson = vestaConfig.getItem("vesta-shortcut-overrides");
   let overrides: Record<string, string> = {};
 
   if (overridesJson) {
@@ -125,7 +125,7 @@ export function saveShortcutOverride(shortcutId: string, newKey: string): void {
   }
 
   overrides[shortcutId] = newKey;
-  vestaConfig.setItem("srt-tools-shortcut-overrides", JSON.stringify(overrides));
+  vestaConfig.setItem("vesta-shortcut-overrides", JSON.stringify(overrides));
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("shortcuts-updated"));
   }
@@ -133,7 +133,7 @@ export function saveShortcutOverride(shortcutId: string, newKey: string): void {
 
 // Funzione per resettare le shortcut
 export function resetShortcuts(): void {
-  vestaConfig.removeItem("srt-tools-shortcut-overrides");
+  vestaConfig.removeItem("vesta-shortcut-overrides");
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("shortcuts-updated"));
   }
@@ -141,7 +141,7 @@ export function resetShortcuts(): void {
 
 // Funzione per resettare una singola shortcut con cascade dei conflitti
 export function resetSingleShortcut(shortcutId: string): void {
-  const overridesJson = vestaConfig.getItem("srt-tools-shortcut-overrides");
+  const overridesJson = vestaConfig.getItem("vesta-shortcut-overrides");
   let overrides: Record<string, string> = {};
   if (overridesJson) {
     try {
@@ -178,7 +178,7 @@ export function resetSingleShortcut(shortcutId: string): void {
     }
   }
 
-  vestaConfig.setItem("srt-tools-shortcut-overrides", JSON.stringify(overrides));
+  vestaConfig.setItem("vesta-shortcut-overrides", JSON.stringify(overrides));
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("shortcuts-updated"));
   }

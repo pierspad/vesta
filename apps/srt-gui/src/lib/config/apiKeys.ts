@@ -37,7 +37,7 @@ export interface ApiKeyConfig {
 
 // Helper per caricare e validare le chiavi API
 export function loadAndValidateApiKeys(): ApiKeyConfig[] {
-  const saved = vestaConfig.getItem("srt-tools-api-keys");
+  const saved = vestaConfig.getItem("vesta-api-keys");
   if (!saved) return withBuiltinEndpoints([]);
 
   try {

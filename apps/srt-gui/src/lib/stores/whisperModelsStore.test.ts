@@ -8,7 +8,7 @@ import { localWhisperOperation } from "$lib/utils/asyncControl.svelte";
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => resolve = done); return { promise, resolve }; }
 const model = (id: string) => ({ id, name: id, size: "", speed: "", downloaded: true });
 beforeEach(() => {
- vestaConfig.removeItem("srt-default-whisper-model");
+ vestaConfig.removeItem("vesta-default-whisper-model");
  vi.clearAllMocks(); vi.stubGlobal("window", { dispatchEvent: vi.fn() });
  vi.stubGlobal("CustomEvent", class { constructor(public type: string, public options?: unknown) {} });
  vi.mocked(transcribeListModels).mockResolvedValue([model("small")]);
@@ -67,6 +67,6 @@ it("preserves a custom VAD when removing an unused built-in model", async () => 
 });
 
 it("restores the shared Whisper selection before Settings is mounted", () => {
- vestaConfig.setItem("srt-default-whisper-model", "medium");
+ vestaConfig.setItem("vesta-default-whisper-model", "medium");
  expect(new WhisperModelsStore().defaultWhisperModel).toBe("medium");
 });

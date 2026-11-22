@@ -76,6 +76,7 @@ export async function hydrate(): Promise<void> {
     throw e;
   }
   await migrateFromLocalStorage();
+  await migrateLegacySrtKeys();
   hydrated = true;
 }
 
@@ -127,6 +128,47 @@ async function migrateFromLocalStorage(): Promise<void> {
         cache.set(key, value);
       }
     }
+  }
+}
+
+export const LEGACY_KEY_RENAMES: Readonly<Record<string, string>> = {
+  "srt-tools-api-keys": "vesta-api-keys",
+  "srt-tools-custom-models": "vesta-custom-models",
+  "srt-default-whisper-model": "vesta-default-whisper-model",
+  "srt-tools-ui-language": "vesta-ui-language",
+  "srt-tools-shortcut-overrides": "vesta-shortcut-overrides",
+};
+
+/** Copy legacy `srt-*` keys to `vesta-*` equivalents when absent and remove old keys. */
+export function normalizeLegacyKeys(
+  entries: Record<string, string>,
+): { values: Record<string, string>; changed: boolean } {
+  const values: Record<string, string> = { ...entries };
+  let changed = false;
+  for (const [oldKey, newKey] of Object.entries(LEGACY_KEY_RENAMES)) {
+    if (Object.prototype.hasOwnProperty.call(values, oldKey)) {
+      if (!Object.prototype.hasOwnProperty.call(values, newKey)) {
+        values[newKey] = values[oldKey];
+      }
+      delete values[oldKey];
+      changed = true;
+    }
+  }
+  return { values, changed };
+}
+
+async function migrateLegacySrtKeys(): Promise<void> {
+  const { values, changed } = normalizeLegacyKeys(Object.fromEntries(cache.entries()));
+  if (!changed) return;
+
+  cache.clear();
+  for (const [key, value] of Object.entries(values)) {
+    cache.set(key, value);
+  }
+  try {
+    await persist("config_replace_all", { values });
+  } catch (e) {
+    console.error("[vestaConfig] migrazione chiavi legacy fallita", e);
   }
 }
 

@@ -236,7 +236,7 @@
   }
 
   function handleStorageChange(e: StorageEvent) {
-    if (e.key === "srt-tools-api-keys") loadApiKeys();
+    if (e.key === "vesta-api-keys") loadApiKeys();
     else if (
       e.key === DEFAULT_LLM_PROVIDER_KEY || e.key === DEFAULT_LLM_MODEL_KEY ||
       e.key === DEFAULT_LLM_CUSTOM_PROVIDER_KEY || e.key === LOCAL_SERVER_URL_KEY

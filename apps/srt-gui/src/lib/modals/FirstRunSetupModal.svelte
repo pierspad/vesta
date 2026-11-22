@@ -147,7 +147,7 @@
       }
       currentTaskId = null;
       currentProgress = null;
-      vestaConfig.setItem("srt-tools-ui-language", uiLanguage);
+      vestaConfig.setItem("vesta-ui-language", uiLanguage);
       vestaConfig.setItem("vesta-default-native-language", nativeLanguage);
       vestaConfig.setItem("vesta-default-target-language", nativeLanguage);
       vestaConfig.setItem("vesta-default-flashcards-language", studyLanguage);
@@ -156,7 +156,7 @@
       vestaConfig.setItem("vesta-export-fallback", fallbackFormat);
       vestaConfig.setItem("vesta-expert-mode", String(mode === "custom"));
       vestaConfig.setItem("vesta-transcribe-vad", String(choices.wantsTranscription && choices.useVad));
-      vestaConfig.setItem("srt-default-whisper-model", choices.whisperModel);
+      vestaConfig.setItem("vesta-default-whisper-model", choices.whisperModel);
       vestaConfig.setItem("vesta-transcribe-tiers", setupTierPreferences(choices.whisperModel, choices.wantsTranscription));
       if (choices.wantsOcr) {
         vestaConfig.setItem("vesta-default-ocr-model", choices.ocrModel || "paddleocr-v4-mobile-multi");

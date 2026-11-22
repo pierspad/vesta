@@ -66,24 +66,24 @@ it("restores Anki connection and card options in expert mode", async () => {
 it("confirms deletion from the provider editor and closes the deleted configuration", async () => {
   const {apiKeyEditorStore}=await import("$lib/stores/apiKeyEditorStore.svelte");
   const key={id:"delete-test",apiType:"openai" as const,name:"Delete me",apiKey:"example"};
-  config.setItem("srt-tools-api-keys",JSON.stringify([key]));
+  config.setItem("vesta-api-keys",JSON.stringify([key]));
   const target=document.createElement("div");document.body.append(target);
   mounted.push(mount(SettingsTab,{target,props:{requestedSection:"llm"}}));await tick();await tick();
   apiKeyEditorStore.openEdit(key,"llm");await tick();
   target.querySelector<HTMLButtonElement>('[data-provider-action="delete"]')!.click();await tick();
-  expect(JSON.parse(config.getItem("srt-tools-api-keys")!)).toContainEqual(key);
+  expect(JSON.parse(config.getItem("vesta-api-keys")!)).toContainEqual(key);
   target.querySelector<HTMLButtonElement>(".confirm-btn-cancel")!.click();await tick();
   expect(apiKeyEditorStore.showAddKey).toBe(true);
   expect(apiKeyEditorStore.newKeyName).toBe("Delete me");
   target.querySelector<HTMLButtonElement>('[data-provider-action="delete"]')!.click();await tick();
   target.querySelector<HTMLButtonElement>(".confirm-btn-action")!.click();await tick();
-  expect(JSON.parse(config.getItem("srt-tools-api-keys")!)).not.toContainEqual(key);
+  expect(JSON.parse(config.getItem("vesta-api-keys")!)).not.toContainEqual(key);
   expect(apiKeyEditorStore.showAddKey).toBe(false);
 });
 
 it("selects an existing sole provider by default and transfers selection to another configuration", async () => {
   const first={id:"first-openai",apiType:"openai",name:"First API",apiKey:"example"};
-  config.setItem("srt-tools-api-keys",JSON.stringify([first]));
+  config.setItem("vesta-api-keys",JSON.stringify([first]));
   const target=document.createElement("div");document.body.append(target);
   mounted.push(mount(SettingsTab,{target,props:{requestedSection:"llm"}}));await tick();await tick();
   expect(target.querySelector('[data-key-default="first-openai"]')?.getAttribute("aria-pressed")).toBe("true");
@@ -94,11 +94,11 @@ it("selects an existing sole provider by default and transfers selection to anot
   apiKeyEditorStore.openAdd("llm","openai");
   apiKeyEditorStore.newKeyName="Second API";apiKeyEditorStore.newKeyValue="example";await tick();
   target.querySelector<HTMLButtonElement>('[aria-labelledby="provider-dialog-title"] button.bg-indigo-500')!.click();await tick();
-  const second=JSON.parse(config.getItem("srt-tools-api-keys")!).find((key:{name:string})=>key.name==="Second API");
+  const second=JSON.parse(config.getItem("vesta-api-keys")!).find((key:{name:string})=>key.name==="Second API");
   expect(target.querySelector(`[data-key-default="${second.id}"]`)?.getAttribute("aria-pressed")).toBe("false");
   target.querySelector<HTMLButtonElement>(`[data-key-default="${second.id}"]`)!.click();await tick();
   expect(target.querySelector('[data-key-default="first-openai"]')?.getAttribute("aria-pressed")).toBe("false");
-  expect(JSON.parse(config.getItem("srt-tools-api-keys")!).find((key:{id:string})=>key.id===second.id).isDefault).toBe(true);
+  expect(JSON.parse(config.getItem("vesta-api-keys")!).find((key:{id:string})=>key.id===second.id).isDefault).toBe(true);
 });
 
 it.each(["llm", "whisper"] as const)("highlights the notification target in %s for at most 1.5 seconds", async (section) => {

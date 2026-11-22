@@ -12,7 +12,7 @@ const preferences = {
   "vesta-export-format": "apkg",
   "vesta-default-llm-provider": "google",
   "vesta-default-llm-model": "gemini-fixture",
-  "srt-tools-api-keys": JSON.stringify([
+  "vesta-api-keys": JSON.stringify([
     { id: "fixture", name: "Fixture", apiType: "google", apiKey: "fixture-key", capabilities: ["llm"] },
     { id: "speech", name: "Speech fixture", apiType: "groq", apiKey: "fixture-key", capabilities: ["stt"] },
   ]),
@@ -116,7 +116,7 @@ mockIPC((command, args) => {
       return {
         entries: {
           ...preferences,
-          "srt-tools-ui-language": language,
+          "vesta-ui-language": language,
           ...(forceSetup ? { "vesta-first-run-force": "true" } : {}),
         },
         recovered_backup_path: null,

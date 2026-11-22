@@ -54,7 +54,8 @@
       if (Object.values(parsed.settings).some((value) => typeof value !== "string")) {
         throw new Error(t("settings.backup.invalid"));
       }
-      await vestaConfig.replaceAll(parsed.settings as Record<string, string>);
+      const migrated = vestaConfig.normalizeLegacyKeys(parsed.settings as Record<string, string>).values;
+      await vestaConfig.replaceAll(migrated);
       configMessage = t("settings.backup.imported");
     } catch (error) {
       configMessage = `${t("settings.backup.importFailed")}: ${String(error)}`;

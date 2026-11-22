@@ -10,7 +10,7 @@ it("provides editable local endpoints and preserves saved URLs without duplicati
  expect(loadAndValidateApiKeys().map(key => key.id)).toEqual(["local", "local_stt_server", "local_itt_server"]);
  expect(supportsCapability(loadAndValidateApiKeys().find(k => k.id === "local_itt_server")!, "itt")).toBe(true);
  expect(supportsCapability(loadAndValidateApiKeys().find(k => k.id === "local_itt_server")!, "llm")).toBe(false);
- storage.set("srt-tools-api-keys", JSON.stringify([{id:"local",name:"LM Studio",apiType:"local",apiKey:"",apiUrl:"http://localhost:1234/v1"}]));
+ storage.set("vesta-api-keys", JSON.stringify([{id:"local",name:"LM Studio",apiType:"local",apiKey:"",apiUrl:"http://localhost:1234/v1"}]));
  const keys = loadAndValidateApiKeys();
  expect(keys.filter(key => key.id === "local")).toHaveLength(1);
  expect(keys.find(key => key.id === "local")?.apiUrl).toBe("http://localhost:1234/v1");

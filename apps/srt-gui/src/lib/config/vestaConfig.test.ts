@@ -130,3 +130,66 @@ it("records and consumes recovered backup paths without treating recovery as a f
     vi.unstubAllGlobals();
   }
 });
+
+it("migrates legacy srt-* keys to vesta-* equivalents, preserves existing vesta-* values, and is a no-op once clean", async () => {
+  vi.resetModules();
+  const mockInvoke = vi.fn()
+    .mockResolvedValueOnce({
+      entries: {
+        "srt-tools-api-keys": "[{\"id\":\"legacy\"}]",
+        "srt-tools-custom-models": "[{\"id\":\"custom\"}]",
+        "srt-default-whisper-model": "small",
+        "srt-tools-ui-language": "it",
+        "srt-tools-shortcut-overrides": "{\"sync-new\":\"Ctrl+K\"}",
+        "vesta-ui-language": "fr",
+        __vesta_config_migrated_from_local_storage__: "true",
+      },
+      recovered_backup_path: null,
+    })
+    .mockResolvedValueOnce(undefined);
+  vi.doMock("$lib/services/tauriClient", () => ({ invokeCommand: mockInvoke }));
+  vi.stubGlobal("localStorage", { length: 0, key: () => null, getItem: () => null, clear: vi.fn() });
+
+  try {
+    const mod = await import("./vestaConfig");
+    await mod.hydrate();
+
+    expect(mod.getItem("vesta-api-keys")).toBe("[{\"id\":\"legacy\"}]");
+    expect(mod.getItem("vesta-custom-models")).toBe("[{\"id\":\"custom\"}]");
+    expect(mod.getItem("vesta-default-whisper-model")).toBe("small");
+    expect(mod.getItem("vesta-ui-language")).toBe("fr");
+    expect(mod.getItem("vesta-shortcut-overrides")).toBe("{\"sync-new\":\"Ctrl+K\"}");
+    for (const oldKey of Object.keys(mod.LEGACY_KEY_RENAMES)) {
+      expect(mod.getItem(oldKey)).toBeNull();
+    }
+    expect(mockInvoke).toHaveBeenCalledTimes(2);
+    expect(mockInvoke).toHaveBeenLastCalledWith("config_replace_all", {
+      values: {
+        "vesta-api-keys": "[{\"id\":\"legacy\"}]",
+        "vesta-custom-models": "[{\"id\":\"custom\"}]",
+        "vesta-default-whisper-model": "small",
+        "vesta-ui-language": "fr",
+        "vesta-shortcut-overrides": "{\"sync-new\":\"Ctrl+K\"}",
+        __vesta_config_migrated_from_local_storage__: "true",
+      },
+    });
+
+    // Subsequent startup with already-migrated keys issues no extra write.
+    vi.resetModules();
+    const cleanInvoke = vi.fn().mockResolvedValueOnce({
+      entries: {
+        "vesta-api-keys": "[]",
+        __vesta_config_migrated_from_local_storage__: "true",
+      },
+      recovered_backup_path: null,
+    });
+    vi.doMock("$lib/services/tauriClient", () => ({ invokeCommand: cleanInvoke }));
+    const cleanMod = await import("./vestaConfig");
+    await cleanMod.hydrate();
+    expect(cleanInvoke).toHaveBeenCalledTimes(1);
+    expect(cleanInvoke).toHaveBeenCalledWith("config_load_all");
+  } finally {
+    vi.doUnmock("$lib/services/tauriClient");
+    vi.unstubAllGlobals();
+  }
+});

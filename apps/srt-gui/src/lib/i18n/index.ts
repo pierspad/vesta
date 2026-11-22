@@ -76,7 +76,7 @@ export async function loadLanguage(lang: string): Promise<boolean> {
   return loading;
 }
 
-const STORAGE_KEY = 'srt-tools-ui-language';
+const STORAGE_KEY = 'vesta-ui-language';
 
 function getInitialLanguage(): string {
   const saved = vestaConfig.getItem(STORAGE_KEY);

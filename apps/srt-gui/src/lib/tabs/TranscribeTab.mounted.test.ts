@@ -75,7 +75,7 @@ beforeEach(() => {
       },
     ]),
   );
-  mocks.store.set("srt-default-whisper-model", "base");
+  mocks.store.set("vesta-default-whisper-model", "base");
 });
 
 afterEach(async () => {

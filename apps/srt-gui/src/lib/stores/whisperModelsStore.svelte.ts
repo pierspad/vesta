@@ -67,7 +67,7 @@ export class WhisperModelsStore {
   progress = $state(0);
   progressMessage = $state("");
   progressStage = $state("");
-  defaultWhisperModel = $state(vestaConfig.getItem("srt-default-whisper-model") || "base");
+  defaultWhisperModel = $state(vestaConfig.getItem("vesta-default-whisper-model") || "base");
 
   contextMenu = $state<WhisperContextMenu>(null);
 
@@ -91,7 +91,7 @@ export class WhisperModelsStore {
   setDefaultWhisperModel(modelId: string, notify = true) {
     if (this.busy) return;
     this.defaultWhisperModel = modelId;
-    vestaConfig.setItem("srt-default-whisper-model", modelId);
+    vestaConfig.setItem("vesta-default-whisper-model", modelId);
     if (notify) {
       showSnackbar(t("settings.whisper.defaultSet", { model: modelId }));
     }
@@ -124,7 +124,7 @@ export class WhisperModelsStore {
       if (!downloaded) throw new Error(t("setup.resourceCheckFailed"));
       if (this.pendingDefaultModelId === modelId) {
         this.defaultWhisperModel = modelId;
-        vestaConfig.setItem("srt-default-whisper-model", modelId);
+        vestaConfig.setItem("vesta-default-whisper-model", modelId);
         window.dispatchEvent(new CustomEvent("whisper-model-updated", { detail: modelId }));
         showSnackbar(t("settings.whisper.downloadAndSetSuccess", { model: modelId }));
       } else if (downloaded) {
@@ -321,24 +321,24 @@ export class WhisperModelsStore {
     const baseModel = this.whisperModels.find((m) => m.id === "base");
     if (baseModel && baseModel.downloaded) {
       this.defaultWhisperModel = "base";
-      vestaConfig.setItem("srt-default-whisper-model", "base");
+      vestaConfig.setItem("vesta-default-whisper-model", "base");
       snackbar.show(t("settings.whisper.resetSuccess"), "info");
     } else {
       const alternate = this.whisperModels.find((m) => m.downloaded);
       if (alternate) {
         this.defaultWhisperModel = alternate.id;
-        vestaConfig.setItem("srt-default-whisper-model", alternate.id);
+        vestaConfig.setItem("vesta-default-whisper-model", alternate.id);
         snackbar.show(t("settings.whisper.resetBaseNotDownloaded", { name: alternate.name }), "warning");
       } else {
         this.defaultWhisperModel = "base";
-        vestaConfig.setItem("srt-default-whisper-model", "base");
+        vestaConfig.setItem("vesta-default-whisper-model", "base");
         snackbar.show(t("settings.whisper.resetBaseDownloadWarning"), "warning");
       }
     }
   }
 
   reinit() {
-    this.defaultWhisperModel = vestaConfig.getItem("srt-default-whisper-model") || "base";
+    this.defaultWhisperModel = vestaConfig.getItem("vesta-default-whisper-model") || "base";
     this.vadSelection = loadVadSelection();
     void this.refreshModels();
     void this.refreshAddons();

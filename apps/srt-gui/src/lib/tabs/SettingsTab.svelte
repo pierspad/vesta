@@ -311,7 +311,7 @@
     void updateCheckerStore.init();
     loadApiKeys();
     smartMatchingRulesDraft.loadFromStore();
-    whisperModelsStore.defaultWhisperModel = vestaConfig.getItem("srt-default-whisper-model") || "base";
+    whisperModelsStore.defaultWhisperModel = vestaConfig.getItem("vesta-default-whisper-model") || "base";
     whisperModelsStore.refreshModels().catch((e) => console.error("Could not list models:", e));
     void whisperModelsStore.refreshAddons();
     ocrModelsStore.defaultOcrModel = vestaConfig.getItem("vesta-default-ocr-model") || "paddleocr-v4-mobile-multi";
@@ -402,7 +402,7 @@
   function loadApiKeys() { apiKeys = loadAndValidateApiKeys(); }
   function saveApiKeys() {
     apiKeys = normalizeApiKeyDefaults(apiKeys);
-    vestaConfig.setItem("srt-tools-api-keys", JSON.stringify(apiKeys));
+    vestaConfig.setItem("vesta-api-keys", JSON.stringify(apiKeys));
     window.dispatchEvent(new CustomEvent("apikeys-updated"));
   }
   const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);

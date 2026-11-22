@@ -65,7 +65,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.store.clear();
   mocks.store.set(
-    "srt-tools-api-keys",
+    "vesta-api-keys",
     JSON.stringify([
       {
         id: "key-google",

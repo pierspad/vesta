@@ -95,10 +95,10 @@ describe("shortcuts", () => {
     it("resets all shortcuts back to defaults", () => {
       saveShortcutOverride("flashcards-generate", "Ctrl+G");
       saveShortcutOverride("flashcards-cancel", "Ctrl+Q");
-      expect(storage.get("srt-tools-shortcut-overrides")).toBeDefined();
+      expect(storage.get("vesta-shortcut-overrides")).toBeDefined();
 
       resetShortcuts();
-      expect(storage.get("srt-tools-shortcut-overrides")).toBeUndefined();
+      expect(storage.get("vesta-shortcut-overrides")).toBeUndefined();
       expect(getShortcuts()).toEqual(defaultShortcuts);
     });
 

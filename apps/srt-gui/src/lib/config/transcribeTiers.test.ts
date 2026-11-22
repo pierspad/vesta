@@ -76,7 +76,7 @@ describe('transcribeTiers', () => {
       { id: 'local', provider: 'local', apiKeyId: '', model: 'base' },
     ] }];
     vi.spyOn(vestaConfig, 'getItem').mockImplementation(key =>
-      key === 'srt-default-whisper-model' ? 'medium' : JSON.stringify(saved));
+      key === 'vesta-default-whisper-model' ? 'medium' : JSON.stringify(saved));
     const loaded = loadTranscribeTiers();
     expect(loaded[0].entries[0]).toEqual(saved[0].entries[0]);
     expect(loaded[0].entries[1]).toMatchObject({ model: 'medium', apiKeyId: 'local_whisper' });

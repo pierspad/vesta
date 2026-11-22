@@ -32,7 +32,7 @@ export function loadTranscribeTiers(): TranscribeTier[] {
       const normalized = normalizeTierList(parsed, newTierId, newTierEntryId, (provider) => provider);
       if (normalized) return normalized.map(tier => ({ ...tier, entries: tier.entries.map(entry =>
         entry.provider === "local" || entry.provider === "local_whisper"
-          ? { ...entry, apiKeyId: "local_whisper", model: vestaConfig.getItem("srt-default-whisper-model") || "base" }
+          ? { ...entry, apiKeyId: "local_whisper", model: vestaConfig.getItem("vesta-default-whisper-model") || "base" }
           : entry
       ) }));
     }
@@ -48,7 +48,7 @@ export function loadTranscribeTiers(): TranscribeTier[] {
           id: newTierEntryId(),
           provider: "local",
           apiKeyId: "local_whisper",
-          model: vestaConfig.getItem("srt-default-whisper-model") || "base",
+          model: vestaConfig.getItem("vesta-default-whisper-model") || "base",
         }
       ]
     }
