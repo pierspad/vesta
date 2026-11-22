@@ -6,13 +6,26 @@
   let { segments } = $props<{ segments: { start_ms: number; end_ms: number; text: string }[] }>();
   let t = $derived($locale);
   let scrollContainer = $state<HTMLDivElement | null>(null);
+  let scrollRaf: number | null = null;
   $effect(() => {
     if (segments.length && scrollContainer) {
       const scroll = scrollContainer.closest<HTMLElement>("[data-workflow-scroll]");
       if (scroll && scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 80) {
-        void tick().then(() => { if (scroll.isConnected) scroll.scrollTop = scroll.scrollHeight; });
+        void tick().then(() => {
+          if (!scroll.isConnected || scrollRaf !== null) return;
+          scrollRaf = requestAnimationFrame(() => {
+            scrollRaf = null;
+            if (scroll.isConnected) scroll.scrollTop = scroll.scrollHeight;
+          });
+        });
       }
     }
+    return () => {
+      if (scrollRaf !== null) {
+        cancelAnimationFrame(scrollRaf);
+        scrollRaf = null;
+      }
+    };
   });
 </script>
 

@@ -50,12 +50,84 @@
   }: Props = $props();
 
   let t = $derived($locale);
+
+  const VIRTUAL_THRESHOLD = 100;
+  const ROW_STRIDE_PX = 96;
+  const VIRTUAL_OVERSCAN_ROWS = 4;
+
+  let scrollTop = $state(0);
+  let viewportHeight = $state(600);
+  let gridColumns = $state(1);
+
+  function computeColumns(): number {
+    if (typeof window === "undefined") return 1;
+    if (window.innerWidth >= 1536) return 3;
+    if (window.innerWidth >= 768) return 2;
+    return 1;
+  }
+
+  $effect(() => {
+    const el = listElement;
+    gridColumns = computeColumns();
+    if (!el) return;
+    if (el.clientHeight > 0) viewportHeight = el.clientHeight;
+
+    const onResize = () => {
+      gridColumns = computeColumns();
+      if (el.clientHeight > 0) viewportHeight = el.clientHeight;
+    };
+
+    const observer =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(onResize) : null;
+    observer?.observe(el);
+    window.addEventListener("resize", onResize);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", onResize);
+    };
+  });
+
+  function handleListScroll(e: Event) {
+    const target = e.currentTarget as HTMLDivElement;
+    scrollTop = target.scrollTop;
+    if (target.clientHeight > 0) viewportHeight = target.clientHeight;
+  }
+
+  let isVirtualized = $derived(isLoaded && subtitles.length > VIRTUAL_THRESHOLD);
+  let totalRows = $derived(Math.ceil(subtitles.length / Math.max(1, gridColumns)));
+  let startRow = $derived(
+    isVirtualized
+      ? Math.max(0, Math.floor(scrollTop / ROW_STRIDE_PX) - VIRTUAL_OVERSCAN_ROWS)
+      : 0,
+  );
+  let endRow = $derived(
+    isVirtualized
+      ? Math.min(
+          totalRows,
+          Math.floor(scrollTop / ROW_STRIDE_PX) +
+            Math.ceil((viewportHeight || 600) / ROW_STRIDE_PX) +
+            VIRTUAL_OVERSCAN_ROWS * 2,
+        )
+      : totalRows,
+  );
+  let visibleSubtitles = $derived(
+    isVirtualized
+      ? subtitles.slice(
+          startRow * gridColumns,
+          Math.min(subtitles.length, endRow * gridColumns),
+        )
+      : subtitles,
+  );
+  let topSpacerPx = $derived(isVirtualized ? startRow * ROW_STRIDE_PX : 0);
+  let bottomSpacerPx = $derived(
+    isVirtualized ? Math.max(0, totalRows - endRow) * ROW_STRIDE_PX : 0,
+  );
 </script>
 
 <div class="glass-card perf-scroll-card flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden">
   <!-- Header -->
   <div class="px-5 pt-5 pb-2 flex-shrink-0">
-    <h3 class="text-lg font-semibold flex items-center gap-2 text-purple-400">
+    <h3 class="text-lg font-semibold flex items-center gap-2 text-[var(--accent-text)]">
       <svg
         class="w-5 h-5"
         fill="none"
@@ -70,7 +142,7 @@
       >
       <span>
         {t("sync.subtitles")}
-        <span class="text-gray-500 font-normal"
+        <span class="text-[var(--muted)] font-normal"
           >{t("sync.pageOf", { current: isLoaded ? currentPage : 0, total: totalPages })}</span
         >
       </span>
@@ -87,7 +159,7 @@
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         {t("sync.pagination.prev")}
       </button>
-      <span class="text-xs text-gray-400">{t("sync.pageSlash", { current: isLoaded ? currentPage : 0, total: totalPages })}</span>
+      <span class="text-xs text-[var(--muted)]">{t("sync.pageSlash", { current: isLoaded ? currentPage : 0, total: totalPages })}</span>
       <button
         onclick={() => onPageChange(currentPage + 1)}
         disabled={!isLoaded || currentPage >= totalPages}
@@ -103,10 +175,16 @@
     {#if !isLoaded}<EmptyStatusLabel message={t("media.noSubtitlesLoaded")} />{/if}
   <!-- Subtitle list -->
   <div
-    class="grid auto-rows-min grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-2 flex-1 overflow-y-auto p-2 min-h-0 min-w-0"
+    class="flex-1 overflow-y-auto p-2 min-h-0 min-w-0"
+    data-virtualized={isVirtualized ? "true" : "false"}
     bind:this={listElement}
+    onscroll={handleListScroll}
   >
-    {#each subtitles as sub (sub.id)}
+    {#if topSpacerPx > 0}
+      <div aria-hidden="true" data-virtual-spacer="top" style:height={`${topSpacerPx}px`}></div>
+    {/if}
+    <div class="grid auto-rows-min grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-2 min-w-0">
+    {#each visibleSubtitles as sub (sub.id)}
       <div class="relative min-w-0 subtitle-list-item">
       <button
         onclick={() => onClickSub(sub)}
@@ -114,30 +192,30 @@
         oncontextmenu={(e) => onContextMenu(e, sub)}
         data-subtitle-id={sub.id}
         id={`sync-subtitle-${sub.id}`}
-        class="w-full min-w-0 text-left p-3 pe-10 border-b border-white/5 hover:bg-white/5
+        class="w-full min-w-0 text-start p-3 pe-10 border-b border-[var(--border)] hover:bg-[var(--surface-2)]/60
           {activeSubtitleId === sub.id
-          ? 'bg-indigo-500/20 border-l-4 border-l-indigo-500'
+          ? 'bg-[var(--control-option-selected)]/25 border-s-4 border-s-[var(--accent)]'
           : ''}
-          {sub.is_anchor ? 'bg-green-500/5' : ''}"
+          {sub.is_anchor ? 'bg-[var(--done)]/10' : ''}"
       >
         <div class="flex items-start gap-2">
-          <span class="text-xs text-gray-500 w-8 flex-shrink-0"
+          <span class="text-xs text-[var(--muted)] w-8 flex-shrink-0"
             >#{sub.id}</span
           >
           <div class="flex-1 min-w-0">
-            <p class="text-sm truncate text-gray-200">{sub.text}</p>
-            <div class="flex flex-wrap gap-x-2 gap-y-1 text-xs text-gray-500 mt-1">
+            <p class="text-sm truncate text-[var(--text)]">{sub.text}</p>
+            <div class="flex flex-wrap gap-x-2 gap-y-1 text-xs text-[var(--muted)] mt-1">
               <span class="font-mono"
                 >{formatTime(sub.synced_start_ms)}</span
               >
-              <span class="text-gray-700">→</span>
+              <span class="text-[var(--muted)]/60">→</span>
               <span class="font-mono"
                 >{formatTime(sub.synced_end_ms)}</span
               >
               {#if sub.offset_ms !== 0}<span
                   class={sub.offset_ms > 0
-                    ? "text-green-400"
-                    : "text-red-400"}>{formatOffset(sub.offset_ms)}</span
+                    ? "text-[var(--done)]"
+                    : "text-[var(--danger)]"}>{formatOffset(sub.offset_ms)}</span
                 >{/if}
             </div>
           </div>
@@ -155,15 +233,15 @@
     {:else}
       {#if !isLoaded}
         {#each Array(pageSize) as _, index (index)}
-          <div aria-hidden="true" class="w-full min-w-0 p-3 border-b border-white/5">
+          <div aria-hidden="true" class="w-full min-w-0 p-3 border-b border-[var(--border)]">
             <div class="flex items-start gap-2">
-              <div class="w-8 flex-shrink-0 pt-1"><div class="h-2 w-5 rounded bg-white/5"></div></div>
+              <div class="w-8 flex-shrink-0 pt-1"><div class="h-2 w-5 rounded bg-[var(--surface-2)]"></div></div>
               <div class="flex-1 min-w-0">
-                <div class="h-5 flex items-center"><div class="h-3 w-4/5 rounded bg-white/5"></div></div>
+                <div class="h-5 flex items-center"><div class="h-3 w-4/5 rounded bg-[var(--surface-2)]"></div></div>
                 <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 min-h-4">
-                  <div class="h-2 w-16 rounded bg-white/[0.03]"></div>
-                  <span class="text-xs text-gray-700">→</span>
-                  <div class="h-2 w-16 rounded bg-white/[0.03]"></div>
+                  <div class="h-2 w-16 rounded bg-[var(--surface-2)]/70"></div>
+                  <span class="text-xs text-[var(--muted)]/60">→</span>
+                  <div class="h-2 w-16 rounded bg-[var(--surface-2)]/70"></div>
                 </div>
               </div>
             </div>
@@ -171,6 +249,10 @@
         {/each}
       {/if}
     {/each}
+    </div>
+    {#if bottomSpacerPx > 0}
+      <div aria-hidden="true" data-virtual-spacer="bottom" style:height={`${bottomSpacerPx}px`}></div>
+    {/if}
   </div>
   </div>
 </div>

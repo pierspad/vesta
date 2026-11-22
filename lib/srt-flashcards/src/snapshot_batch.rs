@@ -2,6 +2,7 @@
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::process::Stdio;
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -143,6 +144,9 @@ impl BatchSource {
     }
 }
 
+const MAX_PROBE_STDOUT: u64 = 32 * 1024 * 1024;
+const MAX_PROBE_STDERR: u64 = 1024 * 1024;
+
 /// Drain both pipes while waiting, and own/reap the direct FFmpeg/FFprobe child.
 /// Cancellation does not depend on another media task completing first.
 async fn output(
@@ -155,18 +159,24 @@ async fn output(
     }
     command.stdout(Stdio::piped()).stderr(Stdio::piped());
     let mut child = command.spawn()?;
-    let mut stdout = child.stdout.take().context("Missing stdout")?;
-    let mut stderr = child.stderr.take().context("Missing stderr")?;
+    let stdout = child.stdout.take().context("Missing stdout")?;
+    let stderr = child.stderr.take().context("Missing stderr")?;
     let work = async {
         let mut out = Vec::new();
         let mut err = Vec::new();
+        let mut stdout_limited = stdout.take(MAX_PROBE_STDOUT + 1);
+        let mut stderr_limited = stderr.take(MAX_PROBE_STDERR + 1);
         let (a, b, status) = tokio::join!(
-            stdout.read_to_end(&mut out),
-            stderr.read_to_end(&mut err),
+            stdout_limited.read_to_end(&mut out),
+            stderr_limited.read_to_end(&mut err),
             child.wait()
         );
         a?;
         b?;
+        anyhow::ensure!(
+            (out.len() as u64) <= MAX_PROBE_STDOUT,
+            "Media process stdout exceeded {MAX_PROBE_STDOUT} bytes"
+        );
         if !status?.success() {
             anyhow::bail!("Media process failed: {}", String::from_utf8_lossy(&err));
         }
@@ -230,8 +240,11 @@ fn plan(
     if keys.is_empty() {
         return vec![None; requests.len()];
     }
-    let first = source.target(requests[0].midpoint());
-    let last = source.target(requests.last().unwrap().midpoint());
+    let (Some(first_req), Some(last_req)) = (requests.first(), requests.last()) else {
+        return vec![None; requests.len()];
+    };
+    let first = source.target(first_req.midpoint());
+    let last = source.target(last_req.midpoint());
     let interior: Vec<_> = pts
         .iter()
         .copied()
@@ -283,8 +296,11 @@ impl SnapshotSettings {
             .batch_source
             .as_ref()
             .context("Unsupported snapshot source")?;
-        let first = requests[0].midpoint();
-        let last = requests.last().unwrap().midpoint();
+        let (Some(first_req), Some(last_req)) = (requests.first(), requests.last()) else {
+            return Ok(Vec::new());
+        };
+        let first = first_req.midpoint();
+        let last = last_req.midpoint();
         let interval = format!(
             "{}%{}",
             source.interval_time(first),
@@ -369,7 +385,10 @@ impl SnapshotSettings {
         let selected: Vec<_> = selected.into_iter().collect();
         for n in 1..=selected.len() {
             anyhow::ensure!(
-                std::fs::metadata(temp.path().join(format!("{n:03}.{ext}")))?.len() > 0,
+                tokio::fs::metadata(temp.path().join(format!("{n:03}.{ext}")))
+                    .await?
+                    .len()
+                    > 0,
                 "Incomplete snapshot batch"
             );
         }
@@ -394,7 +413,7 @@ impl SnapshotSettings {
                     }
                 };
                 let n = idx + 1;
-                std::fs::copy(temp.path().join(format!("{n:03}.{ext}")), &request.output)?;
+                tokio::fs::copy(temp.path().join(format!("{n:03}.{ext}")), &request.output).await?;
                 copied[i] = true;
             }
         }
@@ -420,30 +439,84 @@ impl SnapshotSettings {
         } else {
             vec![false; requests.len()]
         };
-        let mut results = Vec::with_capacity(requests.len());
-        for (request, done) in requests.into_iter().zip(done) {
-            let result = if self.cancel.is_cancelled() {
-                Err(anyhow::anyhow!("Media generation cancelled"))
+
+        let seqs: Vec<usize> = requests.iter().map(|r| r.seq).collect();
+        let mut results: Vec<Option<(&'static str, Result<()>, usize)>> =
+            (0..requests.len()).map(|_| None).collect();
+        let sem = Arc::new(tokio::sync::Semaphore::new(4));
+        let mut join_set = tokio::task::JoinSet::new();
+
+        for (index, (request, done)) in requests.into_iter().zip(done).enumerate() {
+            if self.cancel.is_cancelled() {
+                results[index] = Some((
+                    "snapshot",
+                    Err(anyhow::anyhow!("Media generation cancelled")),
+                    request.seq,
+                ));
             } else if done {
-                Ok(())
+                results[index] = Some(("snapshot", Ok(()), request.seq));
             } else {
-                extract_snapshot(
-                    &self.source,
-                    &request.output,
-                    request.start_ms,
-                    request.end_ms,
-                    self.width,
-                    self.height,
-                    self.crop,
-                    self.format,
-                    self.quality,
-                    &self.ffmpeg,
-                )
-                .await
-            };
-            results.push(("snapshot", result, request.seq));
+                let sem = sem.clone();
+                let source = self.source.clone();
+                let ffmpeg = self.ffmpeg.clone();
+                let cancel = self.cancel.clone();
+                let width = self.width;
+                let height = self.height;
+                let crop = self.crop;
+                let format = self.format;
+                let quality = self.quality;
+                join_set.spawn(async move {
+                    let result = match sem
+                        .acquire_owned()
+                        .await
+                        .context("Snapshot semaphore closed")
+                    {
+                        Ok(_permit) => {
+                            if cancel.is_cancelled() {
+                                Err(anyhow::anyhow!("Media generation cancelled"))
+                            } else {
+                                extract_snapshot(
+                                    &source,
+                                    &request.output,
+                                    request.start_ms,
+                                    request.end_ms,
+                                    width,
+                                    height,
+                                    crop,
+                                    format,
+                                    quality,
+                                    &ffmpeg,
+                                    &cancel,
+                                )
+                                .await
+                            }
+                        }
+                        Err(e) => Err(e),
+                    };
+                    (index, request.seq, result)
+                });
+            }
         }
+
+        while let Some(joined) = join_set.join_next().await {
+            if let Ok((index, seq, result)) = joined {
+                results[index] = Some(("snapshot", result, seq));
+            }
+        }
+
         results
+            .into_iter()
+            .zip(seqs)
+            .map(|(item, seq)| {
+                item.unwrap_or_else(|| {
+                    (
+                        "snapshot",
+                        Err(anyhow::anyhow!("Snapshot worker task failed")),
+                        seq,
+                    )
+                })
+            })
+            .collect()
     }
 }
 
@@ -685,6 +758,7 @@ mod tests {
                     SnapshotFormat::Webp,
                     80,
                     "ffmpeg",
+                    &cancel,
                 )
                 .await
                 .unwrap();

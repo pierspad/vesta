@@ -23,8 +23,8 @@ pub(super) async fn run_jobs(jobs: MediaJobs<'_>) -> Result<MediaOutcome, String
     let deck_sanitized = sanitize_filename(&config.deck_name);
     let ep = config.episode_number;
     let ffmpeg_cmd_arc = Arc::<str>::from(snapshot_settings.ffmpeg.as_str());
-    let video_codec = config.video_codec.clone();
-    let h264_preset = config.h264_preset.clone();
+    let video_codec = Arc::<str>::from(config.video_codec.as_str());
+    let h264_preset = Arc::<str>::from(config.h264_preset.as_str());
     let mut audio_count = 0usize;
     let mut snapshot_count = 0usize;
     let mut video_count = 0usize;
@@ -68,6 +68,7 @@ pub(super) async fn run_jobs(jobs: MediaJobs<'_>) -> Result<MediaOutcome, String
                 };
                 let ffmpeg = ffmpeg_cmd_arc.clone();
                 let permit = semaphore.clone();
+                let task_cancel = cancel.clone();
 
                 tasks.spawn(async move {
                     let _permit = permit.acquire_owned().await.expect("semaphore open");
@@ -84,6 +85,7 @@ pub(super) async fn run_jobs(jobs: MediaJobs<'_>) -> Result<MediaOutcome, String
                         normalize,
                         gain_db,
                         &ffmpeg,
+                        &task_cancel,
                     )
                     .await;
                     vec![("audio", result, seq_num)]
@@ -125,6 +127,7 @@ pub(super) async fn run_jobs(jobs: MediaJobs<'_>) -> Result<MediaOutcome, String
                 let crop = effective_crop;
                 let ffmpeg = ffmpeg_cmd_arc.clone();
                 let permit = semaphore.clone();
+                let task_cancel = cancel.clone();
 
                 let hw_permit_source = hw_video_semaphore.clone();
                 tasks.spawn(async move {
@@ -158,6 +161,7 @@ pub(super) async fn run_jobs(jobs: MediaJobs<'_>) -> Result<MediaOutcome, String
                         normalize,
                         gain_db,
                         &ffmpeg,
+                        &task_cancel,
                     )
                     .await;
                     // Safety net: a probed GPU encoder can still fail on a
@@ -166,7 +170,8 @@ pub(super) async fn run_jobs(jobs: MediaJobs<'_>) -> Result<MediaOutcome, String
                     // The GPU attempt is finished. A software retry must not
                     // reserve a hardware session while doing CPU work.
                     drop(_hw_permit);
-                    if result.is_err() && video_encoder.is_hardware() {
+                    if result.is_err() && video_encoder.is_hardware() && !task_cancel.is_cancelled()
+                    {
                         result = extract_video_clip(
                             &source,
                             &output_path,
@@ -186,6 +191,7 @@ pub(super) async fn run_jobs(jobs: MediaJobs<'_>) -> Result<MediaOutcome, String
                             normalize,
                             gain_db,
                             &ffmpeg,
+                            &task_cancel,
                         )
                         .await;
                     }

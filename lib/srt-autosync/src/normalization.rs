@@ -132,11 +132,13 @@ pub struct CleanText {
     pub clean: String,
     pub tokens: Vec<String>,
     pub token_set: HashSet<String>,
+    chars: Vec<char>,
 }
 
 impl CleanText {
     pub fn new(text: &str) -> Self {
         let clean = strip_markup_and_sdh(text);
+        let chars: Vec<char> = clean.chars().collect();
         let tokens: Vec<String> = clean.split_whitespace().map(String::from).collect();
         let token_set: HashSet<String> = tokens.iter().cloned().collect();
         Self {
@@ -144,6 +146,7 @@ impl CleanText {
             clean,
             tokens,
             token_set,
+            chars,
         }
     }
 
@@ -186,20 +189,28 @@ impl CleanText {
 
     /// Combined similarity blending F1, containment, and character edit similarity
     pub fn similarity(&self, other: &Self) -> f64 {
+        self.similarity_with_threshold(other, 0.0)
+    }
+
+    pub(crate) fn similarity_with_threshold(&self, other: &Self, min_threshold: f64) -> f64 {
         let f1 = self.token_f1(other);
-        let containment = self.token_containment(other);
-        // If high containment, blend it with F1 to reward matching sub-phrases
-        let token_score = if containment > 0.8 && f1 > 0.35 {
-            (f1 * 0.6) + (containment * 0.4)
+        let token_score = if f1 == 0.0 {
+            0.0
         } else {
-            f1
+            let containment = self.token_containment(other);
+            // If high containment, blend it with F1 to reward matching sub-phrases
+            if containment > 0.8 && f1 > 0.35 {
+                (f1 * 0.6) + (containment * 0.4)
+            } else {
+                f1
+            }
         };
 
-        // Character similarity on clean strings
-        let c1: Vec<char> = self.clean.chars().collect();
-        let c2: Vec<char> = other.clean.chars().collect();
-        let char_score = char_similarity(&c1, &c2);
+        if (token_score * 0.75) + 0.25 < min_threshold {
+            return token_score * 0.75;
+        }
 
+        let char_score = char_similarity(&self.chars, &other.chars);
         (token_score * 0.75) + (char_score * 0.25)
     }
 }
@@ -218,6 +229,24 @@ fn levenshtein(a: &[char], b: &[char]) -> usize {
         return 0;
     }
     let (short, long) = if a.len() <= b.len() { (a, b) } else { (b, a) };
+    if short.len() < 128 {
+        let width = short.len() + 1;
+        let mut prev = [0usize; 128];
+        let mut curr = [0usize; 128];
+        for (j, slot) in prev[..width].iter_mut().enumerate() {
+            *slot = j;
+        }
+        for (i, &ch_long) in long.iter().enumerate() {
+            curr[0] = i + 1;
+            for (j, &ch_short) in short.iter().enumerate() {
+                let cost = usize::from(ch_long != ch_short);
+                curr[j + 1] = (prev[j + 1] + 1).min(curr[j] + 1).min(prev[j] + cost);
+            }
+            prev[..width].copy_from_slice(&curr[..width]);
+        }
+        return prev[short.len()];
+    }
+
     let mut prev: Vec<usize> = (0..=short.len()).collect();
     let mut curr = vec![0usize; short.len() + 1];
 
@@ -405,5 +434,9 @@ mod tests {
             sim > 0.55,
             "Expected high similarity for subphrase, got {sim}"
         );
+
+        let unrelated = CleanText::new("completely unrelated banana helicopter");
+        assert!(unrelated.similarity_with_threshold(&sub, 0.40) < 0.40);
+        assert_eq!(whisper.similarity_with_threshold(&sub, 0.0), sim);
     }
 }

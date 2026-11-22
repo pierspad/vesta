@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use std::path::Path;
 use std::process::Stdio;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
@@ -654,7 +655,18 @@ pub(crate) async fn run_cancellable_output(
     command.creation_flags(0x0800_4000);
     command.kill_on_drop(true).stdin(Stdio::null());
 
-    let fut = tokio::time::timeout(timeout, command.output());
+    let fut = tokio::time::timeout(timeout, async {
+        let mut attempts = 0;
+        loop {
+            match command.output().await {
+                Err(e) if e.raw_os_error() == Some(26) && attempts < 10 => {
+                    attempts += 1;
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+                res => break res,
+            }
+        }
+    });
     let output = if let Some(token) = cancel {
         tokio::select! {
             biased;
@@ -672,8 +684,15 @@ pub(crate) async fn run_cancellable_output(
 
 #[derive(Debug, Deserialize)]
 struct FfprobePacketProbe {
+    streams: Option<Vec<FfprobeStreamInfo>>,
     format: Option<FfprobeFormatInfo>,
     packets: Option<Vec<FfprobePacketEntry>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FfprobeStreamInfo {
+    width: Option<u32>,
+    height: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -695,9 +714,25 @@ struct SubtitlePacketEvent {
     duration_ms: Option<u64>,
 }
 
-fn parse_ffprobe_packet_events(json_bytes: &[u8]) -> Result<Vec<SubtitlePacketEvent>> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PacketProbeResult {
+    stream_dims: Option<(u32, u32)>,
+    events: Vec<SubtitlePacketEvent>,
+}
+
+fn parse_ffprobe_packet_probe(json_bytes: &[u8]) -> Result<PacketProbeResult> {
     let probe: FfprobePacketProbe =
         serde_json::from_slice(json_bytes).context("Failed to parse ffprobe packet JSON")?;
+    let stream_dims = probe
+        .streams
+        .as_deref()
+        .and_then(|streams| streams.first())
+        .and_then(|s| match (s.width, s.height) {
+            (Some(w), Some(h)) if (1..=4096).contains(&w) && (1..=4096).contains(&h) => {
+                Some((w, h))
+            }
+            _ => None,
+        });
     let format_start_sec = probe
         .format
         .and_then(|f| f.start_time)
@@ -746,7 +781,15 @@ fn parse_ffprobe_packet_events(json_bytes: &[u8]) -> Result<Vec<SubtitlePacketEv
         grouped.push(evt);
     }
 
-    Ok(grouped)
+    Ok(PacketProbeResult {
+        stream_dims,
+        events: grouped,
+    })
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn parse_ffprobe_packet_events(json_bytes: &[u8]) -> Result<Vec<SubtitlePacketEvent>> {
+    parse_ffprobe_packet_probe(json_bytes).map(|probe| probe.events)
 }
 
 /// Decodes PNG bytes into tightly packed RGBA8 pixels (`width * height * 4`).
@@ -924,10 +967,11 @@ async fn extract_rendered_bitmap_cues(
             "error",
             "-select_streams",
             &stream_index.to_string(),
+            "-show_streams",
             "-show_format",
             "-show_packets",
             "-show_entries",
-            "format=start_time:packet=pts_time,duration_time,size",
+            "format=start_time:stream=width,height:packet=pts_time,duration_time,size",
             "-of",
             "json",
         ])
@@ -947,96 +991,167 @@ async fn extract_rendered_bitmap_cues(
         );
     }
 
-    let events = parse_ffprobe_packet_events(&probe_output.stdout)?;
-    if events.is_empty() {
+    let PacketProbeResult {
+        stream_dims,
+        events,
+    } = parse_ffprobe_packet_probe(&probe_output.stdout)?;
+    if events.is_empty() || limit == Some(0) {
         return Ok(Vec::new());
     }
 
-    let filter = format!("[0:{stream_index}]scale=1280:720[s];[1:v][s]overlay=eof_action=pass[v]");
+    let (canvas_size, filter) = if let Some((w, h)) = stream_dims {
+        (
+            format!("{w}x{h}"),
+            format!("[1:v][0:{stream_index}]overlay=eof_action=pass[v]"),
+        )
+    } else {
+        (
+            "1280x720".to_string(),
+            format!(
+                "[0:{stream_index}]scale=1280:720:force_original_aspect_ratio=decrease[s];[1:v][s]overlay=(W-w)/2:(H-h)/2:eof_action=pass[v]"
+            ),
+        )
+    };
+    let concurrency = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+        .clamp(2, 6);
+    let chunk_size = limit
+        .map(|max| max.clamp(1, concurrency * 2))
+        .unwrap_or(concurrency * 2);
+    let sem = Arc::new(tokio::sync::Semaphore::new(concurrency));
+
     let mut cues = Vec::new();
     let mut open_cue: Option<OpenCue> = None;
 
-    for evt in events {
+    for chunk in events.chunks(chunk_size) {
         if cancel.is_some_and(CancellationToken::is_cancelled) {
             bail!("Bitmap subtitle extraction cancelled");
         }
 
-        let rel_pts_sec = evt.pts_ms as f64 / 1000.0;
-        let seek_sec = (rel_pts_sec - 0.002).max(0.0);
-        let out_offset = (rel_pts_sec - seek_sec) + 0.05;
-        let lavfi_duration = out_offset + 0.20;
+        let mut join_set = tokio::task::JoinSet::new();
+        for (idx, evt) in chunk.iter().cloned().enumerate() {
+            let sem = sem.clone();
+            let ffmpeg = ffmpeg.to_string();
+            let input_path = input.to_path_buf();
+            let canvas_size = canvas_size.clone();
+            let filter = filter.clone();
+            let cancel_tok = cancel.cloned();
 
-        let mut render_cmd = tokio::process::Command::new(ffmpeg);
-        render_cmd
-            .args([
-                "-nostdin",
-                "-v",
-                "error",
-                "-ss",
-                &format!("{seek_sec:.6}"),
-                "-i",
-            ])
-            .arg(input)
-            .args([
-                "-f",
-                "lavfi",
-                "-i",
-                &format!("color=c=black:s=1280x720:d={lavfi_duration:.3}"),
-                "-filter_complex",
-                &filter,
-                "-map",
-                "[v]",
-                "-ss",
-                &format!("{out_offset:.3}"),
-                "-frames:v",
-                "1",
-                "-f",
-                "image2pipe",
-                "-vcodec",
-                "png",
-                "-",
-            ]);
+            join_set.spawn(async move {
+                let _permit = sem
+                    .acquire_owned()
+                    .await
+                    .context("Bitmap render semaphore closed")?;
+                if cancel_tok
+                    .as_ref()
+                    .is_some_and(CancellationToken::is_cancelled)
+                {
+                    bail!("Bitmap subtitle extraction cancelled");
+                }
 
-        let out = run_cancellable_output(
-            render_cmd,
-            Duration::from_secs(30),
-            cancel,
-            "ffmpeg bitmap cue render",
-        )
-        .await?;
+                let rel_pts_sec = evt.pts_ms as f64 / 1000.0;
+                let seek_sec = (rel_pts_sec - 0.002).max(0.0);
+                let out_offset = (rel_pts_sec - seek_sec) + 0.05;
+                let lavfi_duration = out_offset + 0.20;
 
-        if !out.status.success() {
-            let stderr = String::from_utf8_lossy(&out.stderr);
-            if stderr.trim().is_empty() {
-                continue;
-            }
-            bail!(
-                "Failed to render bitmap subtitle cue at {}ms: {}",
-                evt.pts_ms,
-                stderr
-            );
+                let mut render_cmd = tokio::process::Command::new(&ffmpeg);
+                render_cmd
+                    .args([
+                        "-nostdin",
+                        "-v",
+                        "error",
+                        "-ss",
+                        &format!("{seek_sec:.6}"),
+                        "-i",
+                    ])
+                    .arg(&input_path)
+                    .args([
+                        "-f",
+                        "lavfi",
+                        "-i",
+                        &format!("color=c=black:s={canvas_size}:d={lavfi_duration:.3}"),
+                        "-filter_complex",
+                        &filter,
+                        "-map",
+                        "[v]",
+                        "-ss",
+                        &format!("{out_offset:.3}"),
+                        "-frames:v",
+                        "1",
+                        "-f",
+                        "image2pipe",
+                        "-vcodec",
+                        "png",
+                        "-",
+                    ]);
+
+                let out = run_cancellable_output(
+                    render_cmd,
+                    Duration::from_secs(30),
+                    cancel_tok.as_ref(),
+                    "ffmpeg bitmap cue render",
+                )
+                .await?;
+
+                if !out.status.success() {
+                    let stderr = String::from_utf8_lossy(&out.stderr);
+                    if stderr.trim().is_empty() {
+                        return anyhow::Ok((idx, evt, None));
+                    }
+                    bail!(
+                        "Failed to render bitmap subtitle cue at {}ms: {}",
+                        evt.pts_ms,
+                        stderr
+                    );
+                }
+
+                let stdout = out.stdout;
+                let cropped = tokio::task::spawn_blocking(move || crop_png_to_rgba_cue(&stdout))
+                    .await
+                    .context("Bitmap crop worker panicked")??;
+                anyhow::Ok((idx, evt, cropped))
+            });
         }
 
-        if let Some((png_bytes, width, height)) = crop_png_to_rgba_cue(&out.stdout)? {
-            close_open_cue(&mut open_cue, Some(evt.pts_ms), &mut cues)?;
-            if limit.is_some_and(|max| cues.len() >= max) {
-                return Ok(cues);
+        let mut chunk_results = Vec::with_capacity(chunk.len());
+        while let Some(res) = join_set.join_next().await {
+            match res {
+                Ok(Ok(item)) => chunk_results.push(item),
+                Ok(Err(err)) => {
+                    join_set.abort_all();
+                    return Err(err);
+                }
+                Err(err) => {
+                    join_set.abort_all();
+                    return Err(err).context("Bitmap cue render task failed");
+                }
             }
-            let planned_end = evt
-                .duration_ms
-                .map(|dur| evt.pts_ms + dur)
-                .unwrap_or(evt.pts_ms + DEFAULT_CUE_DURATION_MS);
-            open_cue = Some(OpenCue {
-                start_ms: evt.pts_ms,
-                end_ms: Some(planned_end),
-                png_bytes,
-                width,
-                height,
-            });
-        } else {
-            close_open_cue(&mut open_cue, Some(evt.pts_ms), &mut cues)?;
-            if limit.is_some_and(|max| cues.len() >= max) {
-                return Ok(cues);
+        }
+        chunk_results.sort_by_key(|(idx, _, _)| *idx);
+
+        for (_, evt, cropped) in chunk_results {
+            if let Some((png_bytes, width, height)) = cropped {
+                close_open_cue(&mut open_cue, Some(evt.pts_ms), &mut cues)?;
+                if limit.is_some_and(|max| cues.len() >= max) {
+                    return Ok(cues);
+                }
+                let planned_end = evt
+                    .duration_ms
+                    .map(|dur| evt.pts_ms + dur)
+                    .unwrap_or(evt.pts_ms + DEFAULT_CUE_DURATION_MS);
+                open_cue = Some(OpenCue {
+                    start_ms: evt.pts_ms,
+                    end_ms: Some(planned_end),
+                    png_bytes,
+                    width,
+                    height,
+                });
+            } else {
+                close_open_cue(&mut open_cue, Some(evt.pts_ms), &mut cues)?;
+                if limit.is_some_and(|max| cues.len() >= max) {
+                    return Ok(cues);
+                }
             }
         }
     }
@@ -1488,5 +1603,146 @@ mod tests {
                 .await
                 .unwrap_err();
         assert!(cancel_err.to_string().to_lowercase().contains("cancel"));
+    }
+
+    #[test]
+    fn decode_pgs_rle_handles_short_and_two_byte_rle_runs() {
+        // 10x2 raster:
+        // Row 0: 00 02 (2x transparent), 00 83 05 (3x color 5), 00 40 02 (2x transparent), 00 C0 03 07 (3x color 7), 00 00 (EOL)
+        // Row 1: direct bytes [9, 9], 00 00 (EOL)
+        let rle = [
+            0x00, 0x02, 0x00, 0x83, 0x05, 0x00, 0x40, 0x02, 0x00, 0xC0, 0x03, 0x07, 0x00, 0x00,
+            0x09, 0x09, 0x00, 0x00,
+        ];
+        let indices = decode_pgs_rle(&rle, 10, 2).unwrap();
+        assert_eq!(
+            indices,
+            vec![
+                0, 0, 5, 5, 5, 0, 0, 7, 7, 7, // row 0
+                9, 9, 0, 0, 0, 0, 0, 0, 0, 0, // row 1
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_ffprobe_packet_probe_extracts_non_16_9_stream_dimensions() {
+        let pal_json = br#"{
+            "streams": [{"width": 720, "height": 576}],
+            "format": {"start_time": "0.000000"},
+            "packets": [{"pts_time": "1.200000", "duration_time": "0.800000", "size": "64"}]
+        }"#;
+        let PacketProbeResult {
+            stream_dims: dims,
+            events,
+        } = parse_ffprobe_packet_probe(pal_json).unwrap();
+        assert_eq!(dims, Some((720, 576)));
+        assert_eq!(
+            events,
+            vec![SubtitlePacketEvent {
+                pts_ms: 1200,
+                duration_ms: Some(800),
+            }]
+        );
+
+        let oversized_json = br#"{
+            "streams": [{"width": 8192, "height": 576}],
+            "format": {"start_time": "0.0"},
+            "packets": []
+        }"#;
+        let PacketProbeResult {
+            stream_dims: oversized_dims,
+            events: empty_events,
+        } = parse_ffprobe_packet_probe(oversized_json).unwrap();
+        assert_eq!(oversized_dims, None);
+        assert!(empty_events.is_empty());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn extract_rendered_bitmap_cues_uses_stream_dimensions_and_respects_limit() {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let probe_json = br#"{
+            "streams": [{"width": 720, "height": 576}],
+            "format": {"start_time": "0.000000"},
+            "packets": [
+                {"pts_time": "1.000", "duration_time": "0.500", "size": "20"},
+                {"pts_time": "2.000", "duration_time": "0.500", "size": "20"},
+                {"pts_time": "3.000", "duration_time": "0.500", "size": "20"}
+            ]
+        }"#;
+
+        // Build a tiny 8x4 PNG with a bright centered 4x2 subtitle block.
+        let mut rgba = vec![0u8; 8 * 4 * 4];
+        for y in 1..3 {
+            for x in 2..6 {
+                let off = (y * 8 + x) * 4;
+                rgba[off..off + 4].copy_from_slice(&[240, 240, 240, 255]);
+            }
+        }
+        let mut png_bytes = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut png_bytes, 8, 4);
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+            let mut writer = encoder.write_header().unwrap();
+            writer.write_image_data(&rgba).unwrap();
+        }
+        let png_path = dir.path().join("cue.png");
+        std::fs::write(&png_path, &png_bytes).unwrap();
+        let probe_path = dir.path().join("probe.json");
+        std::fs::write(&probe_path, probe_json).unwrap();
+        let args_log = dir.path().join("ffmpeg_args.log");
+
+        let ffprobe_script = dir.path().join("mock-ffprobe");
+        let ffmpeg_script = dir.path().join("mock-ffmpeg");
+        std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .mode(0o700)
+            .open(&ffprobe_script)
+            .unwrap()
+            .write_all(format!("#!/bin/sh\ncat '{}'\n", probe_path.display()).as_bytes())
+            .unwrap();
+        std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .mode(0o700)
+            .open(&ffmpeg_script)
+            .unwrap()
+            .write_all(
+                format!(
+                    "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '{}'\ncat '{}'\n",
+                    args_log.display(),
+                    png_path.display()
+                )
+                .as_bytes(),
+            )
+            .unwrap();
+
+        let dummy_video = dir.path().join("movie.mkv");
+        std::fs::write(&dummy_video, b"stub").unwrap();
+
+        let cues = extract_rendered_bitmap_cues(
+            ffmpeg_script.to_str().unwrap(),
+            ffprobe_script.to_str().unwrap(),
+            &dummy_video,
+            2,
+            Some(2),
+            None,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(cues.len(), 2);
+        assert_eq!(cues[0].start_ms, 1000);
+        assert_eq!(cues[1].start_ms, 2000);
+        let logged = std::fs::read_to_string(&args_log).unwrap();
+        assert!(logged.contains("s=720x576:"));
+        assert!(logged.contains("[1:v][0:2]overlay=eof_action=pass[v]"));
     }
 }

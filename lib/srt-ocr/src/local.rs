@@ -981,21 +981,20 @@ fn eval_binary_f32(
             .collect();
         return Ok(TensorValue::F32(out, a_shape.to_vec()));
     }
-    if b.len() == 1 {
-        let y = b[0];
-        let out = a.iter().map(|&x| apply_f32_op(x, y, op)).collect();
-        return Ok(TensorValue::F32(out, a_shape.to_vec()));
-    }
-    if a.len() == 1 {
-        let x = a[0];
-        let out = b.iter().map(|&y| apply_f32_op(x, y, op)).collect();
-        return Ok(TensorValue::F32(out, b_shape.to_vec()));
-    }
-
     let (out_shape, a_strides, b_strides) = broadcast_shapes(a_shape, b_shape)?;
-    let total = out_shape.iter().product();
+    let total: usize = out_shape.iter().product();
     if total == 0 {
         return Ok(TensorValue::F32(Vec::new(), out_shape));
+    }
+    if b.len() == 1 && a.len() == total {
+        let y = b[0];
+        let out = a.iter().map(|&x| apply_f32_op(x, y, op)).collect();
+        return Ok(TensorValue::F32(out, out_shape));
+    }
+    if a.len() == 1 && b.len() == total {
+        let x = a[0];
+        let out = b.iter().map(|&y| apply_f32_op(x, y, op)).collect();
+        return Ok(TensorValue::F32(out, out_shape));
     }
     let rank = out_shape.len();
     let mut coords = vec![0usize; rank];
@@ -3502,5 +3501,124 @@ mod tests {
         let gap_in = TensorValue::F32(vec![1.0, 3.0, 5.0, 7.0], vec![1, 1, 2, 2]);
         let gap_out = eval_global_average_pool(&gap_in).unwrap();
         assert_eq!(gap_out, TensorValue::F32(vec![4.0], vec![1, 1, 1, 1]));
+    }
+
+    #[test]
+    fn eval_binary_f32_preserves_broadcast_rank_for_single_element_tensors() {
+        let scalar_hi = TensorValue::F32(vec![2.0], vec![1, 1]);
+        let vec_lo = TensorValue::F32(vec![1.0, 2.0, 3.0, 4.0], vec![4]);
+        let added = eval_binary(&scalar_hi, &vec_lo, BinaryOp::Add).unwrap();
+        assert_eq!(
+            added,
+            TensorValue::F32(vec![3.0, 4.0, 5.0, 6.0], vec![1, 4])
+        );
+
+        let a = TensorValue::F32(vec![10.0, 20.0, 30.0], vec![1, 3]);
+        let b = TensorValue::F32(vec![1.0, 2.0], vec![2, 1, 1]);
+        let sub = eval_binary(&a, &b, BinaryOp::Sub).unwrap();
+        assert_eq!(
+            sub,
+            TensorValue::F32(vec![9.0, 19.0, 29.0, 8.0, 18.0, 28.0], vec![2, 1, 3])
+        );
+    }
+
+    #[test]
+    fn onnx_eval_layer_norm_and_pad_edge_cover_attributes_and_modes() {
+        let ln_input = TensorValue::F32(vec![1.0, 3.0, 10.0, 14.0], vec![2, 2]);
+        let scale = TensorValue::F32(vec![2.0, 0.5], vec![2]);
+        let bias = TensorValue::F32(vec![1.0, -1.0], vec![2]);
+        let mut ln_attrs = HashMap::new();
+        ln_attrs.insert(
+            "axis".to_string(),
+            ParsedAttribute {
+                name: "axis".to_string(),
+                f: None,
+                i: Some(-1),
+                s: None,
+                t: None,
+                floats: vec![],
+                ints: vec![],
+            },
+        );
+        ln_attrs.insert(
+            "epsilon".to_string(),
+            ParsedAttribute {
+                name: "epsilon".to_string(),
+                f: Some(1e-6),
+                i: None,
+                s: None,
+                t: None,
+                floats: vec![],
+                ints: vec![],
+            },
+        );
+        let ln_node = ParsedNode {
+            inputs: vec![],
+            outputs: vec![],
+            op_type: "LayerNormalization".to_string(),
+            attrs: ln_attrs,
+        };
+        let ln_out = eval_layer_norm(&ln_input, &scale, Some(&bias), &ln_node).unwrap();
+        let (ln_vals, ln_shape) = ln_out.as_f32().unwrap();
+        assert_eq!(ln_shape, &[2, 2]);
+        for (got, want) in ln_vals.iter().zip([-1.0f32, -0.5, -1.0, -0.5]) {
+            assert!((got - want).abs() < 1e-4, "got {got}, expected {want}");
+        }
+        let ln_no_bias = eval_layer_norm(&ln_input, &scale, None, &ln_node).unwrap();
+        let (nb_vals, _) = ln_no_bias.as_f32().unwrap();
+        for (got, want) in nb_vals.iter().zip([-2.0f32, 0.5, -2.0, 0.5]) {
+            assert!((got - want).abs() < 1e-4, "got {got}, expected {want}");
+        }
+
+        let pad_input = TensorValue::F32(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        let pads = TensorValue::I64(vec![1, 1, 1, 1], vec![4]);
+        let mut edge_attrs = HashMap::new();
+        edge_attrs.insert(
+            "mode".to_string(),
+            ParsedAttribute {
+                name: "mode".to_string(),
+                f: None,
+                i: None,
+                s: Some(b"edge".to_vec()),
+                t: None,
+                floats: vec![],
+                ints: vec![],
+            },
+        );
+        let edge_node = ParsedNode {
+            inputs: vec![],
+            outputs: vec![],
+            op_type: "Pad".to_string(),
+            attrs: edge_attrs,
+        };
+        let padded_edge = eval_pad(&pad_input, Some(&pads), None, &edge_node).unwrap();
+        assert_eq!(
+            padded_edge,
+            TensorValue::F32(
+                vec![
+                    1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 3.0, 3.0, 4.0, 4.0
+                ],
+                vec![4, 4]
+            )
+        );
+
+        let const_val = TensorValue::F32(vec![9.0], vec![1]);
+        let const_node = ParsedNode {
+            inputs: vec![],
+            outputs: vec![],
+            op_type: "Pad".to_string(),
+            attrs: HashMap::new(),
+        };
+        let padded_const =
+            eval_pad(&pad_input, Some(&pads), Some(&const_val), &const_node).unwrap();
+        assert_eq!(
+            padded_const,
+            TensorValue::F32(
+                vec![
+                    9.0, 9.0, 9.0, 9.0, 9.0, 1.0, 2.0, 9.0, 9.0, 3.0, 4.0, 9.0, 9.0, 9.0, 9.0, 9.0
+                ],
+                vec![4, 4]
+            )
+        );
     }
 }

@@ -7,9 +7,18 @@
 use anyhow::{Context, Result};
 use futures::StreamExt;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 use tokio_util::sync::CancellationToken;
+
+static HTTP_CLIENT: LazyLock<std::result::Result<reqwest::Client, String>> = LazyLock::new(|| {
+    reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(15))
+        .read_timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|error| error.to_string())
+});
 
 /// Reuse a nonempty cached file or stream into a unique temporary sibling.
 /// Publish only after HTTP, writes and flush succeed. Cancellation includes
@@ -47,11 +56,9 @@ pub async fn download_to(
             .tempfile_in(parent)
             .context("Failed to create download temporary file")?
             .into_temp_path();
-        let client = reqwest::Client::builder()
-            .connect_timeout(Duration::from_secs(15))
-            .read_timeout(Duration::from_secs(30))
-            .build()
-            .context("Failed to create download client")?;
+        let client = HTTP_CLIENT
+            .as_ref()
+            .map_err(|error| anyhow::anyhow!("Failed to create download client: {error}"))?;
         let response = client
             .get(url)
             .send()

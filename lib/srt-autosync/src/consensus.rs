@@ -257,14 +257,17 @@ fn extract_constrained_consensus(
         });
     }
 
-    // Reference linear model
-    let model = if let Some(first) = existing_anchors.first() {
-        if existing_anchors.len() == 1 {
+    // Reference linear model derived from time-sorted anchors.
+    let sorted_anchors = prior.anchors();
+    let model = if let Some(first) = sorted_anchors.first() {
+        if sorted_anchors.len() == 1 {
             Some(LinearModel::constant(first.offset()))
         } else {
-            let last = existing_anchors.last().unwrap();
-            let s_diff = last.original_time_ms - first.original_time_ms;
-            let t_diff = last.target_time_ms - first.target_time_ms;
+            let last = sorted_anchors
+                .last()
+                .expect("sorted_anchors has at least two elements");
+            let s_diff = (last.original_time_ms as i128) - (first.original_time_ms as i128);
+            let t_diff = (last.target_time_ms as i128) - (first.target_time_ms as i128);
             if s_diff > 0 {
                 let slope = t_diff as f64 / s_diff as f64;
                 let intercept =

@@ -105,7 +105,10 @@ pub async fn generate(
         HashMap::new(),
     );
 
-    let matched = build_matched_lines(&config)?;
+    let config_for_match = config.clone();
+    let matched = tokio::task::spawn_blocking(move || build_matched_lines(&config_for_match))
+        .await
+        .map_err(|error| format!("Subtitle matching task failed: {error}"))??;
 
     let total_active = matched.iter().filter(|m| m.active).count();
     if total_active == 0 {

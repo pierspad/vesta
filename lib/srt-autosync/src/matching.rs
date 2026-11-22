@@ -103,7 +103,10 @@ impl SubtitleIndex {
 
     /// Query candidate cues whose start_ms is within [center_ms - max_offset_ms, center_ms + max_offset_ms]
     pub fn find_in_window(&self, center_ms: i64, max_offset_ms: i64) -> &[CandidateCue] {
-        self.find_in_range(center_ms - max_offset_ms, center_ms + max_offset_ms)
+        self.find_in_range(
+            center_ms.saturating_sub(max_offset_ms),
+            center_ms.saturating_add(max_offset_ms),
+        )
     }
 }
 
@@ -112,13 +115,21 @@ impl SubtitleIndex {
 pub struct AnchorPrior {
     /// Anchors sorted by original_time_ms ascending
     anchors: Vec<ExistingAnchor>,
+    /// Anchors sorted by target_time_ms ascending
+    anchors_by_target: Vec<ExistingAnchor>,
 }
 
 impl AnchorPrior {
     pub fn new(mut anchors: Vec<ExistingAnchor>) -> Self {
         anchors.sort_by_key(|a| a.original_time_ms);
         anchors.dedup_by_key(|a| a.original_time_ms);
-        Self { anchors }
+        let mut anchors_by_target = anchors.clone();
+        anchors_by_target.sort_by_key(|a| (a.target_time_ms, a.original_time_ms));
+        anchors_by_target.dedup_by_key(|a| a.target_time_ms);
+        Self {
+            anchors,
+            anchors_by_target,
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -162,13 +173,14 @@ impl AnchorPrior {
         let a1 = &self.anchors[idx - 1];
         let a2 = &self.anchors[idx];
 
-        let dt = a2.original_time_ms - a1.original_time_ms;
+        let dt = (a2.original_time_ms as i128) - (a1.original_time_ms as i128);
         if dt == 0 {
             return Some(a1.offset());
         }
 
-        let alpha = (t - a1.original_time_ms) as f64 / (dt as f64);
-        let interpolated_offset = a1.offset() as f64 + alpha * (a2.offset() - a1.offset()) as f64;
+        let alpha = ((t as i128) - (a1.original_time_ms as i128)) as f64 / (dt as f64);
+        let d_off = (a2.offset() as i128) - (a1.offset() as i128);
+        let interpolated_offset = a1.offset() as f64 + alpha * (d_off as f64);
         Some(interpolated_offset.round() as i64)
     }
 
@@ -180,15 +192,15 @@ impl AnchorPrior {
     /// - If tau >= last_anchor.target_time_ms, returns last_anchor.offset().
     /// - Otherwise, linearly interpolates between surrounding anchors A1 and A2.
     pub fn expected_offset_at_target(&self, tau: i64) -> Option<i64> {
-        if self.anchors.is_empty() {
+        if self.anchors_by_target.is_empty() {
             return None;
         }
-        if self.anchors.len() == 1 {
-            return Some(self.anchors[0].offset());
+        if self.anchors_by_target.len() == 1 {
+            return Some(self.anchors_by_target[0].offset());
         }
 
-        let first = &self.anchors[0];
-        let last = &self.anchors[self.anchors.len() - 1];
+        let first = &self.anchors_by_target[0];
+        let last = &self.anchors_by_target[self.anchors_by_target.len() - 1];
 
         if tau <= first.target_time_ms {
             return Some(first.offset());
@@ -197,24 +209,27 @@ impl AnchorPrior {
             return Some(last.offset());
         }
 
-        let idx = self.anchors.partition_point(|a| a.target_time_ms <= tau);
+        let idx = self
+            .anchors_by_target
+            .partition_point(|a| a.target_time_ms <= tau);
         if idx == 0 {
             return Some(first.offset());
         }
-        if idx >= self.anchors.len() {
+        if idx >= self.anchors_by_target.len() {
             return Some(last.offset());
         }
 
-        let a1 = &self.anchors[idx - 1];
-        let a2 = &self.anchors[idx];
+        let a1 = &self.anchors_by_target[idx - 1];
+        let a2 = &self.anchors_by_target[idx];
 
-        let d_tau = a2.target_time_ms - a1.target_time_ms;
+        let d_tau = (a2.target_time_ms as i128) - (a1.target_time_ms as i128);
         if d_tau == 0 {
             return Some(a1.offset());
         }
 
-        let alpha = (tau - a1.target_time_ms) as f64 / (d_tau as f64);
-        let interpolated_offset = a1.offset() as f64 + alpha * (a2.offset() - a1.offset()) as f64;
+        let alpha = ((tau as i128) - (a1.target_time_ms as i128)) as f64 / (d_tau as f64);
+        let d_off = (a2.offset() as i128) - (a1.offset() as i128);
+        let interpolated_offset = a1.offset() as f64 + alpha * (d_off as f64);
         Some(interpolated_offset.round() as i64)
     }
 
@@ -552,5 +567,22 @@ mod tests {
             refine_speech_onset(10_000, 14_000, &tokens, &phrase),
             11_420
         );
+    }
+
+    #[test]
+    fn find_in_window_saturates_extreme_bounds_and_prior_sorts_target_times() {
+        let subs = [SubtitleLine {
+            id: 1,
+            start_ms: 1_000,
+            text: "Hello world".into(),
+        }];
+        let index = SubtitleIndex::build(&subs);
+        assert_eq!(index.find_in_window(10, i64::MAX).len(), 1);
+
+        let prior = AnchorPrior::new(vec![
+            ExistingAnchor::new(10_000, 120_000),
+            ExistingAnchor::new(50_000, 40_000),
+        ]);
+        assert_eq!(prior.expected_offset_at_target(80_000), Some(50_000));
     }
 }

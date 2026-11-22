@@ -201,6 +201,7 @@ async fn prepare_single_segment(
     let mut attempts = 0;
     let mut audio_data = Vec::new();
     let mut wav_path = temp_dir_path.join(format!("segment_{idx}.wav"));
+    let mut fallback_silent: Option<(Vec<f32>, PathBuf)> = None;
 
     let max_attempts = if quick { 5 } else { 3 };
     let shift_amount = if quick { 15.0 } else { 20.0 };
@@ -217,6 +218,9 @@ async fn prepare_single_segment(
         )
         .await;
         if cancel.is_cancelled() {
+            if let Some((_, fb_path)) = fallback_silent {
+                let _ = std::fs::remove_file(fb_path);
+            }
             return Err("Audio preparation cancelled".into());
         }
         if extraction.is_err() {
@@ -240,10 +244,17 @@ async fn prepare_single_segment(
         };
 
         if is_silent(&samples, 0.003) {
-            let _ = std::fs::remove_file(&temp_wav_path);
+            if attempts == 0 && fallback_silent.is_none() {
+                fallback_silent = Some((samples, temp_wav_path));
+            } else {
+                let _ = std::fs::remove_file(&temp_wav_path);
+            }
             attempts += 1;
             current_pos += shift_amount;
         } else {
+            if let Some((_, fb_path)) = fallback_silent.take() {
+                let _ = std::fs::remove_file(fb_path);
+            }
             audio_data = samples;
             wav_path = temp_wav_path;
             break;
@@ -251,22 +262,28 @@ async fn prepare_single_segment(
     }
 
     if audio_data.is_empty() {
-        extract_wav_segment(
-            &ffmpeg_cmd,
-            std::path::Path::new(&media_path),
-            &wav_path,
-            start_pos,
-            segment_duration,
-            Some(&cancel),
-        )
-        .await
-        .map_err(|error| format!("Failed to prepare segment {idx}: {error:#}"))?;
-        let wav_path_clone = wav_path.clone();
-        audio_data = tokio::task::spawn_blocking(move || read_wav_to_f32(&wav_path_clone))
+        if let Some((samples, fb_path)) = fallback_silent {
+            audio_data = samples;
+            wav_path = fb_path;
+            current_pos = start_pos;
+        } else {
+            extract_wav_segment(
+                &ffmpeg_cmd,
+                std::path::Path::new(&media_path),
+                &wav_path,
+                start_pos,
+                segment_duration,
+                Some(&cancel),
+            )
             .await
-            .map_err(|error| format!("WAV decoding task failed: {error}"))?
-            .map_err(|error| format!("Failed to decode segment {idx}: {error:#}"))?;
-        current_pos = start_pos;
+            .map_err(|error| format!("Failed to prepare segment {idx}: {error:#}"))?;
+            let wav_path_clone = wav_path.clone();
+            audio_data = tokio::task::spawn_blocking(move || read_wav_to_f32(&wav_path_clone))
+                .await
+                .map_err(|error| format!("WAV decoding task failed: {error}"))?
+                .map_err(|error| format!("Failed to decode segment {idx}: {error:#}"))?;
+            current_pos = start_pos;
+        }
     }
 
     Ok(PreparedSegment {
@@ -461,11 +478,11 @@ fn calculate_guided_sample_positions(
     positions.sort_by(f64::total_cmp);
     positions.dedup_by(|a, b| (*a - *b).abs() < segment_duration * 0.7);
 
-    // Keep at least 10s separation from existing manual anchors
+    // Keep separation from existing manual anchors across the full candidate span.
     positions.retain(|&pos| {
         !anchor_targets
             .iter()
-            .any(|&at| (at - pos).abs() < 10.0 || (at - (pos + segment_duration)).abs() < 5.0)
+            .any(|&at| pos - 10.0 < at && at < pos + segment_duration + 5.0)
     });
 
     positions
@@ -774,12 +791,19 @@ pub async fn run_auto_sync_with_cloud(
                     srt_transcribe::cloud::transcribe_timed_chunk(&client, &endpoint, audio).await
                 } => result?,
             };
-            anyhow::ensure!(
-                segments.iter().all(|seg| seg.start_ms >= 0
-                    && seg.end_ms > seg.start_ms
-                    && seg.end_ms <= (segment_duration * 1000.0) as i64 + 1000),
-                "STT returned invalid segment timestamps"
-            );
+            let max_end_ms = (segment_duration * 1000.0).round() as i64 + 5_000;
+            let segments: Vec<_> = segments
+                .into_iter()
+                .filter_map(|mut seg| {
+                    if seg.start_ms < 0 {
+                        seg.start_ms = 0;
+                    }
+                    if seg.end_ms > max_end_ms {
+                        seg.end_ms = max_end_ms;
+                    }
+                    (seg.end_ms > seg.start_ms).then_some(seg)
+                })
+                .collect();
             cloud_segments.insert(prep.idx, segments);
         }
     } else {
@@ -936,15 +960,14 @@ pub async fn run_auto_sync_with_cloud(
                         (cands, 0, max_offset_ms)
                     };
 
+                    // Adaptive similarity threshold: short phrases require higher similarity, longer phrases 0.40
+                    let threshold = if tseg_clean.tokens.len() <= 3 {
+                        0.46
+                    } else {
+                        0.40
+                    };
                     for cand in candidates {
-                        let sim = tseg_clean.similarity(&cand.text);
-
-                        // Adaptive similarity threshold: short phrases require higher similarity, longer phrases 0.40
-                        let threshold = if tseg_clean.tokens.len() <= 3 {
-                            0.46
-                        } else {
-                            0.40
-                        };
+                        let sim = tseg_clean.similarity_with_threshold(&cand.text, threshold);
                         if sim >= threshold {
                             let weight = if has_prior {
                                 calculate_guided_temporal_weight(
