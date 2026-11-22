@@ -3,13 +3,18 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
+import json
 import pathlib
 import re
 import shutil
 import tempfile
 import unittest
 
+import generate_scorecard as gs
 from generate_scorecard import compute_metrics, load_and_validate, main, render_scorecard_md
+import scorecard_db as sdb
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -66,6 +71,133 @@ class ScorecardTests(unittest.TestCase):
             (root / "docs/SCORECARD.md").write_text("# stale\n", encoding="utf-8")
             rc = main(["--check", "--repo-root", str(root)])
             self.assertEqual(rc, 1)
+
+    def test_sqlite_sync_and_queries(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            shutil.copytree(REPO_ROOT / "scorecard", root / "scorecard")
+            shutil.rmtree(root / "scorecard" / ".cache", ignore_errors=True)
+
+            def run_cli(*argv: str) -> tuple[int, str, str]:
+                out_buf, err_buf = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stdout(out_buf), contextlib.redirect_stderr(err_buf):
+                    code = sdb.main([*argv, "--repo-root", str(root)])
+                return code, out_buf.getvalue(), err_buf.getvalue()
+
+            rc, out, _ = run_cli("sync", "--json")
+            self.assertEqual(rc, 0)
+            sync_payload = json.loads(out)
+            self.assertEqual(sync_payload["counts"]["features"], 50)
+            self.assertEqual(sync_payload["counts"]["bugs"], 98)
+
+            rc, out, _ = run_cli("summary", "--json")
+            self.assertEqual(rc, 0)
+            summary = json.loads(out)
+            self.assertEqual(summary["bugs_by_status"].get("deferred"), 1)
+            self.assertEqual(summary["bugs_by_status"].get("fixed"), 97)
+
+            rc, out, _ = run_cli("open", "--json")
+            self.assertEqual(rc, 0)
+            open_items = json.loads(out)
+            self.assertEqual([item["id"] for item in open_items], ["AUDIT-085"])
+
+            rc, out, _ = run_cli("gaps", "--dim", "playwright", "--json")
+            self.assertEqual(rc, 0)
+            pw_gaps = json.loads(out)
+            self.assertGreater(len(pw_gaps), 0)
+            self.assertTrue(all(item["playwright"] in ("partial", "no") for item in pw_gaps))
+
+            rc, out, _ = run_cli("show", "AUDIT-085", "--json")
+            self.assertEqual(rc, 0)
+            shown = json.loads(out)
+            self.assertEqual(shown["table"], "bugs")
+            self.assertEqual(shown["item"]["status"], "deferred")
+
+            rc, out, _ = run_cli("query", "SELECT id FROM bugs WHERE status != 'fixed'", "--json")
+            self.assertEqual(rc, 0)
+            self.assertEqual(json.loads(out), [{"id": "AUDIT-085"}])
+
+            rc, _, err = run_cli("query", "DELETE FROM bugs")
+            self.assertNotEqual(rc, 0)
+            self.assertTrue(err.strip())
+            rc, out, _ = run_cli("query", "SELECT COUNT(*) AS cnt FROM bugs", "--json")
+            self.assertEqual(rc, 0)
+            self.assertEqual(json.loads(out), [{"cnt": 98}])
+
+    def test_sqlite_mutations_roundtrip_toml_and_markdown(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            shutil.copytree(REPO_ROOT / "scorecard", root / "scorecard")
+            shutil.rmtree(root / "scorecard" / ".cache", ignore_errors=True)
+            (root / "docs").mkdir(parents=True)
+
+            rc = sdb.main(
+                [
+                    "update-bug",
+                    "AUDIT-085",
+                    "--status",
+                    "fixed",
+                    "--resolution",
+                    'Verified CLI & MCP parity with quotes "ok" and slash \\ line1',
+                    "--repo-root",
+                    str(root),
+                ]
+            )
+            self.assertEqual(rc, 0)
+
+            rc = sdb.main(
+                [
+                    "update-feature",
+                    "FC-02",
+                    "--playwright",
+                    "yes",
+                    "--notes",
+                    "Added full series Playwright coverage",
+                    "--repo-root",
+                    str(root),
+                ]
+            )
+            self.assertEqual(rc, 0)
+
+            rc = sdb.main(
+                [
+                    "add-bug",
+                    "--audit-ref",
+                    "#99.1",
+                    "--area",
+                    "cli_mcp",
+                    "--severity",
+                    "low",
+                    "--category",
+                    "test_gap",
+                    "--target",
+                    "cli/vesta-cli/src/lib.rs:1",
+                    "--summary",
+                    "Synthetic follow-up test item",
+                    "--repo-root",
+                    str(root),
+                ]
+            )
+            self.assertEqual(rc, 0)
+
+            parsed, errors = load_and_validate(root)
+            self.assertEqual(errors, [])
+            self.assertEqual(len(parsed["bugs"]["item"]), 99)
+            audit_85 = next(b for b in parsed["bugs"]["item"] if b["id"] == "AUDIT-085")
+            self.assertEqual(audit_85["status"], "fixed")
+            self.assertIn('"ok"', audit_85["resolution"])
+            fc_02 = next(f for f in parsed["features"]["item"] if f["id"] == "FC-02")
+            self.assertEqual(fc_02["playwright"], "yes")
+
+            out_buf = io.StringIO()
+            with contextlib.redirect_stdout(out_buf):
+                rc = sdb.main(
+                    ["query", "SELECT id, status FROM bugs WHERE id = 'AUDIT-099'", "--json", "--repo-root", str(root)]
+                )
+            self.assertEqual(rc, 0)
+            self.assertEqual(json.loads(out_buf.getvalue()), [{"id": "AUDIT-099", "status": "open"}])
+
+            self.assertEqual(gs.main(["--check", "--repo-root", str(root)]), 0)
 
 
 if __name__ == "__main__":

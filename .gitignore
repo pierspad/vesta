@@ -94,3 +94,6 @@ docs/superpowers/
 
 # Vite dependency cache
 .vite/
+
+# Local SQLite cache generated from scorecard/*.toml
+scorecard/.cache/
