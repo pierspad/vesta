@@ -20,7 +20,7 @@
     {#if pairs.length}<span class="text-xs font-normal text-[var(--muted)]">({pairs.length} {t("translate.subtitles")})</span>{/if}
   </h3>
   <div class="grid grid-cols-1 gap-4 md:grid-cols-2 flex-1 min-h-0">
-    <section class="flex min-w-0 flex-col rounded-xl bg-[var(--surface-2)]/70 p-4 flex-1 min-h-0">
+    <section class="flex min-w-0 flex-col rounded-xl bg-[var(--glass-bg)] p-4 flex-1 min-h-0">
       <h4 class="mb-3 shrink-0 text-xs uppercase tracking-wide text-[var(--muted)]">{t("translate.original")}</h4>
       <div class="relative min-h-[280px] flex-1 flex flex-col">
         <div class="max-h-[340px] xl:max-h-none flex-1 space-y-2 overflow-y-auto scrollbar-thin">
@@ -40,7 +40,7 @@
         {#if !loaded || !originals.length}<EmptyStatusLabel message={t("media.noSubtitlesLoaded")} />{/if}
       </div>
     </section>
-    <section class="flex min-w-0 flex-col rounded-xl bg-[var(--surface-2)]/70 p-4 flex-1 min-h-0">
+    <section class="flex min-w-0 flex-col rounded-xl bg-[var(--glass-bg)] p-4 flex-1 min-h-0">
       <h4 class="mb-3 shrink-0 text-xs uppercase tracking-wide text-[var(--muted)]">{t("translate.translated")}</h4>
       <div class="relative min-h-[280px] flex-1 flex flex-col" aria-busy={translating}>
         <div class="max-h-[340px] xl:max-h-none flex-1 space-y-2 overflow-y-auto scrollbar-thin">

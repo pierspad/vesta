@@ -54,7 +54,7 @@
   }
 </script>
 
-<div class="h-full flex flex-col bg-[var(--bg)] text-[var(--text)] overflow-hidden">
+<div class="h-full flex flex-col bg-[var(--surface-2)] text-[var(--text)] overflow-hidden">
   <div class="flex-1 overflow-y-auto p-6 scrollbar-thin space-y-5">
     <!-- Card 1: Hide Experimental Tab (at the top) -> Amber/Orange accent -->
     <div class="glass-card p-5 border border-amber-500/25 bg-amber-500/[0.04] flex items-center justify-between gap-5 rounded-2xl">
