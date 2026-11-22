@@ -27,7 +27,7 @@ The result is a list of `AnchorSuggestion`s; feeding them to
 
 ```bash
 cargo build --release -p srt-autosync-cli
-./target/release/srt-autosync movie.srt movie.mp4 -o movie.synced.srt \
+./target/release/vesta-autosync movie.srt movie.mp4 -o movie.synced.srt \
   --model base --language en --quick
 ```
 

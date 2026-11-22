@@ -16,7 +16,7 @@ debug dumps, and aggregate statistics (count, duration, and text lengths).
 
 ```bash
 cargo build --release -p srt-extract-cli
-./target/release/srt-extract --input movie.srt --format json
+./target/release/vesta-extract --input movie.srt --format json
 ```
 
 ## Use as a Rust dependency
@@ -56,8 +56,8 @@ bitmap tracks (PGS, VobSub, DVB, XSUB) are marked `text_based: false` and handle
 by [`srt-ocr`](srt-ocr.md). This API is used by the desktop Extract tab and the headless CLI. The CLI also formats external SRT files.
 
 ```bash
-srt-extract --input film.mkv --list-tracks
-srt-extract --input film.mkv --track 8 --output film_en_8.srt
+vesta-extract --input film.mkv --list-tracks
+vesta-extract --input film.mkv --track 8 --output film_en_8.srt
 ```
 
 `--track` uses the absolute stream index returned by `--list-tracks`, requires

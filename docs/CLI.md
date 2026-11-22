@@ -8,7 +8,7 @@ vesta-cli --help
 vesta-cli help flashcards generate
 ```
 
-Each subcommand invokes the corresponding `srt-*` CLI parser and library engine directly; standalone `srt-*` binaries are not required at runtime. Delegated usage output may display the standalone `srt-*` command name. Standalone build paths and library APIs are listed in the [module index](modules/README.md).
+Each subcommand invokes the corresponding standalone `vesta-*` CLI parser (`vesta-flashcards`, `vesta-extract`, `vesta-ocr`, `vesta-sync`, `vesta-autosync`, `vesta-transcribe`, `vesta-translate`, `vesta-refine`) and library engine directly; standalone binaries do not need to be installed separately at runtime. Delegated usage output displays the matching standalone `vesta-*` command name. Package build paths (`cli/srt-*-cli`) and Rust library APIs are listed in the [module index](modules/README.md).
 
 CLI configuration is isolated from desktop preferences: commands do not read the GUI's stored API keys, provider tiers, AI Kill Switch, or note templates. Translation TOML files expand `${VAR_NAME}` from the environment or `.env`; refinement JSON files do not. For the stdio Model Context Protocol server, see [MCP.md](MCP.md).
 

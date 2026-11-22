@@ -14,7 +14,7 @@ Use `--offline` when all required crates are already cached:
 python3 /path/to/vesta/build-scripts/check_library_integration.py --offline
 ```
 
-The check resolves all 11 core and library crates, rejects Tauri/GTK/WebKit in the resolved dependency graph, confirms that no Whisper GPU backend is enabled (`srt-transcribe`, `srt-autosync`, `whisper-rs`, `whisper-rs-sys`), and compiles/runs a consumer binary locally without network requests, Anki, or FFmpeg.
+The check resolves all 12 core and library crates, rejects Tauri/GTK/WebKit in the resolved dependency graph, confirms that no Whisper GPU backend is enabled (`srt-transcribe`, `srt-autosync`, `whisper-rs`, `whisper-rs-sys`), and compiles/runs a consumer binary locally without network requests, Anki, or FFmpeg.
 
 The headless CPU CI job runs this command with `--individual`, which creates a separate temporary consumer and runs `cargo check` for each crate before the combined smoke project to catch dependency or feature assumptions hidden by feature unification.
 

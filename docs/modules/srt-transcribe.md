@@ -3,7 +3,7 @@
 `lib/srt-transcribe` contains everything Whisper-related, from low-level
 primitives to a complete, GUI-agnostic **media → SRT pipeline**
 (`pipeline` module — the engine behind Vesta's Transcribe tab and the
-`srt-transcribe` CLI).
+`vesta-transcribe` CLI).
 
 **Modules**
 
@@ -41,7 +41,7 @@ model file. The policy does not affect cloud providers.
   sometimes more accurate on difficult audio.
 - `vad` — native whisper.cpp Silero VAD: transcribes only detected speech,
   skipping silence/music and reducing hallucinations. Requires the VAD model
-  (`srt-transcribe download vad`, or Settings → Whisper in the GUI).
+  (`vesta-transcribe download vad`, or Settings → Whisper in the GUI).
 - `use_gpu` — offload inference to the backend compiled into the binary.
   `srt_transcribe::gpu_supported()` and `gpu_backend_name()` report build
   capability; whisper.cpp falls back to CPU when no usable device exists.
@@ -51,13 +51,13 @@ model file. The policy does not affect cloud providers.
 ```bash
 cargo build --release -p srt-transcribe-cli
 
-./target/release/srt-transcribe models                 # list models (+ VAD add-on)
-./target/release/srt-transcribe download vad           # Silero VAD model (~0.9 MB)
-./target/release/srt-transcribe run movie.mp4 -o movie.srt \
+./target/release/vesta-transcribe models                 # list models (+ VAD add-on)
+./target/release/vesta-transcribe download vad           # Silero VAD model (~0.9 MB)
+./target/release/vesta-transcribe run movie.mp4 -o movie.srt \
   --model base --language auto                          # local whisper.cpp (GPU by default if compiled in)
-./target/release/srt-transcribe run movie.mp4 -o movie.srt \
+./target/release/vesta-transcribe run movie.mp4 -o movie.srt \
   --model small --vad --quality                        # VAD + beam search (pass --no-gpu to force CPU)
-./target/release/srt-transcribe run movie.mp4 -o movie.srt \
+./target/release/vesta-transcribe run movie.mp4 -o movie.srt \
   --provider groq --model whisper-large-v3 --api-key $GROQ_API_KEY
 ```
 

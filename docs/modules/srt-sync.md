@@ -37,7 +37,7 @@ The CLI validates IDs and time order before writing. One anchor shifts the whole
 file; multiple anchors interpolate drift. See the
 [CLI guide](../../cli/srt-sync-cli/README.md) for validation and output semantics.
 For automatic anchor discovery from media use the
-[`srt-autosync`](srt-autosync.md) CLI, which drives this engine end-to-end
+[`vesta-autosync`](srt-autosync.md) CLI, which drives this engine end-to-end
 (`SRT + media → anchors → synced SRT`).
 
 ## Use as a Rust dependency

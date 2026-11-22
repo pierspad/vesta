@@ -58,7 +58,7 @@ events consumed by the support recorder.
 
 ```bash
 cargo build --release -p srt-translate-cli
-./target/release/srt-translate --help
+./target/release/vesta-translate --help
 ```
 
 ## Use as a Rust dependency

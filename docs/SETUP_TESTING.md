@@ -60,3 +60,16 @@ Overview → Check for updates**, then install the offered update. Verify that t
 installer does not launch if download or checksum verification fails. Development
 prereleases are installed from the release page; the in-app check offers stable
 releases only.
+
+To test installers from a branch before tagging a release, run **Actions →
+Build and Release → Run workflow**, select the branch, leave the release tag
+blank, and download the generated installer artifacts. On macOS, release DMGs
+contain an ad-hoc signed bundle unless signed with a Developer ID and notarized.
+
+## Check Anki word lookup in custom templates
+
+Word lookup is enabled by default (**Settings → Anki → Word lookup**) and opens
+English Wiktionary when clicking a word in the target expression. Built-in templates
+wire this automatically using the deck's note-type language; custom templates must
+retain the `.expression` element class for word links to activate. Internet access
+is used only when opening the Wiktionary link.

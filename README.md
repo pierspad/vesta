@@ -16,104 +16,81 @@ Vesta is a desktop successor to subs2srs for language learners. Each subtitle be
 
 ## What it does
 
-- **Create decks:** export a ready-to-import APKG, a TSV with media, or send cards to Anki through AnkiConnect.
-- **Prepare subtitles:** extract embedded text tracks, correct timing, and compare or edit subtitle files side by side.
-- **Transcribe and enrich:** transcribe missing subtitles, translate dialogue, and add definitions or grammar notes to existing decks.
+- **Build Anki decks:** export `.apkg` packages, TSV decks with media folders, or send cards straight to Anki through AnkiConnect.
+- **Prepare subtitles:** extract embedded text tracks, OCR bitmap or burned-in subtitles, correct timing drift, and compare files side by side.
+- **Transcribe and enrich:** generate subtitles with local Whisper or cloud services, translate dialogue in batches, and add notes to existing decks.
 
-Deck generation and subtitle editing run locally. Local Whisper transcription is available; cloud transcription and language models are optional. You can disable AI features in Settings with the **AI Kill Switch**.
+Deck generation, subtitle editing, local Whisper transcription, and PaddleOCR run locally without cloud APIs. Optional cloud providers support tiered failover, and the **AI Kill Switch** in the sidebar cuts off AI features immediately.
 
 ## Get started
 
-[Download the latest release](https://github.com/pierspad/vesta/releases/latest) for **Windows, macOS or Linux**. Choose the x64 installer for most Windows PCs, the ARM64 setup executable for Windows on ARM, or the ARM64 DMG for Apple silicon Macs. Linux packages include DEB, RPM, Arch and Flatpak.
+[Download the latest release](https://github.com/pierspad/vesta/releases/latest) for **Windows** (x64 / ARM64), **macOS** (Apple silicon), or **Linux** (DEB, RPM, Arch, Flatpak). Branch build artifacts and installer tests are covered in [setup and installer testing](docs/SETUP_TESTING.md).
 
-To test installers from a branch, run **Actions → Build and Release → Run workflow**, select the branch and leave the release tag blank. Download the installer artifacts from the workflow run. The macOS disk image contains an ad-hoc signed app and requires Developer ID signing and notarization for normal Gatekeeper approval.
+1. Install **FFmpeg** and **FFprobe**, then complete the short first-run language setup.
+2. Open **Flashcards**, load your video or audio, and add your study-language subtitles (plus native subtitles if available).
+3. Filter and preview the cards, then export an `.apkg` to import into Anki.
 
-1. Complete setup with your native and study languages.
-2. Open **Flashcards** and add your media and study-language subtitles. Add native-language subtitles if you have them.
-3. Preview the cards, choose what to keep, and export an **APKG**. Open it in Anki to import your deck.
-
-Word lookup is enabled by default; change it in **Settings → Anki → Word lookup**. In Anki, click an original-text word to open English Wiktionary. The card uses its note type language, which you can change per film. This requires Internet only when opening a link; it does not download definitions. Standard templates support this directly; custom templates must keep the `.expression` block.
-
-FFmpeg and FFprobe are required for media processing. To automate generation, use the [CLI](#headless-cli-use).
+Anki card word lookup (clicking a target word opens English Wiktionary) is enabled by default under **Settings → Anki**; custom note template rules are documented in the [setup guide](docs/SETUP_TESTING.md#check-anki-word-lookup-in-custom-templates).
 
 ## The workflow
 
-Start with **Flashcards** when your subtitles are ready. The other tabs help with source material that needs work:
+Start in **Flashcards** when your subtitles match your media, or prepare tracks first:
 
-| What you need | Where to go |
+| What you need | Tab |
 |---|---|
-| Subtitles from a video container | **Extract subtitles** — save embedded text tracks as SRT. Bitmap tracks need OCR. |
-| Subtitles for media without a transcript | **Transcribe** — use local Whisper or a configured cloud service. |
-| Subtitles that are early, late or drifting | **Synchronize** — set manual anchors or use Whisper-assisted Auto-Sync. |
-| A translation in your native language | **Translate** — translate in context-aware batches and resume saved progress. |
-| Corrections or a comparison with another track | **Revise** — edit dialogue and timing side by side. |
-| Definitions, explanations or extra notes on cards | **Annotate** — edit TSV/APKG notes manually or with a language model. |
+| Embedded text tracks, bitmap OCR (PGS/VobSub/DVB/XSUB), or burned-in ROI OCR | **Extract subtitles** |
+| Subtitles generated from audio/video (local Whisper or cloud speech-to-text) | **Transcribe** |
+| Timing offset or drift fixed with manual anchors or Whisper Auto-Sync | **Synchronize** |
+| Context-aware batch translation with checkpoint resume | **Translate** |
+| Side-by-side subtitle editing and alignment | **Revise** |
+| Notes, definitions, or grammar hints added to existing TSV/APKG decks | **Annotate** |
 
-For cloud features, configure providers in Settings. Provider tiers let Vesta share requests within a tier and move to the next when limits are reached. You can change languages, formats and interface options after setup.
+Configure API keys, local endpoints, and multi-tier failover under **Settings**.
 
 ## Benchmarks
 
-**Eight films, 12,859 input subtitles, audio + snapshots + video clips.** On the benchmark machine, generating ready-to-import decks with 16 workers took **30 minutes instead of 2 hours 6 minutes** for subs2srs: about **95 minutes saved (76% less time)** across the dataset.
+**Eight films, 12,859 input subtitles, audio + snapshots + video clips.** On an AMD Ryzen 7 5800X at 16 workers, deck generation finished in **30 minutes** instead of **2 hours 6 minutes** with subs2srs — about **95 minutes saved (76%)**. A worker bounds concurrent media jobs rather than pinning CPU cores.
 
-Each bar sums the median of three runs for each film. Measurements are from an AMD Ryzen 7 5800X; a worker controls concurrent media jobs, not CPU affinity. The TSV rows compare the same export type; APKG includes packaging for direct import into Anki.
+subs2srs and Vesta use different encoding defaults and produce different card counts, so treat this as a practical runtime comparison rather than an equal-quality test. Separately, **480 native A/B runs** verified Rust WebP snapshot batching: **15.3% less total runtime** for audio + snapshots + `.apkg` with identical media and note fields.
 
-The tools use different encoding defaults and produce different media counts, so this is a practical runtime comparison, not an equal-quality test. Separately, **480 native A/B generations** verified the new snapshot batching technique: **15.3% less full-film generation time with identical media and note fields** for audio + snapshots + APKG, without video clips.
-
-[Full results and per-film charts](docs/BENCHMARK_REPORT.md) · [Native A/B evidence](docs/BENCHMARK_NATIVE.md) · [Run the benchmarks](docs/BENCHMARK_STEPS.md)
+[Full report and charts](docs/BENCHMARK_REPORT.md) · [Native A/B evidence](docs/BENCHMARK_NATIVE.md) · [Reproduce benchmarks](docs/BENCHMARK_STEPS.md)
 
 ## How Vesta was built
 
-**Rust** engines handle subtitles, media and Anki packages; **Tauri 2 + Svelte 5** provide the desktop interface. GUI and CLI commands share those engines. FFmpeg extracts media, and whisper.cpp provides local transcription with optional GPU acceleration and CPU fallback.
+Core engines live in standalone **Rust** crates (`core/`, `lib/`); **Tauri 2 + Svelte 5** power the desktop app, while **FFmpeg**, **whisper.cpp** (CPU with optional GPU offload and automatic CPU fallback), and pure-Rust **PaddleOCR v4 ONNX** handle media and offline recognition.
 
-The `core/` and `lib/` crates can be embedded in another Rust application without Tauri. See [the architecture guide](docs/ARCHITECTURE.md), [module APIs](docs/modules/README.md) and [downstream integration requirements](docs/library-integration.md).
+Desktop, CLI, and MCP adapters share the same engines. You can also embed the crates directly in another Rust application without Tauri: see [architecture](docs/ARCHITECTURE.md), [module APIs](docs/modules/README.md), and [library integration](docs/library-integration.md).
 
 ## Headless CLI Use
 
-Use `vesta` without arguments to open the installed desktop app. With an operation name, it runs that workflow in the terminal:
+Run `vesta` without arguments to open the GUI, or pass an operation to run headlessly (`vesta-cli` runs the same commands without desktop or Tauri dependencies; on Windows, use `vesta-cli.exe` for terminal output):
 
 ```bash
-vesta --help
-vesta flashcards generate --help
 vesta flashcards generate \
-  --target episode-ja.srt \
-  --native episode-en.srt \
-  --video episode.mkv \
-  --output ./out_deck \
-  --format apkg \
-  --deck "Japanese — Episode 1" \
-  --snapshot-format webp \
-  --audio-format opus \
-  --no-video
+  --target episode-ja.srt --native episode-en.srt --video episode.mkv \
+  --output ./out_deck --format apkg --deck "Japanese — Episode 1" --no-video
 ```
 
-For servers or systems without desktop libraries, build the standalone entry point:
+Individual standalone commands (`cargo install --path cli/<crate>`) expose the same per-engine tools:
 
-```bash
-cargo build --release -p vesta-cli
-./target/release/vesta-cli --help
-./target/release/vesta-cli flashcards generate --help
-```
-
-`vesta-cli` runs the same terminal commands as `vesta` without opening a window or depending on Tauri. These commands cover the eight main workflows, but do not expose every GUI option or public library API; they also use their own arguments/configuration rather than the GUI preferences. See the [command-by-command guide and coverage matrix](docs/CLI.md). On Windows, use `vesta-cli.exe` for terminal output; the desktop executable is built as a windowed application. A locally built executable stays in `target/release`; it is not added to `PATH` automatically. `cargo install --path cli/vesta-cli` installs the standalone command in Cargo's binary directory.
-
-| Operation | Purpose | Existing standalone command |
+| Operation | Purpose | Standalone command |
 |---|---|---|
-| `flashcards` | Preview and generate TSV/APKG decks | `srt-flashcards` |
-| `extract` | Extract and convert subtitle tracks | `srt-extract` |
-| `ocr` | Extract and OCR bitmap subtitle tracks | `srt-ocr` |
-| `sync` | Retiming with explicit anchors | `srt-sync` |
-| `autosync` | Whisper-assisted alignment | `srt-autosync` |
-| `transcribe` | Local or cloud speech-to-text | `srt-transcribe` |
-| `translate` | Translate subtitles with resume | `srt-translate` |
-| `refine` | Inspect and annotate existing decks | `srt-refine` |
+| `flashcards` | Preview and generate TSV/APKG decks | `vesta-flashcards` |
+| `extract` | Inspect SRTs and extract embedded text tracks | `vesta-extract` |
+| `ocr` | OCR bitmap tracks or hardcoded video ROI subtitles | `vesta-ocr` |
+| `sync` | Retiming with explicit manual anchors | `vesta-sync` |
+| `autosync` | Whisper-assisted alignment | `vesta-autosync` |
+| `transcribe` | Local Whisper or cloud speech-to-text | `vesta-transcribe` |
+| `translate` | Tiered LLM translation with resume | `vesta-translate` |
+| `refine` | Inspect and annotate existing TSV/APKG decks | `vesta-refine` |
 
-Each operation has `--help`; commands with further subcommands also expose their own help. Standalone `srt-*` binaries provide the same individual commands. Media operations require FFmpeg/FFprobe; transcription and auto-sync also need their configured model or provider. The [module guides](docs/modules/README.md) describe each library, command and build requirement.
+CLI subcommands use their own flags and config files rather than desktop Settings; see the [CLI guide](docs/CLI.md) and [`vesta-cli`](cli/vesta-cli/README.md).
 
-For assistant integration, the optional [MCP server](docs/MCP.md) is available as a separately built `vesta-mcp` executable. It exposes subtitle inspection, embedded track listing, card previews, exports, translation, transcription, bitmap OCR, and installed plugins as structured tools and cancellable jobs over local stdio (12 tools total). Translation/transcription/OCR use explicitly configured server profiles; credentials stay server-side. It covers fewer workflows than the CLI; its advantage is tool/schema discovery and job control for MCP clients, rather than extra processing features.
+For MCP clients, the optional `vesta-mcp` stdio server provides 12 tools for subtitle inspection, embedded tracks, card previews, cancellable flashcard/translation/transcription/OCR jobs (configured via `--provider-config`), and installed plugins; see [MCP setup and schemas](docs/MCP.md).
 
 ## Building from Source
 
-You need **Rust 1.99+**, **Node.js 22.12+**, npm, FFmpeg and FFprobe. Linux desktop builds also need a C/C++ compiler, CMake, pkg-config and Tauri development libraries (`libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`). Native Whisper builds may need additional GPU tooling; see [transcription build requirements](docs/modules/srt-transcribe.md).
+Requires **Rust 1.99+**, **Node.js 22.12+**, npm, FFmpeg, and FFprobe (on Linux also a C/C++ compiler, CMake, pkg-config, `libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, and `librsvg2-dev`; see [whisper build requirements](docs/modules/srt-transcribe.md) for GPU backends).
 
 ```bash
 git clone https://github.com/pierspad/vesta.git
@@ -122,41 +99,23 @@ npm ci
 npx tauri dev
 ```
 
-For tests and release checks, see [CONTRIBUTING.md](CONTRIBUTING.md) and [the quality guide](docs/QUALITY.md).
+Tests, linters, Playwright checks, and release gates live in [CONTRIBUTING.md](CONTRIBUTING.md) and [quality verification](docs/QUALITY.md).
 
 ## Documentation Map
 
-| Guide | Use it for |
+| Guide | Covers |
 |---|---|
-| [Documentation index](docs/README.md) | Find maintained guides and review records. |
-| [CLI guide and coverage](docs/CLI.md) | Every command, correct usage, output contracts and differences from the GUI/libraries. |
-| [MCP integration](docs/MCP.md) | Local server setup, twelve tools, provider profiles, jobs, file roots and current limits. |
-| [Architecture](docs/ARCHITECTURE.md) | Engine boundaries, desktop integration and media lifecycle. |
-| [Modules](docs/modules/README.md) | All 12 engine/support crates, their CLIs and Rust APIs. |
-| [Library integration](docs/library-integration.md) | Downstream dependencies, Whisper patch, GPU features and smoke checks. |
-| [Provider compatibility](docs/API_COMPATIBILITY.md) | External provider HTTP contracts and endpoint references. |
-| [Quality](docs/QUALITY.md) | Automated checks and installed-app validation. |
-| [Maintenance](docs/MAINTENANCE.md) | Maintained invariants, known limits and open work. |
-| [Setup and installer checks](docs/SETUP_TESTING.md) | Repeatable desktop validation. |
-| [Benchmark procedures](docs/BENCHMARK_STEPS.md), [native evidence](docs/BENCHMARK_NATIVE.md), [results](docs/BENCHMARK_REPORT.md) | Reproduce measurements and distinguish their scopes. |
+| [Documentation index](docs/README.md) | Full list of manuals, module docs, and audit records |
+| [CLI guide](docs/CLI.md) · [MCP guide](docs/MCP.md) | Commands, flags, JSON streams, stdio MCP tools, and limits |
+| [Architecture](docs/ARCHITECTURE.md) · [Modules](docs/modules/README.md) | Workspace crates, pipelines, media lifecycle, and Rust APIs |
+| [Library integration](docs/library-integration.md) · [Providers](docs/API_COMPATIBILITY.md) | Downstream embedding, Whisper patch, and HTTP endpoints |
+| [Quality](docs/QUALITY.md) · [Maintenance](docs/MAINTENANCE.md) · [Setup](docs/SETUP_TESTING.md) | Pre-release gates, invariants, dependency notes, and installer checks |
+| [Scorecard](docs/SCORECARD.md) · [Audit log](docs/AUDIT_LOG.md) | Feature matrix, reliability controls, and wave history |
+| [Benchmarks](docs/BENCHMARK_REPORT.md) | Methodology, reproduction steps, and native A/B measurements |
 
 ## Plugins
 
-Develop a plugin in any folder or in its own Git repository. Keep
-`vesta-plugin.json` at the root. In Vesta, open **Plugins** and install from
-**Local Folder** during development or from a repository URL or archive when
-sharing. Vesta copies each installation into its own application data directory.
-
-[Subtitles](https://github.com/pierspad/subtitles-veplugin) is a first-party
-plugin maintained in its own repository. It searches and downloads subtitles
-from OpenSubtitles, extracts embedded tracks with FFmpeg, and integrates with
-Vesta Flashcards. To install it, open **Plugins → Repository URL** and paste
-the repository URL. Its source demonstrates plugin settings, credential
-guidance, and native widgets.
-
-Start with the runnable [Hello Counter plugin](docs/examples/plugin-hello).
-The [Plugin SDK guide](docs/PLUGINS.md) covers installation paths, the Python
-helpers, the JSON-RPC protocol, and the native UI widgets.
+Plugins run out-of-process over JSON-RPC 2.0 stdio and render native UI through Vesta's declarative widgets without touching frontend code. Install from **Plugins → Local Folder / Repository URL**, start from the [Hello Counter example](docs/examples/plugin-hello), install the first-party [Subtitles plugin](https://github.com/pierspad/subtitles-veplugin), or read the [Plugin SDK spec](docs/PLUGINS.md).
 
 ## Contributing
 

@@ -37,16 +37,16 @@ Errors are user-presentable `String`s; progress is a callback; cancellation a
 ```bash
 cargo build --release -p srt-flashcards-cli
 
-./target/release/srt-flashcards generate \
+./target/release/vesta-flashcards generate \
   --target movie-en.srt --native movie-it.srt \
   --video movie.mp4 --output out --format apkg --deck "Detour"
 
-./target/release/srt-flashcards info movie-en.srt
-./target/release/srt-flashcards preview --target movie-en.srt --native movie-it.srt
-./target/release/srt-flashcards dueling --target movie-en.srt --native movie-it.srt --dueling-format ass --output movie.dueling.ass
+./target/release/vesta-flashcards info movie-en.srt
+./target/release/vesta-flashcards preview --target movie-en.srt --native movie-it.srt
+./target/release/vesta-flashcards dueling --target movie-en.srt --native movie-it.srt --dueling-format ass --output movie.dueling.ass
 ```
 
-Run `srt-flashcards generate --help` for the full option list (filters,
+Run `vesta-flashcards generate --help` for the full option list (filters,
 context, media parameters, `-j` parallelism…).
 
 ## Use as a Rust dependency

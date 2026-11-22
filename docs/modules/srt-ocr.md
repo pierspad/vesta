@@ -23,11 +23,11 @@ and `CompositeOcrBackend` for tiered failover), and atomically publishes standar
 
 ```bash
 cargo build --release -p srt-ocr-cli
-./target/release/srt-ocr models
-./target/release/srt-ocr download paddleocr-v4-mobile-multi
-./target/release/srt-ocr run --input movie.mkv --track 2 --output movie.en.srt --provider local --model llava
-./target/release/srt-ocr run --input movie.mp4 --roi 0.08,0.74,0.84,0.20 --fps 2.5 --output movie.hardcoded.srt --provider paddle
-./target/release/srt-ocr run --input movie.mkv --track 2 --output movie.en.srt --provider google --model gemini-2.5-flash --api-key "$GEMINI_API_KEY"
+./target/release/vesta-ocr models
+./target/release/vesta-ocr download paddleocr-v4-mobile-multi
+./target/release/vesta-ocr run --input movie.mkv --track 2 --output movie.en.srt --provider local --model llava
+./target/release/vesta-ocr run --input movie.mp4 --roi 0.08,0.74,0.84,0.20 --fps 2.5 --output movie.hardcoded.srt --provider paddle
+./target/release/vesta-ocr run --input movie.mkv --track 2 --output movie.en.srt --provider google --model gemini-2.5-flash --api-key "$GEMINI_API_KEY"
 ```
 
 See the [CLI guide](../../cli/srt-ocr-cli/README.md) and

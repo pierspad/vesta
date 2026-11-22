@@ -166,7 +166,7 @@ cargo audit
 ### Synthetic Flashcard Smoke Benchmark
 
 ```bash
-cargo build --release -p srt-flashcards-cli
+cargo build --release -p srt-flashcards-cli   # builds target/release/vesta-flashcards
 python3 build-scripts/quality_smoke.py --profile release --samples 5
 ```
 
@@ -177,7 +177,7 @@ Generates a 20-second synthetic video with 10 subtitle lines, runs `preview` and
 On a machine with a supported Vulkan GPU and an installed Whisper model:
 
 ```bash
-cargo build -p srt-transcribe-cli --features vulkan
+cargo build -p srt-transcribe-cli --features vulkan   # builds target/debug/vesta-transcribe
 python3 build-scripts/gpu_smoke.py --device 'RX 7800 XT' --vad --output-dir /tmp/vesta-gpu-check
 ```
 
