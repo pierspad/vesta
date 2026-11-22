@@ -53,12 +53,17 @@ test("Startup invokes app info and Settings Overview / STT / Anki controls invok
 test("ShortcutOverlay toggles with keyboard and ExperimentalTab exercises setup preview & reset", async ({ page }) => {
   await page.goto("/browser-tests/harness.html");
 
-  // Toggle ShortcutOverlay via Shift+?
+  // Toggle ShortcutOverlay via Shift+F1 (and verify Shift+? alias also closes/opens)
   await page.locator("main").first().click({ position: { x: 10, y: 10 }, force: true });
+  await page.keyboard.press("Shift+F1");
+  const shortcutsHeading = page.getByRole("heading", { name: "Keyboard shortcuts" });
+  await expect(shortcutsHeading).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(shortcutsHeading).toBeHidden();
+
   await page.keyboard.down("Shift");
   await page.keyboard.press("Slash");
   await page.keyboard.up("Shift");
-  const shortcutsHeading = page.getByRole("heading", { name: "Keyboard shortcuts" });
   await expect(shortcutsHeading).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(shortcutsHeading).toBeHidden();

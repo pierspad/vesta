@@ -1,18 +1,8 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { formatKeyPart, getShortcuts, getSortedKeys } from "$lib/utils/shortcuts";
   import HistoryButton from "$lib/components/HistoryButton.svelte";
   import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import { locale } from "$lib/i18n";
   import SectionHeader from "$lib/components/SectionHeader.svelte";
-
-  const hintIds = ["sync-play-pause", "sync-seek-back", "sync-seek-forward", "sync-offset-up", "sync-offset-down", "sync-replay", "sync-confirm"];
-  let shortcuts = $state(getShortcuts());
-  onMount(() => {
-    const refresh = () => { shortcuts = getShortcuts(); };
-    window.addEventListener("shortcuts-updated", refresh);
-    return () => window.removeEventListener("shortcuts-updated", refresh);
-  });
 
   interface SubtitleInfo {
     id: number;
@@ -181,12 +171,15 @@
         </div>
 
         <div
-          class="bg-white/5 rounded-xl p-5 text-center flex-shrink-0 flex flex-col items-center justify-center min-h-[100px]"
+          class="bg-white/5 rounded-xl px-5 py-3 text-center flex-shrink-0 flex flex-col items-center justify-between h-[136px]"
+          data-testid="wizard-subtitle-box"
         >
-          <p class="text-xl text-white font-medium leading-relaxed">
-            {wizardSubtitle?.text ?? t(srtLoaded ? "sync.wizard.selectCheckpoint" : "sync.noSrtFileSelected")}
-          </p>
-          <p class="text-sm text-gray-500 mt-3 font-mono">
+          <div class="flex min-h-0 flex-1 w-full items-center justify-center overflow-y-auto scrollbar-thin px-1">
+            <p class="text-lg xl:text-xl text-white font-medium leading-snug break-words">
+              {wizardSubtitle?.text ?? t(srtLoaded ? "sync.wizard.selectCheckpoint" : "sync.noSrtFileSelected")}
+            </p>
+          </div>
+          <p class="text-sm text-gray-500 mt-2 font-mono shrink-0">
             {formatTime(wizardSubtitle?.start_ms ?? 0)} → {formatTime(
               wizardSubtitle?.end_ms ?? 0,
             )}
@@ -410,22 +403,6 @@
             >
             <span class="min-w-0 wrap-anywhere">{t("shortcuts.action.confirmAnchor")}</span>
           </button>
-        </div>
-
-        <div
-          class="flex flex-wrap gap-3 text-xs text-gray-500 justify-center flex-shrink-0"
-        >
-          {#each hintIds as id (id)}
-            {@const shortcut = shortcuts.find(item => item.id === id)}
-            {#if shortcut}
-              <div class="flex items-center gap-1">
-                <kbd class="px-2 py-1 bg-white/10 rounded text-gray-400">
-                  {getSortedKeys(shortcut.defaultKey).map(key => formatKeyPart(key, t)).join("+")}
-                </kbd>
-                <span>{t(shortcut.description)}</span>
-              </div>
-            {/if}
-          {/each}
         </div>
       </div>
     {/if}

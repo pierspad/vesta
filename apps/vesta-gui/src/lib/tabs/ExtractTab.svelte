@@ -169,6 +169,14 @@
       ? Math.max(0, Math.min(100, ((frameTimeMs ?? framePreview.time_ms) / framePreview.duration_ms) * 100))
       : 0,
   );
+  let frameAspectStyle = $derived(
+    framePreview && framePreview.width > 0 && framePreview.height > 0
+      ? `${framePreview.width} / ${framePreview.height}`
+      : "16 / 9",
+  );
+  let isWiderThanStage = $derived(
+    Boolean(framePreview && framePreview.height > 0 && framePreview.width / framePreview.height > 21 / 9),
+  );
   let roiContainerEl = $state<HTMLDivElement | null>(null);
   let roiDragState = $state<{
     mode: "move" | "draw" | "resize";
@@ -1046,69 +1054,71 @@
               </div>
 
               <div class="min-h-0 flex-1 overflow-y-auto pr-1 custom-scrollbar">
-                <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
-                <div class="min-w-0 space-y-3">
-                  <!-- svelte-ignore a11y_no_static_element_interactions -->
-                  <div
-                    bind:this={roiContainerEl}
-                    class="relative mx-auto overflow-hidden rounded-xl border border-white/15 bg-black/50 select-none touch-none cursor-crosshair {framePreview?.data_url ? 'w-fit max-w-3xl' : 'w-full max-w-3xl'}"
-                    onpointerdown={handleRoiPointerDown}
-                  >
-                    {#if framePreview?.data_url}
-                      <img
-                        src={framePreview.data_url}
-                        alt={t("extract.hardcodedTitle")}
-                        class="block max-h-[380px] w-auto max-w-full pointer-events-none select-none"
-                        draggable="false"
-                      />
-                    {:else}
-                      <div class="relative flex aspect-video max-h-[380px] w-full items-center justify-center text-xs text-gray-400">
-                        {#if loadingFrame}
-                          <LoadingSpinner />
-                        {:else}
-                          <EmptyStatusLabel message={t("media.noMediaLoaded")} />
-                        {/if}
-                      </div>
-                    {/if}
+                <div class="mx-auto flex w-full max-w-4xl flex-col gap-3.5">
+                  <div class="relative w-full aspect-[21/9] max-h-[360px] mx-auto rounded-xl border border-white/15 bg-black flex items-center justify-center overflow-hidden">
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div
-                      data-testid="roi-overlay"
-                      class="pointer-events-none absolute border-2 border-cyan-400 bg-cyan-400/15 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
-                      style:left={`${(roi.x * 100).toFixed(2)}%`}
-                      style:top={`${(roi.y * 100).toFixed(2)}%`}
-                      style:width={`${(roi.width * 100).toFixed(2)}%`}
-                      style:height={`${(roi.height * 100).toFixed(2)}%`}
+                      bind:this={roiContainerEl}
+                      class="relative select-none touch-none cursor-crosshair overflow-hidden {framePreview?.data_url ? (isWiderThanStage ? 'w-full max-h-full' : 'h-full max-w-full') : 'w-full h-full'}"
+                      style:aspect-ratio={framePreview?.data_url ? frameAspectStyle : undefined}
+                      onpointerdown={handleRoiPointerDown}
                     >
-                      {#each ROI_HANDLES as item (item.handle)}
-                        <button
-                          type="button"
-                          aria-label={`${t("extract.hardcodedTitle")} (${item.handle.toUpperCase()})`}
-                          class="pointer-events-auto absolute border-gray-950 bg-cyan-300 {item.className}"
-                          onpointerdown={(e) => handleRoiResizeDown(e, item.handle)}
-                        ></button>
-                      {/each}
+                      {#if framePreview?.data_url}
+                        <img
+                          src={framePreview.data_url}
+                          alt={t("extract.hardcodedTitle")}
+                          class="block h-full w-full pointer-events-none select-none"
+                          draggable="false"
+                        />
+                      {:else}
+                        <div class="relative flex h-full w-full items-center justify-center text-xs text-gray-400">
+                          {#if loadingFrame}
+                            <LoadingSpinner />
+                          {:else}
+                            <EmptyStatusLabel message={t("media.noMediaLoaded")} />
+                          {/if}
+                        </div>
+                      {/if}
+                      <div
+                        data-testid="roi-overlay"
+                        class="pointer-events-none absolute border-2 border-cyan-400 bg-cyan-400/15 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
+                        style:left={`${(roi.x * 100).toFixed(2)}%`}
+                        style:top={`${(roi.y * 100).toFixed(2)}%`}
+                        style:width={`${(roi.width * 100).toFixed(2)}%`}
+                        style:height={`${(roi.height * 100).toFixed(2)}%`}
+                      >
+                        {#each ROI_HANDLES as item (item.handle)}
+                          <button
+                            type="button"
+                            aria-label={`${t("extract.hardcodedTitle")} (${item.handle.toUpperCase()})`}
+                            class="pointer-events-auto absolute border-gray-950 bg-cyan-300 {item.className}"
+                            onpointerdown={(e) => handleRoiResizeDown(e, item.handle)}
+                          ></button>
+                        {/each}
+                      </div>
                     </div>
                   </div>
 
-                  <div class="mx-auto flex w-full max-w-3xl flex-col gap-3">
-                    <div class="flex items-center gap-4">
-                      <span class="w-16 font-mono text-sm text-gray-400">{formatTimestamp(frameTimeMs ?? framePreview?.time_ms ?? 0)}</span>
-                      <input
-                        type="range"
-                        aria-label={t("extract.hardcodedPreviewFrame")}
-                        min="0"
-                        max={framePreview?.duration_ms || 100}
-                        step="500"
-                        disabled={loadingFrame || !framePreview || framePreview.duration_ms <= 0}
-                        value={frameTimeMs ?? framePreview?.time_ms ?? 0}
-                        oninput={(e) => { frameTimeMs = Number(e.currentTarget.value); }}
-                        onchange={() => void loadPreviewFrame(frameTimeMs)}
-                        class="slider-playback flex-1 cursor-pointer disabled:cursor-not-allowed"
-                        style:--slider-progress={`${previewProgressPct.toFixed(2)}%`}
-                      />
-                      <span class="w-16 font-mono text-sm text-gray-400 text-right">{formatTimestamp(framePreview?.duration_ms ?? 0)}</span>
-                    </div>
+                  <div class="flex items-center gap-4">
+                    <span class="w-16 font-mono text-sm text-gray-400">{formatTimestamp(frameTimeMs ?? framePreview?.time_ms ?? 0)}</span>
+                    <input
+                      type="range"
+                      aria-label={t("extract.hardcodedPreviewFrame")}
+                      min="0"
+                      max={framePreview?.duration_ms || 100}
+                      step="500"
+                      disabled={loadingFrame || !framePreview || framePreview.duration_ms <= 0}
+                      value={frameTimeMs ?? framePreview?.time_ms ?? 0}
+                      oninput={(e) => { frameTimeMs = Number(e.currentTarget.value); }}
+                      onchange={() => void loadPreviewFrame(frameTimeMs)}
+                      class="slider-playback flex-1 cursor-pointer disabled:cursor-not-allowed"
+                      style:--slider-progress={`${previewProgressPct.toFixed(2)}%`}
+                    />
+                    <span class="w-16 font-mono text-sm text-gray-400 text-right">{formatTimestamp(framePreview?.duration_ms ?? 0)}</span>
+                  </div>
 
-                    <div class="flex flex-wrap items-center justify-center gap-3">
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex flex-wrap items-center justify-center gap-2.5">
                       <div class="flex items-center gap-1 rounded-xl bg-white/5 px-2 py-1.5">
                         <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(-30000)} title="-30s" class="w-11 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">−30s</button>
                         <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(-5000)} title="-5s" class="w-11 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">−5s</button>
@@ -1120,7 +1130,7 @@
                         onclick={() => void loadPreviewFrame(frameTimeMs ?? framePreview?.time_ms ?? null)}
                         title={t("extract.hardcodedPreviewFrame")}
                         aria-label={t("extract.hardcodedPreviewFrame")}
-                        class="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        class="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                       >
                         <svg aria-hidden="true" class="w-5 h-5 text-cyan-400 {loadingFrame ? 'animate-spin' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1132,34 +1142,27 @@
                         <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(30000)} title="+30s" class="w-11 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">+30s</button>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                <div class="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
-                  <div class="dimensions-row">
-                    <label class="flex flex-col gap-1 text-xs text-gray-400 font-medium min-w-0">
-                      <span>X (%)</span>
-                      <input use:numberControl type="number" min="0" max="98" step="1" aria-label="X (%)" value={Math.round(roi.x * 100)} oninput={(e) => updateRoiPercent("x", Number(e.currentTarget.value))} class="input-modern w-full text-xs" />
-                    </label>
-                    <div aria-hidden="true" class="w-12"></div>
-                    <label class="flex flex-col gap-1 text-xs text-gray-400 font-medium min-w-0">
-                      <span>Y (%)</span>
-                      <input use:numberControl type="number" min="0" max="98" step="1" aria-label="Y (%)" value={Math.round(roi.y * 100)} oninput={(e) => updateRoiPercent("y", Number(e.currentTarget.value))} class="input-modern w-full text-xs" />
-                    </label>
+                    <div class="dimensions-row flex flex-wrap items-end gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2" class:dimensions-linked={lockedRoiRatio !== null}>
+                      <label class="flex flex-col gap-1 text-[11px] text-gray-400 font-medium w-24">
+                        <span>X (%)</span>
+                        <input use:numberControl type="number" min="0" max="98" step="1" aria-label="X (%)" value={Math.round(roi.x * 100)} oninput={(e) => updateRoiPercent("x", Number(e.currentTarget.value))} class="input-modern w-full text-xs" />
+                      </label>
+                      <label class="flex flex-col gap-1 text-[11px] text-gray-400 font-medium w-24">
+                        <span>Y (%)</span>
+                        <input use:numberControl type="number" min="0" max="98" step="1" aria-label="Y (%)" value={Math.round(roi.y * 100)} oninput={(e) => updateRoiPercent("y", Number(e.currentTarget.value))} class="input-modern w-full text-xs" />
+                      </label>
+                      <label class="flex flex-col gap-1 text-[11px] text-gray-400 font-medium w-24">
+                        <span>W (%)</span>
+                        <input use:numberControl type="number" min="2" max="100" step="1" aria-label="W (%)" value={Math.round(roi.width * 100)} oninput={(e) => updateRoiPercent("width", Number(e.currentTarget.value))} class="input-modern w-full text-xs" />
+                      </label>
+                      <AspectRatioLock bind:ratio={lockedRoiRatio} width={Math.round(roi.width * 100)} height={Math.round(roi.height * 100)} />
+                      <label class="flex flex-col gap-1 text-[11px] text-gray-400 font-medium w-24">
+                        <span>H (%)</span>
+                        <input use:numberControl type="number" min="2" max="100" step="1" aria-label="H (%)" value={Math.round(roi.height * 100)} oninput={(e) => updateRoiPercent("height", Number(e.currentTarget.value))} class="input-modern w-full text-xs" />
+                      </label>
+                    </div>
                   </div>
-
-                  <div class="dimensions-row" class:dimensions-linked={lockedRoiRatio !== null}>
-                    <label class="flex flex-col gap-1 text-xs text-gray-400 font-medium min-w-0">
-                      <span>W (%)</span>
-                      <input use:numberControl type="number" min="2" max="100" step="1" aria-label="W (%)" value={Math.round(roi.width * 100)} oninput={(e) => updateRoiPercent("width", Number(e.currentTarget.value))} class="input-modern w-full text-xs" />
-                    </label>
-                    <AspectRatioLock bind:ratio={lockedRoiRatio} width={Math.round(roi.width * 100)} height={Math.round(roi.height * 100)} />
-                    <label class="flex flex-col gap-1 text-xs text-gray-400 font-medium min-w-0">
-                      <span>H (%)</span>
-                      <input use:numberControl type="number" min="2" max="100" step="1" aria-label="H (%)" value={Math.round(roi.height * 100)} oninput={(e) => updateRoiPercent("height", Number(e.currentTarget.value))} class="input-modern w-full text-xs" />
-                    </label>
-                  </div>
-                </div>
                 </div>
               </div>
             {/if}
@@ -1264,13 +1267,6 @@
 </div>
 
 <style>
-  .dimensions-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr);
-    align-items: end;
-    gap: 6px;
-  }
-  .dimensions-row > :global(*) { min-width: 0; }
   .dimensions-row.dimensions-linked :global(.number-control > input) { border-color: var(--control-focus-border); }
 </style>
 

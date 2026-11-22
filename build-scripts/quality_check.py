@@ -136,6 +136,7 @@ def main():
                 (ROOT, ['python3', 'build-scripts/scorecard_db.py', 'check']),
                 (ROOT, ['python3', 'build-scripts/test_scorecard.py']),
                 (ROOT / 'apps/vesta-gui', ['npm', 'run', 'check']),
+                (ROOT / 'apps/vesta-gui', ['npm', 'run', 'check:ui']),
                 (ROOT / 'apps/vesta-gui', ['npm', 'test']),
                 (ROOT / 'apps/vesta-gui', ['npm', 'run', 'test:dev-css']),
                 (ROOT / 'apps/vesta-gui', ['npm', 'run', 'check:i18n']),

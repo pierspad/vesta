@@ -390,6 +390,12 @@ it("shows the pending media path, disables Browse, and overlays extracting statu
     expect(target.querySelector('button[aria-busy="true"]')).toBeNull();
     expect(browseMedia!.disabled).toBe(false);
     expect(target.textContent).not.toContain("Extracting audio track...");
+
+    // Wizard subtitle box uses fixed height and no inline shortcut hint strip.
+    const subBox = target.querySelector('[data-testid="wizard-subtitle-box"]');
+    expect(subBox).not.toBeNull();
+    expect(subBox!.className).toContain("h-[136px]");
+    expect(target.querySelectorAll("kbd")).toHaveLength(0);
   } finally {
     await unmount(component);
   }

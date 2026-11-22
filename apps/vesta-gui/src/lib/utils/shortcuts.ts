@@ -23,7 +23,7 @@ export const defaultShortcuts: ShortcutDefinition[] = [
   { id: "tab-shortcuts", action: "switchToShortcuts", description: "shortcuts.action.goToShortcuts", defaultKey: "Alt+8", category: "global" },
   { id: "tab-diagnostics", action: "switchToDiagnostics", description: "settings.section.diagnostics", defaultKey: "Alt+9", category: "global" },
   { id: "settings-add-key", action: "addApiKey", description: "shortcuts.action.addApiKey", defaultKey: "Ctrl+N", category: "settings" },
-  { id: "show-help", action: "showShortcutHelp", description: "shortcuts.action.showHelp", defaultKey: "Shift+?", category: "global" },
+  { id: "show-help", action: "showShortcutHelp", description: "shortcuts.action.showHelp", defaultKey: "Shift+F1", category: "global" },
 
   // Flashcards
   { id: "flashcards-generate", action: "generateFlashcards", description: "shortcuts.action.generateFlashcards", defaultKey: "Ctrl+Enter", category: "flashcards" },
@@ -78,7 +78,7 @@ export const defaultShortcuts: ShortcutDefinition[] = [
   { id: "align-cycle-per-page", action: "alignCyclePerPage", description: "shortcuts.action.alignCyclePerPage", defaultKey: "Ctrl+Shift+P", category: "alignment" },
 
   // Transcribe
-  { id: "transcribe-open-file", action: "openInputFile", description: "shortcuts.action.openSrt", defaultKey: "Ctrl+O", category: "transcribe" },
+  { id: "transcribe-open-file", action: "openInputFile", description: "shortcuts.action.openMedia", defaultKey: "Ctrl+O", category: "transcribe" },
   { id: "transcribe-start", action: "startTranscription", description: "shortcuts.action.startTranscription", defaultKey: "Ctrl+Enter", category: "transcribe" },
   { id: "transcribe-cancel", action: "cancelTranscription", description: "shortcuts.action.cancelTranscription", defaultKey: "Escape", category: "transcribe" },
 ];
@@ -89,6 +89,7 @@ export function shortcutsShareScope(a: ShortcutDefinition, b: ShortcutDefinition
 
 export function isReservedShortcut(key: string): boolean {
   return defaultShortcuts.some(shortcut => shortcut.category === "global" && shortcut.defaultKey === key)
+    || key === "Shift+?"
     || /^Alt\+Shift\+[1-6]$|^Ctrl\+Page(?:Up|Down)$/.test(key);
 }
 

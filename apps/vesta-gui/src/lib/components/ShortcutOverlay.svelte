@@ -41,8 +41,8 @@
       return;
     }
 
-    // Shift+? (actually Shift+/ produces ?)
-    if (e.shiftKey && e.key === "?") {
+    // Toggle help overlay with Shift+F1 (or Shift+? alias)
+    if (e.shiftKey && (e.key === "F1" || e.key === "?")) {
       e.preventDefault();
       visible = !visible;
       return;
@@ -83,15 +83,30 @@
     class="fixed bottom-4 right-4 z-[9999] w-[700px] max-w-[90vw] max-h-[85vh] overflow-y-auto bg-gray-900 border border-white/10 rounded-2xl shadow-2xl animate-fade-in"
   >
     <div
-      class="sticky top-0 bg-gray-900/95 backdrop-blur-sm border-b border-white/10 p-4 flex items-center justify-between rounded-t-2xl"
+      class="sticky top-0 bg-gray-900/95 backdrop-blur-sm border-b border-white/10 p-4 flex items-center justify-between gap-3 rounded-t-2xl"
     >
-      <div>
-        <h3 class="text-sm font-semibold text-white">
-          {t("shortcuts.overlay.title")}
-        </h3>
-        <p class="text-[10px] text-gray-500 mt-0.5">
-          {t("shortcuts.overlay.hint")}
-        </p>
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-400/25 flex items-center justify-center text-indigo-300 shrink-0" aria-hidden="true">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <rect x="3" y="5" width="18" height="14" rx="2.5" />
+            <path stroke-linecap="round" d="M7 9h2m3 0h2m3 0h.01M7 13h2m3 0h2m3 0h.01M8 16h8" />
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <h3 class="text-sm font-semibold text-white">
+              {t("shortcuts.overlay.title")}
+            </h3>
+            <span class="inline-flex items-center gap-0.5 rounded-md border border-indigo-400/30 bg-indigo-500/15 px-1.5 py-0.5 font-mono text-[10px] text-indigo-200">
+              <kbd>{formatKeyPart("Shift", t)}</kbd>
+              <span class="text-indigo-400/70">+</span>
+              <kbd>{formatKeyPart("F1", t)}</kbd>
+            </span>
+          </div>
+          <p class="text-[11px] text-gray-400 mt-0.5">
+            {t("shortcuts.overlay.hint")}
+          </p>
+        </div>
       </div>
       <button
         onclick={() => (visible = false)}
