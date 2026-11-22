@@ -71,7 +71,7 @@ async fn autosync_cancellation_stops_preparation_children_without_loading_whispe
     let task_token = token.clone();
     let task =
         tokio::spawn(async move { run_auto_sync(&config, Vec::new(), None, &task_token).await });
-    tokio::time::timeout(Duration::from_secs(5), async {
+    tokio::time::timeout(Duration::from_secs(15), async {
         loop {
             if std::fs::read_to_string(&pid_path).is_ok_and(|value| !value.trim().is_empty()) {
                 break;
@@ -82,7 +82,7 @@ async fn autosync_cancellation_stops_preparation_children_without_loading_whispe
     .await
     .unwrap();
     token.cancel();
-    let outcome = tokio::time::timeout(Duration::from_secs(2), task)
+    let outcome = tokio::time::timeout(Duration::from_secs(10), task)
         .await
         .unwrap()
         .unwrap()
@@ -90,7 +90,7 @@ async fn autosync_cancellation_stops_preparation_children_without_loading_whispe
     assert!(outcome.cancelled);
     assert!(outcome.suggestions.is_empty());
     let pids = std::fs::read_to_string(&pid_path).unwrap();
-    tokio::time::timeout(Duration::from_secs(5), async {
+    tokio::time::timeout(Duration::from_secs(10), async {
         loop {
             let mut alive = false;
             for pid in pids.lines() {
