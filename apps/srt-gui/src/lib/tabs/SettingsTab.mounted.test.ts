@@ -8,15 +8,17 @@ import * as config from "$lib/config/vestaConfig";
 import { uiMode } from "$lib/stores/uiModeStore.svelte";
 import { ankiStore } from "$lib/stores/ankiStore.svelte";
 import { aiStore } from "$lib/stores/aiStore.svelte";
-vi.mock("$lib/services/tauriClient", () => ({
+const tauriMocks = vi.hoisted(() => ({
   invokeCommand: vi.fn(async (command: string) => {
     if (command === "transcribe_list_models" || command === "flashcard_list_fonts") return [];
     if (command === "transcribe_addons_status") return { vad_models: [] };
     if (command === "flashcard_get_cpu_count") return 4;
     if (command === "flashcard_get_total_memory_mb") return 4096;
+    if (command === "get_system_diagnostics") return { os: "linux", arch: "x86_64" };
     return undefined;
   }),
 }));
+vi.mock("$lib/services/tauriClient", () => tauriMocks);
 const mounted: ReturnType<typeof mount>[] = [];
 afterEach(async () => {
   for (const instance of mounted.splice(0)) await unmount(instance);
@@ -135,4 +137,29 @@ it("renders the dedicated ITT section with ITT tiers and offline OCR models and 
   await tick(); await tick();
   expect(ittTarget.querySelector("#itt-tiers")).toBeNull();
   expect(ittTarget.querySelector("#ocr-models")).toBeNull();
+});
+
+it("reuses prewarmed system diagnostics when switching from Settings overview to Diagnostics", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(Date.now() + 120_000);
+    tauriMocks.invokeCommand.mockClear();
+    const DiagnosticsSettingsPanel = (await import("$lib/panels/DiagnosticsSettingsPanel.svelte")).default;
+
+    const settingsTarget = document.createElement("div");
+    document.body.append(settingsTarget);
+    mounted.push(mount(SettingsTab, { target: settingsTarget, props: { requestedSection: "overview" } }));
+    await Promise.resolve(); await tick(); await Promise.resolve(); await tick();
+
+    const panelTarget = document.createElement("div");
+    document.body.append(panelTarget);
+    mounted.push(mount(DiagnosticsSettingsPanel, { target: panelTarget }));
+    await Promise.resolve(); await tick(); await Promise.resolve(); await tick();
+
+    const diagCalls = tauriMocks.invokeCommand.mock.calls.filter(([cmd]) => cmd === "get_system_diagnostics");
+    expect(diagCalls).toHaveLength(1);
+    expect(panelTarget.textContent).toContain("linux · x86_64");
+  } finally {
+    vi.useRealTimers();
+  }
 });

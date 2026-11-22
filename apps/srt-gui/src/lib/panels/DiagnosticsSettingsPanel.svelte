@@ -8,7 +8,7 @@
   function status(value: boolean | undefined): string {
     return value === undefined ? t("settings.endpointStatus.checking") : t(value ? "settings.endpointStatus.online" : "settings.endpointStatus.offline");
   }
-  onMount(() => { void store.refresh(true); });
+  onMount(() => { void store.refresh(); });
 </script>
 <div class="space-y-4">
   {#if store.error}<p class="text-sm text-red-300" role="alert">{t("settings.diagnostics.error")} <button type="button" onclick={() => store.refresh(true)} disabled={store.loading} class="ml-2 underline disabled:opacity-50">{t("settings.diagnostics.refresh")}</button></p>{/if}
