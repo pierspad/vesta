@@ -106,7 +106,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: '. -> target'
-          shared-key: v1-sccache-windows-arm64
+          shared-key: v2-windows-arm64
 
       - name: Cache Tauri tools (NSIS)
         uses: actions/cache@v5

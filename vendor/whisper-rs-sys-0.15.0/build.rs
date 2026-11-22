@@ -101,6 +101,7 @@ fn main() {
     }
 
     println!("cargo:rerun-if-changed=wrapper.h");
+    println!("cargo:rerun-if-changed=whisper.cpp/ggml/CMakeLists.txt");
 
     let out = PathBuf::from(env::var("OUT_DIR").unwrap());
     let whisper_root = out.join("whisper.cpp");
@@ -114,6 +115,12 @@ fn main() {
                 e
             )
         });
+    } else {
+        // Keep vendored CMake patches synchronized when Cargo restores a cached OUT_DIR.
+        sync_cached_file(
+            std::path::Path::new("whisper.cpp/ggml/CMakeLists.txt"),
+            &whisper_root.join("ggml").join("CMakeLists.txt"),
+        );
     }
 
     if env::var("WHISPER_DONT_GENERATE_BINDINGS").is_ok() {
@@ -328,6 +335,7 @@ fn main() {
         config.define("CMAKE_CXX_COMPILER", "icpx");
     }
 
+    clean_stale_cmake_cache(&out.join("build"));
     let destination = config.build();
 
     add_link_search_path(&out.join("build")).unwrap();
@@ -508,4 +516,61 @@ fn find_clang_cl() -> Option<String> {
     }
 
     None
+}
+
+fn sync_cached_file(src: &std::path::Path, dst: &std::path::Path) {
+    let Ok(src_bytes) = std::fs::read(src) else {
+        return;
+    };
+    let needs_update = match std::fs::read(dst) {
+        Ok(dst_bytes) => dst_bytes != src_bytes,
+        Err(_) => true,
+    };
+    if needs_update {
+        if let Some(parent) = dst.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Err(err) = std::fs::write(dst, src_bytes) {
+            println!(
+                "cargo:warning=Failed to update cached {}: {}",
+                dst.display(),
+                err
+            );
+        }
+    }
+}
+
+fn clean_stale_cmake_cache(build_dir: &std::path::Path) {
+    let cache_path = build_dir.join("CMakeCache.txt");
+    let Ok(contents) = std::fs::read_to_string(&cache_path) else {
+        return;
+    };
+    for line in contents.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with("//") {
+            continue;
+        }
+        let Some((lhs, rhs)) = trimmed.split_once('=') else {
+            continue;
+        };
+        let key = lhs.split(':').next().unwrap_or("");
+        if !(key.starts_with("CMAKE_") && key.ends_with("_COMPILER")) {
+            continue;
+        }
+        let val = rhs.trim();
+        if !val.is_empty()
+            && !val.ends_with("-NOTFOUND")
+            && (val.contains('/') || val.contains('\\'))
+            && !std::path::Path::new(val).exists()
+        {
+            println!(
+                "cargo:warning=Removing stale CMake build cache {} because {} is missing ({})",
+                build_dir.display(),
+                key,
+                val
+            );
+            let _ = std::fs::remove_dir_all(build_dir);
+            break;
+        }
+    }
 }

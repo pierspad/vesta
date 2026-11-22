@@ -326,7 +326,7 @@ jobs:
         include:
           - arch: x64
             target: x86_64-pc-windows-msvc
-            cache-key: v1-sccache-windows
+            cache-key: v2-windows
     steps:
       - uses: actions/checkout@v6
         with:
