@@ -15,6 +15,7 @@
   import { currentLanguage, locale } from "$lib/i18n";
   import { pluginsStore } from "$lib/stores/pluginsStore.svelte";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
+  import { writeClipboard } from "$lib/utils/clipboard";
   import { invokeCommand } from "$lib/services/tauriClient";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import { guardedOpen } from "$lib/utils/dialogGuard";
@@ -375,12 +376,7 @@
   }
 
   async function copyPath(path: string): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(path);
-      snackbar.show(t("common.copied"), "success");
-    } catch {
-      snackbar.show(path, "info");
-    }
+    await writeClipboard(path, t("common.copied"));
   }
 
   async function openPath(path: string): Promise<void> {
@@ -839,20 +835,18 @@
             {node.label}
           </label>
         {/if}
-        <div class="relative">
-          <select
-            id="widget-{node.id}"
+        <div id="widget-{node.id}">
+          <SearchableSelect
+            options={(node.options ?? []).map((opt) => ({ value: opt.value, label: opt.label }))}
+            value={String(values[node.id] ?? node.defaultValue ?? "")}
+            onchange={(val) => {
+              values[node.id] = val;
+            }}
             disabled={node.disabled}
-            bind:value={values[node.id]}
-            class="h-10 w-full px-3 pr-8 rounded-xl border border-white/10 bg-gray-800 text-sm text-gray-100 appearance-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 cursor-pointer"
-          >
-            {#each node.options as opt}
-              <option value={opt.value} class="bg-gray-800 text-gray-100">{opt.label}</option>
-            {/each}
-          </select>
-          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-gray-400">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-          </div>
+            searchable={(node.options?.length ?? 0) > 6}
+            ariaLabel={node.label ?? node.id}
+            noResultsText={t("common.noResults")}
+          />
         </div>
         {#if info.text || info.link}
           <div class="flex flex-wrap items-center gap-2 mt-0.5">

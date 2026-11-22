@@ -12,6 +12,10 @@
   let pressedBackdrop = false;
   let notesOpen = $state(false);
 
+  $effect(() => {
+    if (updates.appVersionNum) void updates.loadInstalledReleaseNotes?.();
+  });
+
   function isBackdrop(event: PointerEvent): boolean {
     const dialog = event.currentTarget as HTMLDialogElement;
     const bounds = dialog.getBoundingClientRect();
@@ -57,14 +61,15 @@
       <article class="rounded-xl border border-indigo-400/20 bg-indigo-500/5 p-4">
         <h3 class="notice-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>{t("settings.updatesNewVersionAvailable", { version: updates.latestVersion })}</h3>
         {#if updates.managerHint}<p class="mt-2 text-xs leading-relaxed text-gray-400">{updates.managerHint}</p>{/if}
-        {#if (updates.canInstall && !updates.managerHint) || !updates.releaseNotes}
+        {#if !updates.managerHint}
         <div class="mt-3 flex flex-wrap gap-2">
-          {#if updates.canInstall && !updates.managerHint}
+          {#if updates.canInstall}
             <button type="button" onclick={() => updates.installUpdate()} disabled={updates.installing} class="btn-primary px-3 py-2 text-xs disabled:opacity-50">
               {updates.installing ? t("settings.updatesDownloading", { percent: updates.downloadPercent }) : t("settings.updatesInstall", { version: updates.latestVersion })}
             </button>
+          {:else}
+            <button type="button" onclick={() => updates.openRelease()} class="btn-secondary px-3 py-2 text-xs">{t("settings.updatesReleaseDetails")}</button>
           {/if}
-          {#if !updates.releaseNotes}<button type="button" onclick={() => updates.openRelease()} class="btn-secondary px-3 py-2 text-xs">{t("settings.updatesReleaseDetails")}</button>{/if}
         </div>
         {/if}
       </article>
@@ -87,18 +92,18 @@
         </article>
       {/if}
     {/each}
-    {#if updates.releaseNotes || releaseUrl}
-      <article class="release-notice" class:expanded={notesOpen && !!updates.releaseNotes}>
-        {#if updates.releaseNotes}
+    {#if updates.installedReleaseNotes || releaseUrl}
+      <article class="release-notice" class:expanded={notesOpen && !!updates.installedReleaseNotes}>
+        {#if updates.installedReleaseNotes}
           <div class="release-details">
             <button type="button" class="release-summary" aria-expanded={notesOpen} aria-controls="notification-release-notes" onclick={() => notesOpen = !notesOpen}>
               <span>{t("settings.updatesReleaseDetails")}</span>
-              <span class="release-version">{updates.latestVersion}</span>
+              <span class="release-version">{updates.appVersionNum}</span>
               <svg class="release-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
             </button>
             <div id="notification-release-notes" class="release-notes" hidden={!notesOpen}>
               {#await import("./MarkdownContent.svelte") then module}
-                <module.default text={updates.releaseNotes} />
+                <module.default text={updates.installedReleaseNotes} />
               {/await}
               <a href={releaseUrl} target="_blank" rel="noreferrer" class="btn-secondary mt-3 inline-flex px-3 py-2 text-xs">{t("settings.updatesReleaseDetails")} ↗</a>
             </div>

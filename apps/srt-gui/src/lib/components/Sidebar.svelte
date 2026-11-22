@@ -626,8 +626,8 @@
         {collapsed} active={uiMode.expertMode} ontoggle={() => uiMode.toggleExpertMode()}
         iconPath="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 011.5 1.5m-1.5-1.5a1.5 1.5 0 10-3 0M3.75 18H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
       <SidebarToggle label={t("nav.aiKillSwitch")} title={aiStore.killSwitchActive ? t("nav.aiKillSwitchOn") : t("nav.aiKillSwitchOff")}
-        {collapsed} active={aiStore.killSwitchActive} disabled={aiStore.hasActiveAiProcess} activity={aiStore.hasActiveAiProcess}
-        ontoggle={() => { if (!aiStore.hasActiveAiProcess) aiStore.toggleKillSwitch(); }}
+        {collapsed} active={aiStore.killSwitchActive} activity={aiStore.hasActiveAiProcess}
+        ontoggle={() => aiStore.toggleKillSwitch()}
         iconPath="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
     </div>
   </nav>

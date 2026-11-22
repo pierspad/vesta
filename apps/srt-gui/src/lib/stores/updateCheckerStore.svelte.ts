@@ -26,6 +26,8 @@ class UpdateCheckerStore {
   downloadPercent = $state(0);
   private initialized = false;
   private checkInFlight = false;
+  private installedNotesInFlight = false;
+  private installedNotesLoadedFor = "";
 
   get canInstall() {
     return !!this.installation && !!selectInstaller(this.releaseAssets, this.installation.channel, this.installation.arch, this.latestVersion);
@@ -59,9 +61,44 @@ class UpdateCheckerStore {
   updateStatus = $state<UpdateStatus>("idle");
   latestVersion = $state("");
   releaseNotes = $state("");
+  installedReleaseNotes = $state("");
   releaseUrl = $state(RELEASES_PAGE_URL);
   appVersionNum = $state("");
   updateError = $state("");
+
+  private normalizedInstalledTag(): string {
+    const raw = this.appVersionNum.trim();
+    if (!/^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(raw)) return "";
+    return raw.startsWith("v") || raw.startsWith("V") ? `v${raw.slice(1)}` : `v${raw}`;
+  }
+
+  /** Fetch release notes specifically matching the installed app tag (never a newer latest release). */
+  async loadInstalledReleaseNotes() {
+    const tag = this.normalizedInstalledTag();
+    if (!tag || this.installedNotesLoadedFor === tag || this.installedNotesInFlight) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+
+    this.installedNotesInFlight = true;
+    try {
+      const url = `https://api.github.com/repos/pierspad/vesta/releases/tags/${encodeURIComponent(tag)}`;
+      const response = await tauriFetch(url, {
+        method: "GET",
+        headers: { "Accept": "application/vnd.github+json", "User-Agent": "Vesta-update-check" },
+      });
+      if (!response.ok) {
+        this.installedReleaseNotes = "";
+        if (response.status === 404) this.installedNotesLoadedFor = tag;
+        return;
+      }
+      const rel = await response.json() as { body?: string; draft?: boolean };
+      this.installedReleaseNotes = !rel.draft && typeof rel.body === "string" ? rel.body : "";
+      this.installedNotesLoadedFor = tag;
+    } catch {
+      this.installedReleaseNotes = "";
+    } finally {
+      this.installedNotesInFlight = false;
+    }
+  }
 
   private processUpdateResult(source: "auto" | "manual") {
     const comparison = compareVersions(this.latestVersion, this.appVersionNum);
@@ -112,6 +149,11 @@ class UpdateCheckerStore {
         this.releaseUrl = officialReleaseUrl(latest.html_url)!;
         this.releaseAssets = latest.assets || [];
         this.releaseNotes = typeof latest.body === "string" ? latest.body : "";
+        if (compareVersions(this.latestVersion, this.appVersionNum) === 0) {
+          this.installedReleaseNotes = this.releaseNotes;
+          const installedTag = this.normalizedInstalledTag();
+          if (installedTag) this.installedNotesLoadedFor = installedTag;
+        }
         this.processUpdateResult(source);
         return;
       } catch (apiError) {
@@ -177,6 +219,7 @@ class UpdateCheckerStore {
     invoke<{ version: string }>("get_app_info")
       .then((info) => {
         this.appVersionNum = `v${info.version}`;
+        void this.loadInstalledReleaseNotes();
       })
       .catch(() => {
         this.appVersionNum = "";

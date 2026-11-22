@@ -19,6 +19,8 @@
   } from "$lib/utils/shortcuts";
   import { filterAndSortShortcuts } from "$lib/utils/shortcutSearch";
 
+  let { active = true }: { active?: boolean } = $props();
+
   let shortcuts = $state<ShortcutDefinition[]>([]);
   let editingShortcut = $state<string | null>(null);
   let recordingKey = $state(false);
@@ -121,15 +123,18 @@
   });
 
   onDestroy(() => {
-    if (currentKeyHandler) {
-      window.removeEventListener("keydown", currentKeyHandler, true);
-      currentKeyHandler = null;
-    }
-    if (globalSearchKeysHandler) {
-      window.removeEventListener("keydown", globalSearchKeysHandler, true);
-    }
+    cancelEditing();
+    stopSearchKeysListening();
     if (globalSearchClickHandler) {
       window.removeEventListener("click", globalSearchClickHandler);
+      globalSearchClickHandler = null;
+    }
+  });
+
+  $effect(() => {
+    if (!active) {
+      cancelEditing();
+      stopSearchKeysListening();
     }
   });
 

@@ -3,7 +3,6 @@
   import { SnapshotHistory } from "$lib/workflows/snapshotHistory";
   import EmptyStatusLabel from "$lib/components/EmptyStatusLabel.svelte";
   import { invokeCommand as invoke } from "$lib/services/tauriClient";
-  import { writeTextFile } from '@tauri-apps/plugin-fs';
   import { onMount } from 'svelte';
   import { guardedOpen, guardedSave } from '$lib/utils/dialogGuard';
   import { setupWebviewDragDrop } from '$lib/utils/dragDrop';
@@ -75,7 +74,11 @@
 
   // ─── Undo History ──────────────────────────────────────────────────────────
   let savedAlignmentSignature = "";
-  const alignmentSignature = () => JSON.stringify({ sourcePath, targetPath, content: serializeSrt(sourceSubs) });
+  const alignmentSignature = () => JSON.stringify({
+    sourcePath,
+    targetPath,
+    subs: sourceSubs.map((s) => [s.id, s.start, s.end, s.text]),
+  });
   const copySubtitles = (subtitles: Subtitle[]) => subtitles.map(s => ({
     id: s.id, start: s.start, end: s.end, text: s.text,
     originalStart: s.originalStart, originalEnd: s.originalEnd,
@@ -277,22 +280,22 @@
     }
   }
 
-  function parseSrt(content: string): Subtitle[] {
-    const blocks = content.trim().replace(/\r\n/g, '\n').split(/\n\s*\n/).filter(Boolean);
-    return blocks.map(block => {
-      const lines = block.split('\n');
-      const id = parseInt(lines[0], 10) || 0;
-      const timeLine = lines[1] || '';
-      const times = timeLine.split(' --> ');
-      const text = lines.slice(2).join('\n');
-      const start = times[0] || '00:00:00,000';
-      const end = times[1] || '00:00:00,000';
-      return { id, start, end, text, originalStart: start, originalEnd: end };
-    });
+  interface RawSubtitleEntry {
+    id: number;
+    start: string;
+    end: string;
+    text: string;
   }
 
-  function serializeSrt(subs: Subtitle[]): string {
-    return subs.map(s => `${s.id}\n${s.start} --> ${s.end}\n${s.text}`).join('\n\n') + '\n';
+  function toAlignedSubtitles(entries: RawSubtitleEntry[]): Subtitle[] {
+    return entries.map((entry) => ({
+      id: entry.id,
+      start: entry.start,
+      end: entry.end,
+      text: entry.text,
+      originalStart: entry.start,
+      originalEnd: entry.end,
+    }));
   }
 
   function normalizeAlignments() {
@@ -360,12 +363,11 @@
 
   async function loadTarget(path: string) {
     try {
-      // Encoding rilevato lato Rust (BOM, UTF-8/16, code page legacy):
-      // readTextFile del plugin fs fallirebbe sui file non UTF-8.
-      const content = await invoke<string>('read_subtitle_file', { path });
+      // Encoding and SRT parsing handled in Rust via srt-parser (BOM, UTF-8/16, legacy code pages).
+      const entries = await invoke<RawSubtitleEntry[]>("parse_subtitle_file", { path });
       sourcePath = "";
       sourceSubs = [];
-      targetSubs = parseSrt(content);
+      targetSubs = toAlignedSubtitles(entries);
       targetPath = path;
       normalizeAlignments();
       undoHistory.reset();
@@ -404,8 +406,8 @@
 
   async function loadSource(path: string) {
     try {
-      const content = await invoke<string>('read_subtitle_file', { path });
-      sourceSubs = parseSrt(content);
+      const entries = await invoke<RawSubtitleEntry[]>("parse_subtitle_file", { path });
+      sourceSubs = toAlignedSubtitles(entries);
       sourcePath = path;
       normalizeAlignments();
       undoHistory.reset(); // Reset undo on new file load
@@ -469,8 +471,13 @@
       });
 
       if (savePath) {
-        const content = serializeSrt(sourceSubs);
-        await writeTextFile(savePath, content);
+        const entries = sourceSubs.map((s) => ({
+          id: s.id,
+          start: s.start,
+          end: s.end,
+          text: s.text,
+        }));
+        await invoke("save_subtitle_file", { path: savePath, entries });
         showSuccess(`File saved to ${savePath}`);
         savedAlignmentSignature = alignmentSignature();
         hasUnsavedChanges = false;

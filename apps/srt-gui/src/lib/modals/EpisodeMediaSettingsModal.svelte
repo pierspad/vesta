@@ -10,6 +10,7 @@
   import { getFileName } from "$lib/utils/models";
   import { generationStore } from "$lib/stores/generationStore.svelte";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
+  import { focusTrap } from "$lib/actions/focusTrap";
 
   interface Props {
     /** Whether a given override key differs from the generic (movie-mode) setting — drives the "changed" glow. */
@@ -66,6 +67,7 @@
 {#if editor.episode && editor.overrides}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
+    use:focusTrap={{ enabled: true, onEscape: close }}
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm"
     role="dialog"
     aria-modal="true"

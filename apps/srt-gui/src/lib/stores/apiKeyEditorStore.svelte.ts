@@ -114,7 +114,6 @@ class ApiKeyEditorStore {
   }
 
   selectProvider(pid: string) {
-    if (this.editKeyId) return;
     if (isBuiltinEndpointId(this.editKeyId) && ((this.editKeyId === "local" && pid !== "local") || (this.editKeyId !== "local" && pid !== "custom"))) return;
     const isCustom = pid === "custom";
     const prov = providers[pid];

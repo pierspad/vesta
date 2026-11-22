@@ -490,7 +490,7 @@
     {/if}
     {#if loadedTabs.experimental}
       {@const ExperimentalTab = loadedTabs.experimental}
-      <div class="absolute inset-0" class:hidden={activeTab !== "experimental"}><ExperimentalTab onGoToTab={changeTab} /></div>
+      <div class="absolute inset-0" class:hidden={activeTab !== "experimental"}><ExperimentalTab active={activeTab === "experimental"} onGoToTab={changeTab} /></div>
     {/if}
     {#if loadedTabs.settings}
       {@const SettingsTab = loadedTabs.settings}

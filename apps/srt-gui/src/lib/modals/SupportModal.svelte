@@ -2,6 +2,7 @@
   import { locale } from "$lib/i18n";
   import { supportLinks } from "$lib/config/supportLinks";
   import SponsorIcon from "$lib/components/SponsorIcon.svelte";
+  import { focusTrap } from "$lib/actions/focusTrap";
 
   let { show, onclose }: { show: boolean; onclose: () => void } = $props();
   let t = $derived($locale);
@@ -26,7 +27,7 @@
 {#if show}
   <div class="fixed inset-0 z-[200] flex items-center justify-center p-6">
     <button type="button" class="absolute inset-0 bg-black/75 backdrop-blur-sm" aria-label={t("common.close")} onclick={onclose}></button>
-    <div class="relative w-full max-w-2xl rounded-2xl border border-pink-400/20 bg-gray-900 p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="support-title" tabindex="-1">
+    <div use:focusTrap={{ enabled: show, onEscape: onclose }} class="relative w-full max-w-2xl rounded-2xl border border-pink-400/20 bg-gray-900 p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="support-title" tabindex="-1">
       <div class="flex items-start justify-between gap-4">
         <div><h2 id="support-title" class="text-xl font-bold text-white">{t("support.title")}</h2><p class="mt-2 max-w-xl text-sm leading-relaxed text-gray-400">{t("support.description")}</p></div>
         <button class="rounded-lg p-2 text-gray-400 hover:bg-white/10 hover:text-white" aria-label={t("common.close")} onclick={onclose}>✕</button>

@@ -21,7 +21,7 @@
     <button type="button" class="btn-secondary preview-button" disabled={saving || !hasNext} onclick={onnext}>
       {t("extract.next")}<svg aria-hidden="true" class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6" /></svg>
     </button>
-    <div class="ml-auto flex flex-wrap gap-2">
+    <div class="ms-auto flex flex-wrap gap-2">
       <button type="button" class="btn-secondary preview-button" disabled={loading || saving || !!error} onclick={onselect}>
         <svg aria-hidden="true" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6" /></svg>{t("extract.select")}
       </button>

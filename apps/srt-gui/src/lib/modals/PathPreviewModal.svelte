@@ -1,5 +1,6 @@
 <script lang="ts">
   import { t } from "$lib/i18n";
+  import { focusTrap } from "$lib/actions/focusTrap";
 
   interface Props {
     isOpen: boolean;
@@ -70,6 +71,7 @@
 {#if isOpen}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
+    use:focusTrap={{ enabled: true, onEscape: onclose }}
     class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6"
     role="dialog"
     aria-modal="true"

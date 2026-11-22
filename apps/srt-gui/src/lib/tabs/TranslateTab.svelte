@@ -517,7 +517,7 @@
 <div
   role="region"
   aria-label={t("nav.translate")}
-  class="h-full flex flex-col bg-gray-900 relative overflow-hidden"
+  class="h-full flex flex-col bg-[var(--bg)] relative overflow-hidden"
   ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"; }}
   ondrop={(e) => { e.preventDefault(); isDraggingOver = false; }}
   ondragleave={(e) => {
@@ -528,13 +528,13 @@
   }}
 >
   {#if isDraggingOver}
-    <div class="absolute inset-0 z-50 bg-green-500/10 border-2 border-dashed border-green-400 rounded-2xl flex items-center justify-center pointer-events-none">
+    <div class="absolute inset-0 z-50 bg-[var(--done)]/10 border-2 border-dashed border-[var(--done)] rounded-2xl flex items-center justify-center pointer-events-none">
       <div class="text-center">
-        <svg class="w-16 h-16 mx-auto mb-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-16 h-16 mx-auto mb-3 text-[var(--done)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
         </svg>
-        <p class="text-lg font-medium text-green-300">{t("translate.dropFileHere")}</p>
-        <p class="text-sm text-gray-400 mt-1">{t("translate.dropFileHint")}</p>
+        <p class="text-lg font-medium text-[var(--done)]">{t("translate.dropFileHere")}</p>
+        <p class="text-sm text-[var(--muted)] mt-1">{t("translate.dropFileHint")}</p>
       </div>
     </div>
   {/if}
