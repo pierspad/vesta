@@ -5,13 +5,16 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import fnmatch
 import json
 import os
 import pathlib
 import shutil
 import sqlite3
+import subprocess
 import sys
 import tempfile
+import tomllib
 from typing import Any
 
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
@@ -20,7 +23,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 import generate_scorecard as gs  # noqa: E402
 
-SCHEMA_USER_VERSION = 1
+SCHEMA_USER_VERSION = 2
 
 TOML_FILES = {
     "features": "features.toml",
@@ -28,6 +31,7 @@ TOML_FILES = {
     "performance": "performance.toml",
     "bugs": "bugs.toml",
 }
+IMPACT_MAP_FILE = "impact_map.toml"
 
 FEATURE_FIELDS = (
     "id",
@@ -139,6 +143,17 @@ CREATE TABLE bugs (
     resolution TEXT NOT NULL
 );
 
+CREATE TABLE impact_rules (
+    seq INTEGER PRIMARY KEY,
+    id TEXT UNIQUE NOT NULL,
+    area TEXT NOT NULL,
+    feature_ids_json TEXT NOT NULL,
+    paths_json TEXT NOT NULL,
+    rust_crates_json TEXT NOT NULL,
+    vitest_filters_json TEXT NOT NULL,
+    playwright_specs_json TEXT NOT NULL
+);
+
 CREATE INDEX idx_features_area ON features(area);
 CREATE INDEX idx_features_status ON features(audit_status);
 CREATE INDEX idx_reliability_area ON reliability(area);
@@ -150,6 +165,63 @@ CREATE INDEX idx_bugs_area ON bugs(area);
 CREATE INDEX idx_bugs_status ON bugs(status);
 CREATE INDEX idx_bugs_severity ON bugs(severity);
 """
+
+
+def _load_and_validate_impact_map(
+    repo_root: pathlib.Path,
+    parsed: dict[str, dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Load and validate `scorecard/impact_map.toml` against parsed feature IDs."""
+    impact_file = repo_root / "scorecard" / IMPACT_MAP_FILE
+    if not impact_file.is_file():
+        return [], []
+
+    errors: list[str] = []
+    with impact_file.open("rb") as f:
+        doc = tomllib.load(f)
+
+    valid_feature_ids = {str(item["id"]) for item in parsed["features"]["item"]}
+    rules = doc.get("rule", [])
+    seen_ids: set[str] = set()
+    validated: list[dict[str, Any]] = []
+
+    for idx, rule in enumerate(rules):
+        ctx = f"{IMPACT_MAP_FILE}[[{idx}]]"
+        rule_id = str(rule.get("id", "")).strip()
+        if not rule_id:
+            errors.append(f"{ctx}: missing 'id'")
+        elif rule_id in seen_ids:
+            errors.append(f"{ctx}: duplicate rule id {rule_id!r}")
+        seen_ids.add(rule_id)
+
+        area = str(rule.get("area", "")).strip()
+        if area not in gs.AREA_LABELS:
+            errors.append(f"{ctx}: unknown area {area!r}")
+
+        feature_ids = [str(v).strip() for v in rule.get("feature_ids", []) if str(v).strip()]
+        if not feature_ids:
+            errors.append(f"{ctx}: 'feature_ids' must be non-empty")
+        for fid in feature_ids:
+            if fid not in valid_feature_ids:
+                errors.append(f"{ctx}: unknown feature_id {fid!r}")
+
+        paths = [str(v).strip() for v in rule.get("paths", []) if str(v).strip()]
+        if not paths:
+            errors.append(f"{ctx}: 'paths' must be non-empty")
+
+        validated.append(
+            {
+                "id": rule_id,
+                "area": area,
+                "feature_ids": feature_ids,
+                "paths": paths,
+                "rust_crates": [str(v).strip() for v in rule.get("rust_crates", []) if str(v).strip()],
+                "vitest_filters": [str(v).strip() for v in rule.get("vitest_filters", []) if str(v).strip()],
+                "playwright_specs": [str(v).strip() for v in rule.get("playwright_specs", []) if str(v).strip()],
+            }
+        )
+
+    return validated, errors
 
 
 def _db_path(repo_root: pathlib.Path) -> pathlib.Path:
@@ -201,6 +273,7 @@ def _serialize_toml(
 def _db_matches_parsed(
     db_file: pathlib.Path,
     parsed: dict[str, dict[str, Any]],
+    impact_rules: list[dict[str, Any]] | None = None,
 ) -> tuple[bool, list[str]]:
     """Verify SQLite schema and logical table rows match parsed `scorecard/*.toml`."""
     mismatches: list[str] = []
@@ -217,7 +290,7 @@ def _db_matches_parsed(
                     "SELECT name FROM sqlite_master WHERE type='table'"
                 ).fetchall()
             }
-            required = {"meta", *TOML_FILES.keys()}
+            required = {"meta", "impact_rules", *TOML_FILES.keys()}
             if not required <= tables:
                 missing = sorted(required - tables)
                 mismatches.append(f"missing tables: {missing}")
@@ -252,6 +325,28 @@ def _db_matches_parsed(
                     mismatches.append(
                         f"{source} table out of sync ({len(actual_rows)} vs {len(expected_rows)} rows)"
                     )
+
+            if impact_rules is not None:
+                expected_imp = [
+                    (
+                        seq,
+                        rule["id"],
+                        rule["area"],
+                        json.dumps(rule["feature_ids"]),
+                        json.dumps(rule["paths"]),
+                        json.dumps(rule["rust_crates"]),
+                        json.dumps(rule["vitest_filters"]),
+                        json.dumps(rule["playwright_specs"]),
+                    )
+                    for seq, rule in enumerate(impact_rules, start=1)
+                ]
+                actual_imp = conn.execute(
+                    "SELECT seq, id, area, feature_ids_json, paths_json, rust_crates_json, vitest_filters_json, playwright_specs_json FROM impact_rules ORDER BY seq"
+                ).fetchall()
+                if actual_imp != expected_imp:
+                    mismatches.append(
+                        f"impact_rules table out of sync ({len(actual_imp)} vs {len(expected_imp)} rows)"
+                    )
         finally:
             conn.close()
     except sqlite3.Error as exc:
@@ -266,7 +361,11 @@ def _needs_rebuild(repo_root: pathlib.Path, db_file: pathlib.Path) -> bool:
         return True
     try:
         db_mtime = db_file.stat().st_mtime
-        newest_toml = max((repo_root / "scorecard" / fname).stat().st_mtime for fname in TOML_FILES.values())
+        tracked_tomls = [repo_root / "scorecard" / fname for fname in TOML_FILES.values()]
+        impact_file = repo_root / "scorecard" / IMPACT_MAP_FILE
+        if impact_file.is_file():
+            tracked_tomls.append(impact_file)
+        newest_toml = max(p.stat().st_mtime for p in tracked_tomls)
     except OSError:
         return True
     try:
@@ -281,7 +380,7 @@ def _needs_rebuild(repo_root: pathlib.Path, db_file: pathlib.Path) -> bool:
                     "SELECT name FROM sqlite_master WHERE type='table'"
                 ).fetchall()
             }
-            if not {"meta", "features", "reliability", "performance", "bugs"} <= tables:
+            if not {"meta", "features", "reliability", "performance", "bugs", "impact_rules"} <= tables:
                 return True
         finally:
             conn.close()
@@ -293,12 +392,19 @@ def _needs_rebuild(repo_root: pathlib.Path, db_file: pathlib.Path) -> bool:
         parsed, errors = gs.load_and_validate(repo_root)
         if errors:
             return True
-        matches, _ = _db_matches_parsed(db_file, parsed)
+        impact_rules, imp_errors = _load_and_validate_impact_map(repo_root, parsed)
+        if imp_errors:
+            return True
+        matches, _ = _db_matches_parsed(db_file, parsed, impact_rules)
         return not matches
     return False
 
 
-def _populate_db(conn: sqlite3.Connection, parsed: dict[str, dict[str, Any]]) -> None:
+def _populate_db(
+    conn: sqlite3.Connection,
+    parsed: dict[str, dict[str, Any]],
+    impact_rules: list[dict[str, Any]] | None = None,
+) -> None:
     conn.executescript(SCHEMA_SQL)
     conn.execute(f"PRAGMA user_version = {SCHEMA_USER_VERSION}")
     for source in TOML_FILES:
@@ -321,6 +427,28 @@ def _populate_db(conn: sqlite3.Connection, parsed: dict[str, dict[str, Any]]) ->
             for seq, item in enumerate(doc["item"], start=1)
         ]
         conn.executemany(sql, rows)
+    if impact_rules:
+        conn.executemany(
+            """
+            INSERT INTO impact_rules (
+                seq, id, area, feature_ids_json, paths_json,
+                rust_crates_json, vitest_filters_json, playwright_specs_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    seq,
+                    rule["id"],
+                    rule["area"],
+                    json.dumps(rule["feature_ids"]),
+                    json.dumps(rule["paths"]),
+                    json.dumps(rule["rust_crates"]),
+                    json.dumps(rule["vitest_filters"]),
+                    json.dumps(rule["playwright_specs"]),
+                )
+                for seq, rule in enumerate(impact_rules, start=1)
+            ],
+        )
 
 
 def ensure_db(repo_root: pathlib.Path, *, force: bool = False) -> pathlib.Path:
@@ -331,8 +459,10 @@ def ensure_db(repo_root: pathlib.Path, *, force: bool = False) -> pathlib.Path:
         return db_file
 
     parsed, errors = gs.load_and_validate(repo_root)
-    if errors:
-        raise RuntimeError("Invalid scorecard TOML:\n  - " + "\n  - ".join(errors))
+    impact_rules, imp_errors = ([], []) if errors else _load_and_validate_impact_map(repo_root, parsed)
+    all_errors = [*errors, *imp_errors]
+    if all_errors:
+        raise RuntimeError("Invalid scorecard TOML:\n  - " + "\n  - ".join(all_errors))
 
     db_dir = db_file.parent
     db_dir.mkdir(parents=True, exist_ok=True)
@@ -342,7 +472,7 @@ def ensure_db(repo_root: pathlib.Path, *, force: bool = False) -> pathlib.Path:
     try:
         conn = sqlite3.connect(tmp_path)
         try:
-            _populate_db(conn, parsed)
+            _populate_db(conn, parsed, impact_rules)
             conn.commit()
         finally:
             conn.close()
@@ -405,11 +535,13 @@ def _cmd_sync(args: argparse.Namespace) -> int:
 def _cmd_check(args: argparse.Namespace) -> int:
     repo_root = args.repo_root.resolve()
     parsed, errors = gs.load_and_validate(repo_root)
-    if errors:
+    impact_rules, imp_errors = ([], []) if errors else _load_and_validate_impact_map(repo_root, parsed)
+    all_errors = [*errors, *imp_errors]
+    if all_errors:
         if args.json:
-            print(json.dumps({"ok": False, "errors": errors}, indent=2))
+            print(json.dumps({"ok": False, "errors": all_errors}, indent=2))
         else:
-            print("Invalid scorecard TOML:\n  - " + "\n  - ".join(errors), file=sys.stderr)
+            print("Invalid scorecard TOML:\n  - " + "\n  - ".join(all_errors), file=sys.stderr)
         return 1
 
     db_file = _db_path(repo_root)
@@ -422,7 +554,7 @@ def _cmd_check(args: argparse.Namespace) -> int:
             print(msg, file=sys.stderr)
         return 1
 
-    matches, mismatches = _db_matches_parsed(db_file, parsed)
+    matches, mismatches = _db_matches_parsed(db_file, parsed, impact_rules)
     if not matches:
         detail = f" ({'; '.join(mismatches)})" if mismatches else ""
         msg = f"{rel_db} is out of date; run 'python3 build-scripts/scorecard_db.py sync'{detail}"
@@ -670,6 +802,202 @@ def _cmd_query(args: argparse.Namespace) -> int:
         return 0
     _print_table(headers, [tuple(r) for r in rows])
     return 0
+
+
+def _path_matches_pattern(path_str: str, pattern: str) -> bool:
+    clean = path_str.lstrip("./")
+    if pattern.endswith("/**"):
+        prefix = pattern[:-2]
+        return clean.startswith(prefix)
+    return fnmatch.fnmatchcase(clean, pattern)
+
+
+def _collect_changed_files(repo_root: pathlib.Path, args: argparse.Namespace) -> list[str]:
+    if args.files:
+        return sorted({f.replace("\\", "/").lstrip("./") for f in args.files if f.strip()})
+
+    changed: set[str] = set()
+    if args.staged:
+        proc = subprocess.run(
+            ["git", "diff", "--cached", "--name-only"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        changed.update(line.strip() for line in proc.stdout.splitlines() if line.strip())
+    else:
+        proc = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        for line in proc.stdout.splitlines():
+            if len(line) > 3:
+                entry = line[3:].strip()
+                if " -> " in entry:
+                    entry = entry.split(" -> ", 1)[1].strip()
+                changed.add(entry.strip('"'))
+        if args.since:
+            diff_proc = subprocess.run(
+                ["git", "diff", "--name-only", f"{args.since}...HEAD"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            changed.update(line.strip() for line in diff_proc.stdout.splitlines() if line.strip())
+    return sorted(changed)
+
+
+def _cmd_impact(args: argparse.Namespace) -> int:
+    repo_root = args.repo_root.resolve()
+    db_file = ensure_db(repo_root)
+    files = _collect_changed_files(repo_root, args)
+
+    with _connect_ro(db_file) as conn:
+        rule_rows = conn.execute("SELECT * FROM impact_rules ORDER BY seq").fetchall()
+        features_by_id = {
+            row["id"]: dict(row)
+            for row in conn.execute("SELECT * FROM features ORDER BY seq").fetchall()
+        }
+
+    matched_rules: list[dict[str, Any]] = []
+    impacted_feature_ids: set[str] = set()
+    rust_crates: list[str] = []
+    vitest_filters: list[str] = []
+    playwright_specs: list[str] = []
+
+    def _extend_unique(dest: list[str], items: list[str]) -> None:
+        for item in items:
+            if item not in dest:
+                dest.append(item)
+
+    for rule in rule_rows:
+        patterns = json.loads(rule["paths_json"])
+        rule_hits = [f for f in files if any(_path_matches_pattern(f, pat) for pat in patterns)]
+        if not rule_hits:
+            continue
+        fids = json.loads(rule["feature_ids_json"])
+        crates = json.loads(rule["rust_crates_json"])
+        vfilters = json.loads(rule["vitest_filters_json"])
+        pspecs = json.loads(rule["playwright_specs_json"])
+        matched_rules.append({"id": rule["id"], "area": rule["area"], "matched_files": rule_hits, "feature_ids": fids})
+        impacted_feature_ids.update(fids)
+        _extend_unique(rust_crates, crates)
+        _extend_unique(vitest_filters, vfilters)
+        _extend_unique(playwright_specs, pspecs)
+
+    impacted_features = sorted(
+        (features_by_id[fid] for fid in impacted_feature_ids if fid in features_by_id),
+        key=lambda f: f["seq"],
+    )
+    verified_features = [f for f in impacted_features if f["audit_status"] == "verified"]
+    verified_gaps = [
+        {
+            "id": f["id"],
+            "feature": f["feature"],
+            "missing_surfaces": [
+                dim for dim in ("unit_tests", "playwright", "smoke") if f[dim] in ("partial", "no")
+            ],
+        }
+        for f in verified_features
+        if any(f[dim] in ("partial", "no") for dim in ("unit_tests", "playwright", "smoke"))
+    ]
+
+    recommended_commands: list[list[str]] = []
+    if rust_crates:
+        cmd = ["cargo", "test", "--locked"]
+        for crate in rust_crates:
+            cmd.extend(["-p", crate])
+        recommended_commands.append(cmd)
+    if vitest_filters:
+        recommended_commands.append(
+            ["npm", "--prefix", "apps/vesta-gui", "test", "--", *vitest_filters]
+        )
+    if any(f.startswith("apps/vesta-gui/src/lib/i18n/") for f in files):
+        recommended_commands.append(["bash", "build-scripts/check-i18n.sh"])
+    if playwright_specs:
+        recommended_commands.append(
+            ["npm", "--prefix", "apps/vesta-gui", "run", "test:browser", "--", *playwright_specs]
+        )
+
+    payload = {
+        "files": files,
+        "matched_rules": matched_rules,
+        "impacted_features": [
+            {
+                "id": f["id"],
+                "area": f["area"],
+                "audit_status": f["audit_status"],
+                "unit_tests": f["unit_tests"],
+                "playwright": f["playwright"],
+                "smoke": f["smoke"],
+                "feature": f["feature"],
+            }
+            for f in impacted_features
+        ],
+        "verified_count": len(verified_features),
+        "verified_coverage_notes": verified_gaps,
+        "rust_crates": rust_crates,
+        "vitest_filters": vitest_filters,
+        "playwright_specs": playwright_specs,
+        "recommended_commands": [" ".join(cmd) for cmd in recommended_commands],
+    }
+
+    if args.strict_verified and verified_features and not (rust_crates or vitest_filters or playwright_specs):
+        print("Strict verified check failed: no automated test suites mapped for verified features.", file=sys.stderr)
+        return 1
+
+    run_failures = 0
+    if args.run and recommended_commands:
+        for cmd in recommended_commands:
+            if not args.playwright and "test:browser" in cmd:
+                continue
+            proc = subprocess.run(cmd, cwd=repo_root, check=False)
+            if proc.returncode != 0:
+                run_failures += 1
+
+    if args.json:
+        print(json.dumps(payload, indent=2))
+        return 1 if run_failures else 0
+
+    if not files:
+        print("No changed files detected.")
+        return 0
+
+    print(f"Changed files analyzed: {len(files)}")
+    if not impacted_features:
+        print("No mapped scorecard features impacted.")
+        return 0
+
+    print(f"Impacted features: {len(impacted_features)} ({len(verified_features)} verified / solid)")
+    _print_table(
+        ["ID", "Area", "Audit", "Unit", "PW", "Smoke", "Feature"],
+        [
+            (
+                f["id"],
+                f["area"],
+                f["audit_status"],
+                f["unit_tests"],
+                f["playwright"],
+                f["smoke"],
+                f["feature"],
+            )
+            for f in impacted_features
+        ],
+    )
+    if verified_gaps:
+        print("\nVerified features with non-complete test surfaces (extra care / manual review advised):")
+        for g in verified_gaps:
+            print(f"  - {g['id']}: {', '.join(g['missing_surfaces'])} -> {g['feature']}")
+    if recommended_commands:
+        print("\nRecommended re-verification commands:")
+        for cmd in recommended_commands:
+            print(f"  $ {' '.join(cmd)}")
+    return 1 if run_failures else 0
 
 
 def _apply_toml_mutation(
@@ -971,6 +1299,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_query = sub.add_parser("query", parents=[common], help="Run a read-only SQL query against scorecard.db.")
     p_query.add_argument("sql")
     p_query.set_defaults(func=_cmd_query)
+
+    p_impact = sub.add_parser(
+        "impact",
+        parents=[common],
+        help="Map modified files to impacted scorecard features (especially verified ones) and list/run checks.",
+    )
+    p_impact.add_argument("--files", nargs="*", help="Explicit repo-relative paths instead of reading git status.")
+    p_impact.add_argument("--since", help="Also include committed changes since this git ref (e.g. origin/dev).")
+    p_impact.add_argument("--staged", action="store_true", help="Analyze staged git diff instead of working tree.")
+    p_impact.add_argument("--run", action="store_true", help="Execute impacted Cargo & Vitest verification suites.")
+    p_impact.add_argument("--playwright", action="store_true", help="With --run, also execute impacted Playwright browser specs.")
+    p_impact.add_argument("--strict-verified", action="store_true", help="Fail if impacted verified features lack mapped test commands.")
+    p_impact.set_defaults(func=_cmd_impact)
 
     p_ubug = sub.add_parser("update-bug", parents=[mut_common], help="Update a bug item in scorecard/bugs.toml.")
     p_ubug.add_argument("id")

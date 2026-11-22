@@ -222,6 +222,43 @@ class ScorecardTests(unittest.TestCase):
 
             self.assertEqual(gs.main(["--check", "--repo-root", str(root)]), 0)
 
+    def test_impact_mapping_and_invalid_feature_rejection(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            shutil.copytree(REPO_ROOT / "scorecard", root / "scorecard")
+            (root / "scorecard" / "scorecard.db").unlink(missing_ok=True)
+            shutil.rmtree(root / "scorecard" / ".cache", ignore_errors=True)
+
+            out_buf = io.StringIO()
+            with contextlib.redirect_stdout(out_buf):
+                rc = sdb.main([
+                    "impact",
+                    "--files",
+                    "lib/vesta-sync/src/matching.rs",
+                    "apps/vesta-gui/src/lib/tabs/AlignTab.svelte",
+                    "--strict-verified",
+                    "--json",
+                    "--repo-root",
+                    str(root),
+                ])
+            self.assertEqual(rc, 0)
+            payload = json.loads(out_buf.getvalue())
+            impacted_ids = {f["id"] for f in payload["impacted_features"]}
+            self.assertTrue({"SY-01", "SY-02", "SY-03"} <= impacted_ids)
+            self.assertGreaterEqual(payload["verified_count"], 1)
+            self.assertIn("vesta-sync", payload["rust_crates"])
+            self.assertIn("workflows.spec.mjs", payload["playwright_specs"])
+
+            # Invalid feature ID in impact_map.toml must fail check.
+            impact_toml = root / "scorecard" / "impact_map.toml"
+            text = impact_toml.read_text(encoding="utf-8")
+            impact_toml.write_text(text.replace('"SY-03"', '"NOPE-99"', 1), encoding="utf-8")
+            err_buf = io.StringIO()
+            with contextlib.redirect_stderr(err_buf):
+                rc = sdb.main(["check", "--repo-root", str(root)])
+            self.assertEqual(rc, 1)
+            self.assertIn("NOPE-99", err_buf.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

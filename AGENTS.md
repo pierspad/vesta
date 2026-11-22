@@ -56,7 +56,8 @@ Vesta tracks feature coverage (GUI, CLI, MCP, Docs, Unit Tests, Playwright, Smok
   - `python3 build-scripts/scorecard_db.py open` — Non-fixed bugs & performance items (`--area`, `--severity`, `--no-include-deferred`).
   - `python3 build-scripts/scorecard_db.py gaps --dim playwright` — Missing/partial coverage across any dimension (`gui`, `cli`, `mcp`, `docs`, `unit_tests`, `playwright`, `smoke`, `audit_status`).
   - `python3 build-scripts/scorecard_db.py show <ID>` / `query "<SQL>"` — Inspect a single item or run read-only SQLite queries (`--json` supported).
-  - `python3 build-scripts/scorecard_db.py sync` / `check` — Rebuild or verify `scorecard/scorecard.db` against `scorecard/*.toml`.
+  - `python3 build-scripts/scorecard_db.py impact [--since origin/dev] [--run] [--playwright]` — Map modified files via [`scorecard/impact_map.toml`](scorecard/impact_map.toml) to impacted scorecard features (flagging `verified`/solid features at regression risk and listing/running targeted Cargo, Vitest, and Playwright suites).
+  - `python3 build-scripts/scorecard_db.py sync` / `check` — Rebuild or verify `scorecard/scorecard.db` against `scorecard/*.toml` and `scorecard/impact_map.toml`.
   - `python3 build-scripts/scorecard_db.py update-bug|update-perf|update-feature|update-reliability|add-bug ...` — Atomically update `scorecard/*.toml`, validate schema, refresh `scorecard/scorecard.db`, and regenerate `docs/SCORECARD.md` (then verify with `python3 build-scripts/test_scorecard.py`).
 
 ## Build Artifacts & Disk Hygiene

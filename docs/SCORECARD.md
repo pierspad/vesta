@@ -8,14 +8,14 @@
 | Metric | Value | Source |
 |---|---|---|
 | Cargo workspace crates | 24 | `Cargo.toml` (`core/`, `lib/`, `cli/`, `apps/`) |
-| Rust production LOC (non-test) | 30,509 | `core/`, `lib/`, `cli/`, `apps/*/src-tauri/src/` |
-| Rust unit & integration `#[test]` cases | 605 | Workspace `*.rs` |
+| Rust production LOC (non-test) | 30,516 | `core/`, `lib/`, `cli/`, `apps/*/src-tauri/src/` |
+| Rust unit & integration `#[test]` cases | 607 | Workspace `*.rs` |
 | Rust prod `.unwrap()` / `.expect()` / `panic!()` / `unsafe` | 26 / 12 / 1 / 4 | Comment/test-stripped scan |
 | Registered Tauri IPC commands | 109 | `apps/vesta-gui/src-tauri/src/main.rs` |
 | Playwright mock handlers (`vesta-mock.mjs`) | 109/109 | `apps/vesta-gui/browser-tests/vesta-mock.mjs` |
 | IPC names referenced in Playwright specs | 109/109 | `apps/vesta-gui/browser-tests/*.spec.mjs` |
-| Vitest files / cases | 148 / 666 | `apps/vesta-gui/src/**/*.test.*` |
-| Playwright spec files / `test()` decls | 6 / 28 | `apps/vesta-gui/browser-tests/*.spec.mjs` |
+| Vitest files / cases | 148 / 667 | `apps/vesta-gui/src/**/*.test.*` |
+| Playwright spec files / `test()` decls | 6 / 29 | `apps/vesta-gui/browser-tests/*.spec.mjs` |
 | MCP tools (`vesta-mcp`) | 12 | `cli/vesta-mcp/src/lib.rs` |
 | Unified `vesta-cli` workflows | 9 | `cli/vesta-cli/src/lib.rs` |
 | Plugin SDK widget primitives | 23 | `PluginRenderer.svelte` |

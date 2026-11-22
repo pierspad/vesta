@@ -1,0 +1,271 @@
+schema_version = 1
+
+# Maps repository paths (matched recursively via fnmatch/glob) to Vesta scorecard
+# feature IDs and the targeted automated checks that re-verify them after edits.
+# Validated by `python3 build-scripts/scorecard_db.py check` and queried via
+# `python3 build-scripts/scorecard_db.py impact`.
+
+[[rule]]
+id = "IMP-FLASHCARDS"
+area = "flashcards"
+feature_ids = ["FC-01", "FC-02", "FC-03", "FC-04", "FC-05", "FC-06", "FC-07", "FC-08"]
+paths = [
+  "core/vesta-apkg/**",
+  "core/vesta-parser/**",
+  "lib/vesta-flashcards/**",
+  "cli/vesta-flashcards-cli/**",
+  "apps/vesta-gui/src-tauri/src/commands/flashcards/**",
+  "apps/vesta-gui/src/lib/tabs/FlashcardsTab.svelte",
+  "apps/vesta-gui/src/lib/tabs/flashcards/**",
+  "apps/vesta-gui/src/lib/panels/AudioClipsPanel.svelte",
+  "apps/vesta-gui/src/lib/panels/SnapshotsPanel.svelte",
+  "apps/vesta-gui/src/lib/panels/VideoClipsPanel.svelte",
+  "apps/vesta-gui/src/lib/panels/CardFiltersPanel.svelte",
+  "apps/vesta-gui/src/lib/panels/FilesOutputPanel.svelte",
+  "apps/vesta-gui/src/lib/panels/GenerationStatusDisplay.svelte",
+  "apps/vesta-gui/src/lib/components/EpisodeTable.svelte",
+  "apps/vesta-gui/src/lib/components/EpisodeContextMenu.svelte",
+  "apps/vesta-gui/src/lib/components/MatchFileEvidence.svelte",
+  "apps/vesta-gui/src/lib/modals/EpisodeMediaSettingsModal.svelte",
+  "apps/vesta-gui/src/lib/modals/MatchDiagnosticsModal.svelte",
+  "apps/vesta-gui/src/lib/modals/FlashcardsPreviewModal.svelte",
+  "apps/vesta-gui/src/lib/workflows/flashcard*",
+  "apps/vesta-gui/src/lib/stores/previewStore*",
+  "apps/vesta-gui/src/lib/stores/smartMatchingStore*",
+  "apps/vesta-gui/src/lib/stores/exportFormatStore*",
+]
+rust_crates = ["vesta-apkg", "vesta-parser", "vesta-flashcards", "vesta-flashcards-cli", "vesta"]
+vitest_filters = ["Flashcards", "EpisodeMedia", "previewStore", "smartMatchingStore"]
+playwright_specs = ["flashcards.spec.mjs", "extended-workflows.spec.mjs"]
+
+[[rule]]
+id = "IMP-SYNC-CORE"
+area = "sync"
+feature_ids = ["SY-01", "SY-02"]
+paths = [
+  "lib/vesta-sync/**",
+  "cli/vesta-sync-cli/**",
+  "apps/vesta-gui/src-tauri/src/commands/sync.rs",
+  "apps/vesta-gui/src/lib/tabs/SyncTab.svelte",
+  "apps/vesta-gui/src/lib/tabs/sync/**",
+  "apps/vesta-gui/src/lib/panels/FilesPanel.svelte",
+  "apps/vesta-gui/src/lib/panels/SubtitleListPanel.svelte",
+  "apps/vesta-gui/src/lib/panels/SyncStatusPanel.svelte",
+  "apps/vesta-gui/src/lib/components/WizardCheckpoint.svelte",
+  "apps/vesta-gui/src/lib/workflows/sync*",
+]
+rust_crates = ["vesta-sync", "vesta-sync-cli", "vesta"]
+vitest_filters = ["SyncTab", "SubtitleListPanel", "WorkflowPanels", "sync"]
+playwright_specs = ["workflows.spec.mjs", "layout.spec.mjs"]
+
+[[rule]]
+id = "IMP-ALIGN"
+area = "sync"
+feature_ids = ["SY-03"]
+paths = [
+  "apps/vesta-gui/src/lib/tabs/AlignTab.svelte",
+  "apps/vesta-gui/src-tauri/src/commands/align*",
+]
+rust_crates = ["vesta-sync", "vesta-parser", "vesta"]
+vitest_filters = ["AlignTab", "i18nScanner"]
+playwright_specs = ["workflows.spec.mjs", "ipc-coverage.spec.mjs", "layout.spec.mjs"]
+
+[[rule]]
+id = "IMP-AUTOSYNC"
+area = "autosync"
+feature_ids = ["AS-01", "AS-02", "AS-03"]
+paths = [
+  "lib/vesta-autosync/**",
+  "cli/vesta-autosync-cli/**",
+  "apps/vesta-gui/src-tauri/src/commands/auto_sync.rs",
+  "apps/vesta-gui/src/lib/components/AutoSyncControls.svelte",
+  "apps/vesta-gui/src/lib/components/AutoSyncOverlay.svelte",
+  "apps/vesta-gui/src/lib/stores/autoSyncStore*",
+]
+rust_crates = ["vesta-autosync", "vesta-autosync-cli", "vesta"]
+vitest_filters = ["autoSyncStore", "SyncTab"]
+playwright_specs = ["workflows.spec.mjs"]
+
+[[rule]]
+id = "IMP-REFINE"
+area = "refine"
+feature_ids = ["RF-01", "RF-02", "RF-03", "RF-04"]
+paths = [
+  "lib/vesta-ankiconnect/**",
+  "lib/vesta-refine/**",
+  "cli/vesta-refine-cli/**",
+  "apps/vesta-gui/src-tauri/src/commands/refine*",
+  "apps/vesta-gui/src-tauri/src/commands/ankiconnect*",
+  "apps/vesta-gui/src/lib/tabs/RefineTab.svelte",
+  "apps/vesta-gui/src/lib/tabs/refine/**",
+]
+rust_crates = ["vesta-ankiconnect", "vesta-refine", "vesta-refine-cli", "vesta"]
+vitest_filters = ["RefineTab", "Refine"]
+playwright_specs = ["workflows.spec.mjs", "extended-workflows.spec.mjs", "layout.spec.mjs"]
+
+[[rule]]
+id = "IMP-TRANSLATE"
+area = "translate"
+feature_ids = ["TL-01", "TL-02", "TL-03", "TL-04"]
+paths = [
+  "lib/vesta-translate/**",
+  "cli/vesta-translate-cli/**",
+  "apps/vesta-gui/src-tauri/src/commands/translate.rs",
+  "apps/vesta-gui/src/lib/tabs/TranslateTab.svelte",
+  "apps/vesta-gui/src/lib/tabs/translate/**",
+  "apps/vesta-gui/src/lib/panels/TranslationPreviewPanel.svelte",
+  "apps/vesta-gui/src/lib/components/TranslationTiers.svelte",
+]
+rust_crates = ["vesta-translate", "vesta-translate-cli", "vesta"]
+vitest_filters = ["TranslateTab", "TranslationPreviewPanel", "WorkflowPanels"]
+playwright_specs = ["workflows.spec.mjs", "extended-workflows.spec.mjs", "layout.spec.mjs"]
+
+[[rule]]
+id = "IMP-TRANSCRIBE"
+area = "transcribe"
+feature_ids = ["TR-01", "TR-02", "TR-03", "TR-04"]
+paths = [
+  "lib/vesta-transcribe/**",
+  "cli/vesta-transcribe-cli/**",
+  "apps/vesta-gui/src-tauri/src/commands/transcribe*",
+  "apps/vesta-gui/src/lib/tabs/TranscribeTab.svelte",
+  "apps/vesta-gui/src/lib/tabs/transcribe/**",
+  "apps/vesta-gui/src/lib/panels/TranscriptionSegmentsPanel.svelte",
+  "apps/vesta-gui/src/lib/panels/WhisperSettingsPanel.svelte",
+  "apps/vesta-gui/src/lib/components/SpeechEngineSelector.svelte",
+  "apps/vesta-gui/src/lib/components/WhisperModel*",
+  "apps/vesta-gui/src/lib/components/TranscribeTiers.svelte",
+]
+rust_crates = ["vesta-transcribe", "vesta-transcribe-cli", "vesta"]
+vitest_filters = ["TranscribeTab", "WorkflowPanels", "whisper"]
+playwright_specs = ["workflows.spec.mjs", "extended-workflows.spec.mjs", "layout.spec.mjs"]
+
+[[rule]]
+id = "IMP-EXTRACT"
+area = "extract"
+feature_ids = ["EX-01", "EX-02", "EX-03", "EX-04", "EX-05"]
+paths = [
+  "core/vesta-parser/**",
+  "lib/vesta-extract/**",
+  "lib/vesta-ocr/**",
+  "cli/vesta-extract-cli/**",
+  "cli/vesta-ocr-cli/**",
+  "apps/vesta-gui/src-tauri/src/commands/extract*",
+  "apps/vesta-gui/src-tauri/src/commands/ocr*",
+  "apps/vesta-gui/src/lib/tabs/ExtractTab.svelte",
+  "apps/vesta-gui/src/lib/components/SubtitleTrackCard.svelte",
+  "apps/vesta-gui/src/lib/components/AspectRatioLock.svelte",
+  "apps/vesta-gui/src/lib/modals/SubtitlePreviewModal.svelte",
+  "apps/vesta-gui/src/lib/panels/IttSettingsPanel.svelte",
+  "apps/vesta-gui/src/lib/stores/ocrModelsStore*",
+]
+rust_crates = ["vesta-parser", "vesta-extract", "vesta-ocr", "vesta-extract-cli", "vesta-ocr-cli", "vesta"]
+vitest_filters = ["ExtractTab", "ocrModelsStore"]
+playwright_specs = ["workflows.spec.mjs", "extended-workflows.spec.mjs", "layout.spec.mjs"]
+
+[[rule]]
+id = "IMP-PLUGINS"
+area = "plugins"
+feature_ids = ["PL-01", "PL-02", "PL-03", "PL-04"]
+paths = [
+  "apps/vesta-gui/src-tauri/src/plugins/**",
+  "apps/vesta-gui/src-tauri/src/commands/plugins*",
+  "apps/vesta-gui/src/lib/tabs/PluginsTab.svelte",
+  "apps/vesta-gui/src/lib/tabs/plugins/**",
+  "apps/vesta-gui/src/lib/components/PluginRenderer.svelte",
+  "docs/examples/plugin-hello/**",
+  "docs/PLUGINS.md",
+]
+rust_crates = ["vesta"]
+vitest_filters = ["Plugin", "App.pluginFlashcards"]
+playwright_specs = ["extended-workflows.spec.mjs", "settings-and-modals.spec.mjs"]
+
+[[rule]]
+id = "IMP-CLI-MCP"
+area = "cli_mcp"
+feature_ids = ["CM-01", "CM-02"]
+paths = [
+  "cli/vesta-cli/**",
+  "cli/vesta-mcp/**",
+  "apps/vesta-gui/src-tauri/src/commands/info.rs",
+  "apps/vesta-gui/src/lib/components/McpSettingsCard.svelte",
+  "docs/MCP.md",
+]
+rust_crates = ["vesta-cli", "vesta-mcp", "vesta"]
+vitest_filters = ["SettingsPanels", "mcp"]
+playwright_specs = ["ipc-coverage.spec.mjs", "settings-and-modals.spec.mjs"]
+
+[[rule]]
+id = "IMP-SHARED-WORKSPACE"
+area = "gui_settings_i18n"
+feature_ids = ["GS-03", "GS-04", "SY-01", "SY-03", "EX-02", "EX-04", "RF-02", "TL-01", "TR-01"]
+paths = [
+  "apps/vesta-gui/src/app.css",
+  "apps/vesta-gui/src/App.svelte",
+  "apps/vesta-gui/src/lib/components/WorkflowWorkspace.svelte",
+  "apps/vesta-gui/src/lib/components/PathPickerField.svelte",
+  "apps/vesta-gui/src/lib/components/EmptyStatusLabel.svelte",
+  "apps/vesta-gui/src/lib/components/FooterActions.svelte",
+  "apps/vesta-gui/src/lib/components/SearchableSelect.svelte",
+]
+rust_crates = []
+vitest_filters = ["App.mounted", "SettingsPanels", "ExtractTab", "AlignTab", "SyncTab", "TranslateTab", "TranscribeTab", "Refine"]
+playwright_specs = ["layout.spec.mjs", "workflows.spec.mjs", "settings-and-modals.spec.mjs"]
+
+[[rule]]
+id = "IMP-GUI-SETTINGS-I18N"
+area = "gui_settings_i18n"
+feature_ids = ["GS-01", "GS-02", "GS-03", "GS-04", "GS-05", "GS-06"]
+paths = [
+  "apps/vesta-gui/src/lib/i18n/**",
+  "apps/vesta-gui/src/lib/tabs/SettingsTab.svelte",
+  "apps/vesta-gui/src/lib/tabs/ShortcutsTab.svelte",
+  "apps/vesta-gui/src/lib/tabs/ExperimentalTab.svelte",
+  "apps/vesta-gui/src/lib/panels/OverviewSettingsPanel.svelte",
+  "apps/vesta-gui/src/lib/panels/AnkiSettingsPanel.svelte",
+  "apps/vesta-gui/src/lib/panels/DiagnosticsSettingsPanel.svelte",
+  "apps/vesta-gui/src/lib/panels/SupportLogsPanel.svelte",
+  "apps/vesta-gui/src/lib/panels/ApiKeysCard.svelte",
+  "apps/vesta-gui/src/lib/modals/FirstRunSetupModal.svelte",
+  "apps/vesta-gui/src/lib/modals/PathPreviewModal.svelte",
+  "apps/vesta-gui/src/lib/modals/SupportModal.svelte",
+  "apps/vesta-gui/src/lib/stores/aiStore*",
+  "apps/vesta-gui/src/lib/stores/vestaConfig*",
+  "apps/vesta-gui/src/lib/components/Sidebar*",
+  "apps/vesta-gui/src/lib/components/NotificationInbox.svelte",
+  "apps/vesta-gui/src/lib/components/ShortcutOverlay.svelte",
+]
+rust_crates = ["vesta"]
+vitest_filters = ["catalogs", "i18nScanner", "Settings", "ShortcutsTab", "vestaConfig", "aiStore"]
+playwright_specs = ["settings-and-modals.spec.mjs", "layout.spec.mjs", "workflows.spec.mjs", "ipc-coverage.spec.mjs"]
+
+[[rule]]
+id = "IMP-MEDIA-SECURITY"
+area = "media_security"
+feature_ids = ["MS-01", "MS-02", "MS-03"]
+paths = [
+  "core/vesta-download/**",
+  "apps/vesta-gui/src-tauri/src/media_server.rs",
+  "apps/vesta-gui/src-tauri/src/commands/media.rs",
+  "apps/vesta-gui/src-tauri/src/http_fetch.rs",
+  "apps/vesta-gui/src-tauri/src/state/**",
+  "apps/vesta-gui/src/lib/workflows/media*",
+]
+rust_crates = ["vesta-download", "vesta"]
+vitest_filters = ["SyncTab"]
+playwright_specs = ["ipc-coverage.spec.mjs", "workflows.spec.mjs"]
+
+[[rule]]
+id = "IMP-QUALITY-CI"
+area = "quality_ci"
+feature_ids = ["QC-01", "QC-02", "QC-03", "QC-04"]
+paths = [
+  "build-scripts/**",
+  "scorecard/**",
+  ".github/workflows/**",
+  "apps/vesta-gui/browser-tests/**",
+  "apps/vesta-gui/scripts/**",
+]
+rust_crates = []
+vitest_filters = ["i18nScanner", "catalogs"]
+playwright_specs = ["layout.spec.mjs"]

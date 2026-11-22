@@ -155,6 +155,7 @@ def main():
         subprocess.run(command, cwd=cwd, check=True)
         timings.append({'command': command, 'seconds': round(time.monotonic() - start, 3)})
     print(json.dumps({'checks': timings}, indent=2))
+    subprocess.run(['python3', 'build-scripts/scorecard_db.py', 'impact', '--since', 'origin/dev'], cwd=ROOT, check=False)
     check_target_footprint(prune=args.prune_target, max_age_days=args.prune_days)
 
 if __name__ == '__main__': main()
