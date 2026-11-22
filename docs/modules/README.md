@@ -11,18 +11,18 @@ as a standalone binary or as a Rust dependency — without dragging in the GUI.
 
 | Module | What it does | Library | CLI binary | Heavy runtime |
 |---|---|---|---|---|
-| [srt-flashcards](srt-flashcards.md) | Flashcard generation and media cutting | `lib/srt-flashcards` | `vesta-flashcards` | FFmpeg/ffprobe |
-| [srt-parser](srt-parser.md) | Parse/write SRT with charset detection | `core/srt-parser` | — | — |
-| [srt-download](srt-download.md) | Cancellable atomic font/model downloads | `core/srt-download` | — | HTTP endpoint |
-| [srt-apkg](srt-apkg.md) | Anki package (`.apkg`) archive generator & reader | `core/srt-apkg` | — | — |
-| [srt-extract](srt-extract.md) | Convert parsed subtitle data; discover/extract embedded text tracks | `lib/srt-extract` | `vesta-extract` | FFmpeg/ffprobe for embedded tracks |
-| [srt-ocr](srt-ocr.md) | Extract and OCR bitmap subtitle tracks (PGS, VobSub, DVB, XSUB) | `lib/srt-ocr` | `vesta-ocr` | FFmpeg/ffprobe + Vision LLM / model endpoint |
-| [srt-translate](srt-translate.md) | LLM subtitle translation with tiered failover | `lib/srt-translate` | `vesta-translate` | HTTP APIs or local endpoint |
-| [srt-sync](srt-sync.md) | Anchor-based subtitle re-timing engine | `lib/srt-sync` | `vesta-sync` | — |
-| [srt-autosync](srt-autosync.md) | Automatic alignment via Whisper/VAD anchors | `lib/srt-autosync` | `vesta-autosync` | FFmpeg + Whisper model |
-| [srt-transcribe](srt-transcribe.md) | Media → SRT with Whisper/VAD or cloud STT | `lib/srt-transcribe` | `vesta-transcribe` | FFmpeg + model, or HTTP API |
-| [srt-ankiconnect](srt-ankiconnect.md) | AnkiConnect HTTP client | `lib/srt-ankiconnect` | — | Anki + AnkiConnect |
-| [srt-refine](srt-refine.md) | LLM enrichment of TSV/APKG decks | `lib/srt-refine` | `vesta-refine` | HTTP API or local endpoint |
+| [vesta-flashcards](vesta-flashcards.md) | Flashcard generation and media cutting | `lib/vesta-flashcards` | `vesta-flashcards` | FFmpeg/ffprobe |
+| [vesta-parser](vesta-parser.md) | Parse/write SRT with charset detection | `core/vesta-parser` | — | — |
+| [vesta-download](vesta-download.md) | Cancellable atomic font/model downloads | `core/vesta-download` | — | HTTP endpoint |
+| [vesta-apkg](vesta-apkg.md) | Anki package (`.apkg`) archive generator & reader | `core/vesta-apkg` | — | — |
+| [vesta-extract](vesta-extract.md) | Convert parsed subtitle data; discover/extract embedded text tracks | `lib/vesta-extract` | `vesta-extract` | FFmpeg/ffprobe for embedded tracks |
+| [vesta-ocr](vesta-ocr.md) | Extract and OCR bitmap subtitle tracks (PGS, VobSub, DVB, XSUB) | `lib/vesta-ocr` | `vesta-ocr` | FFmpeg/ffprobe + Vision LLM / model endpoint |
+| [vesta-translate](vesta-translate.md) | LLM subtitle translation with tiered failover | `lib/vesta-translate` | `vesta-translate` | HTTP APIs or local endpoint |
+| [vesta-sync](vesta-sync.md) | Anchor-based subtitle re-timing engine | `lib/vesta-sync` | `vesta-sync` | — |
+| [vesta-autosync](vesta-autosync.md) | Automatic alignment via Whisper/VAD anchors | `lib/vesta-autosync` | `vesta-autosync` | FFmpeg + Whisper model |
+| [vesta-transcribe](vesta-transcribe.md) | Media → SRT with Whisper/VAD or cloud STT | `lib/vesta-transcribe` | `vesta-transcribe` | FFmpeg + model, or HTTP API |
+| [vesta-ankiconnect](vesta-ankiconnect.md) | AnkiConnect HTTP client | `lib/vesta-ankiconnect` | — | Anki + AnkiConnect |
+| [vesta-refine](vesta-refine.md) | LLM enrichment of TSV/APKG decks | `lib/vesta-refine` | `vesta-refine` | HTTP API or local endpoint |
 
 The authoritative dependency direction is `apps/cli → lib → core`; lower
 layers never import desktop code. See [the architecture guide](../ARCHITECTURE.md)
@@ -44,7 +44,7 @@ The optional `vesta-mcp` server lets compatible assistants inspect subtitles, li
 
 ```bash
 git clone https://github.com/pierspad/vesta && cd vesta
-cargo build --release -p srt-flashcards-cli
+cargo build --release -p vesta-flashcards-cli
 ./target/release/vesta-flashcards --help
 ```
 
@@ -53,7 +53,7 @@ cargo build --release -p srt-flashcards-cli
 
 ```toml
 [dependencies]
-srt-flashcards = { git = "https://github.com/pierspad/vesta" }
+vesta-flashcards = { git = "https://github.com/pierspad/vesta" }
 ```
 
 Vendoring requires the crate's dependency closure, not only its folder:

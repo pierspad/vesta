@@ -11,5 +11,5 @@ command -v python3 >/dev/null
 command -v ffmpeg >/dev/null
 command -v ffprobe >/dev/null
 cd -- "$repo_dir"
-cargo build --release -p srt-flashcards-cli
+cargo build --release -p vesta-flashcards-cli
 exec python3 "$benchmark_dir/verify_native.py" "$@"

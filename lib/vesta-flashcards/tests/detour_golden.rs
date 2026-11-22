@@ -1,0 +1,493 @@
+//! Golden-file integration tests based on the committed Detour (1945) fixtures.
+//!
+//! Fixture layout (all committed, small):
+//!   Test_Subs/FILM/Detour-en.srt / Detour-it.srt          full-film subtitles
+//!   Test_Subs/fixtures/detour/detour_clip_90s.mp4         90s clip, 320x240 (~1.3MB)
+//!   Test_Subs/fixtures/detour/detour_clip_90s_{en,it}.srt subtitles for the clip window
+//!   Test_Subs/fixtures/detour/golden_detour_film.tsv      reference TSV (generated via
+//!                                                         `vesta-flashcards generate -f tsv`)
+//!
+//! The golden TSV was produced by the CLI itself and the pipeline is fully
+//! deterministic for SRT-only runs, so any diff means the parse/match/filter/
+//! export behaviour changed — the assertion messages point at the exact line.
+
+use tokio_util::sync::CancellationToken;
+use vesta_flashcards::{
+    AudioFormat, ContextConfig, FieldNamesConfig, FlashcardConfig, MediaTools, OutputFields,
+    SnapshotFormat, SubtitleFilters, generate, preview,
+};
+
+fn repo_root() -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+}
+
+fn film(name: &str) -> String {
+    repo_root()
+        .join("Test_Subs")
+        .join("FILM")
+        .join(name)
+        .to_string_lossy()
+        .into_owned()
+}
+
+fn fixture(name: &str) -> String {
+    repo_root()
+        .join("Test_Subs")
+        .join("fixtures")
+        .join("detour")
+        .join(name)
+        .to_string_lossy()
+        .into_owned()
+}
+
+fn ffmpeg_available() -> bool {
+    std::process::Command::new("ffmpeg")
+        .arg("-version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+/// Mirror of `vesta-flashcards-cli generate` defaults (see GenerateArgs::to_config):
+/// the golden TSV was generated with the CLI, so tests must build the same config.
+fn cli_like_config(
+    target: String,
+    native: Option<String>,
+    video: Option<String>,
+    output_dir: String,
+    deck: &str,
+    format: &str,
+    media: bool,
+) -> FlashcardConfig {
+    FlashcardConfig {
+        target_subs_path: target,
+        native_subs_path: native.clone(),
+        video_path: video,
+        audio_path: None,
+        output_dir,
+        filters: SubtitleFilters::default(),
+        context: ContextConfig::default(),
+        generate_audio: media,
+        generate_snapshots: media,
+        generate_video_clips: false,
+        deck_name: deck.to_string(),
+        episode_number: 1,
+        export_format: Some(format.to_string()),
+        field_names: Some(FieldNamesConfig::default()),
+        output_fields: OutputFields {
+            include_audio: media,
+            include_snapshot: media,
+            include_video: false,
+            include_subs2: native.is_some(),
+            ..OutputFields::default()
+        },
+        cpu_cores: Some(2),
+        ..FlashcardConfig::default()
+    }
+}
+
+async fn run_generate(config: FlashcardConfig) -> vesta_flashcards::FlashcardResult {
+    let tools = MediaTools::new("ffmpeg", "ffprobe");
+    let progress = |_ev| {};
+    generate(config, tools, CancellationToken::new(), &progress)
+        .await
+        .expect("generate() returned Err — the flashcard pipeline itself failed")
+}
+
+// ─── 1. Full-film golden TSV ────────────────────────────────────────────────
+
+#[tokio::test]
+async fn film_tsv_matches_golden() {
+    let out = tempfile::tempdir().expect("create tempdir");
+    let config = cli_like_config(
+        film("Detour-en.srt"),
+        Some(film("Detour-it.srt")),
+        None,
+        out.path().to_string_lossy().into_owned(),
+        "DetourGolden",
+        "tsv",
+        false,
+    );
+
+    let result = run_generate(config).await;
+    assert!(
+        result.success,
+        "SRT-only TSV generation on Detour film failed: {:?}",
+        result.message
+    );
+    assert_eq!(
+        result.cards_generated, 1018,
+        "Detour film should produce 1018 cards (one per subtitle line): the \
+         parse or match stage changed behaviour"
+    );
+
+    let tsv_path = out.path().join("DetourGolden.tsv");
+    let generated = std::fs::read_to_string(&tsv_path)
+        .unwrap_or_else(|e| panic!("generated TSV missing at {}: {e}", tsv_path.display()));
+    let golden = std::fs::read_to_string(fixture("golden_detour_film.tsv"))
+        .expect("golden_detour_film.tsv fixture missing — regenerate it with the CLI");
+
+    let gen_lines: Vec<&str> = generated.lines().collect();
+    let gold_lines: Vec<&str> = golden.lines().collect();
+    assert_eq!(
+        gen_lines.len(),
+        gold_lines.len(),
+        "TSV row count changed: golden has {} rows, this build produced {}",
+        gold_lines.len(),
+        gen_lines.len()
+    );
+    for (i, (got, want)) in gen_lines.iter().zip(gold_lines.iter()).enumerate() {
+        assert_eq!(
+            got,
+            want,
+            "TSV row {} differs from golden.\n  expected: {}\n  got:      {}\n\
+             If the change is intentional, regenerate the golden with:\n  \
+             vesta-flashcards generate -t Test_Subs/FILM/Detour-en.srt \
+             -n Test_Subs/FILM/Detour-it.srt -o /tmp/g -f tsv -d DetourGolden \
+             --no-audio --no-snapshots --no-video && \
+             cp /tmp/g/DetourGolden.tsv Test_Subs/fixtures/detour/golden_detour_film.tsv",
+            i + 1,
+            want,
+            got
+        );
+    }
+}
+
+// ─── 2. Clip pipeline: line counts stay in lockstep ─────────────────────────
+
+#[test]
+fn clip_preview_counts() {
+    let config = cli_like_config(
+        fixture("detour_clip_90s_en.srt"),
+        Some(fixture("detour_clip_90s_it.srt")),
+        None,
+        String::new(),
+        "DetourClip",
+        "tsv",
+        false,
+    );
+    let lines = preview(&config).expect("preview on the 90s clip fixtures failed");
+    assert_eq!(
+        lines.len(),
+        26,
+        "the 90s Detour clip window contains 26 subtitle lines; parser or span \
+         handling changed (got {})",
+        lines.len()
+    );
+    let matched = lines.iter().filter(|l| l.subs2_text.is_some()).count();
+    assert!(
+        matched >= 20,
+        "at least 20 of 26 clip lines should match an Italian native line by \
+         time-overlap, got {matched}: the subtitle matcher regressed"
+    );
+}
+
+// ─── 3. Full media pipeline + APKG structure on the committed clip ──────────
+
+#[tokio::test]
+async fn clip_apkg_full_media_pipeline() {
+    if !ffmpeg_available() {
+        eprintln!("[skip] clip_apkg_full_media_pipeline: ffmpeg not found in PATH");
+        return;
+    }
+
+    let out = tempfile::tempdir().expect("create tempdir");
+    let config = cli_like_config(
+        fixture("detour_clip_90s_en.srt"),
+        Some(fixture("detour_clip_90s_it.srt")),
+        Some(fixture("detour_clip_90s.mp4")),
+        out.path().to_string_lossy().into_owned(),
+        "DetourClip",
+        "apkg",
+        true,
+    );
+
+    let result = run_generate(config).await;
+    assert!(
+        result.success,
+        "APKG generation with media on the 90s clip failed: {:?}",
+        result.message
+    );
+    assert_eq!(
+        result.cards_generated, 26,
+        "expected 26 cards from the clip"
+    );
+    assert_eq!(
+        result.audio_clips, 26,
+        "every card should get an audio clip (ffmpeg extraction failed for some lines)"
+    );
+    assert_eq!(
+        result.snapshots, 26,
+        "every card should get a snapshot (ffmpeg frame extraction failed for some lines)"
+    );
+
+    // ── Inspect the produced .apkg ──
+    let apkg_path = out.path().join("DetourClip.apkg");
+    let file = std::fs::File::open(&apkg_path)
+        .unwrap_or_else(|e| panic!("missing .apkg at {}: {e}", apkg_path.display()));
+    let mut zip = zip::ZipArchive::new(file).expect("apkg is not a valid zip archive");
+
+    // Media manifest: JSON map { "0": "filename", ... } — one entry per clip+snapshot.
+    let media_manifest: serde_json::Value = {
+        let entry = zip
+            .by_name("media")
+            .expect("apkg has no `media` manifest entry — Anki cannot import it");
+        serde_json::from_reader(entry).expect("`media` manifest is not valid JSON")
+    };
+    let media_count = media_manifest
+        .as_object()
+        .expect("`media` manifest must be a JSON object")
+        .len();
+    assert_eq!(
+        media_count, 52,
+        "expected 52 media files in the apkg (26 audio + 26 snapshots), found {media_count}"
+    );
+
+    // Database: notes/cards/deck must be consistent.
+    let tmp = tempfile::tempdir().expect("create tempdir for db");
+    let db_path = tmp.path().join("collection.anki2");
+    {
+        let mut entry = zip
+            .by_name("collection.anki2")
+            .expect("apkg has no collection.anki2 database");
+        let mut outf = std::fs::File::create(&db_path).expect("create temp db file");
+        std::io::copy(&mut entry, &mut outf).expect("extract collection.anki2");
+    }
+    let conn = rusqlite::Connection::open(&db_path).expect("open collection.anki2");
+
+    let notes: i64 = conn
+        .query_row("SELECT COUNT(*) FROM notes", [], |r| r.get(0))
+        .expect("query notes count");
+    assert_eq!(
+        notes, 26,
+        "collection.anki2 should contain 26 notes, found {notes}"
+    );
+
+    let cards: i64 = conn
+        .query_row("SELECT COUNT(*) FROM cards", [], |r| r.get(0))
+        .expect("query cards count");
+    assert_eq!(
+        cards, 26,
+        "collection.anki2 should contain 26 cards, found {cards}"
+    );
+
+    let decks_json: String = conn
+        .query_row("SELECT decks FROM col", [], |r| r.get(0))
+        .expect("read decks JSON from col table");
+    assert!(
+        decks_json.contains("DetourClip"),
+        "deck name 'DetourClip' not found in the collection's deck registry"
+    );
+
+    // Every note must reference its media: [sound:...] on audio, <img on snapshot.
+    let mut with_sound = 0;
+    let mut with_img = 0;
+    let mut stmt = conn
+        .prepare("SELECT flds FROM notes")
+        .expect("prepare notes query");
+    let rows = stmt
+        .query_map([], |r| r.get::<_, String>(0))
+        .expect("iterate notes");
+    for flds in rows {
+        let flds = flds.expect("read note fields");
+        if flds.contains("[sound:") {
+            with_sound += 1;
+        }
+        if flds.contains("<img") {
+            with_img += 1;
+        }
+    }
+    assert_eq!(
+        with_sound, 26,
+        "every note should embed a [sound:...] tag, only {with_sound}/26 do"
+    );
+    assert_eq!(
+        with_img, 26,
+        "every note should embed an <img> snapshot, only {with_img}/26 do"
+    );
+}
+
+// ─── 4. Media references must resolve to files that were actually written ───
+
+/// Pull filenames out of `[sound:NAME]` and `<img src="NAME">` references.
+fn extract_media_refs(haystack: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for chunk in haystack.split("[sound:").skip(1) {
+        if let Some(name) = chunk.split(']').next() {
+            out.push(name.to_string());
+        }
+    }
+    for chunk in haystack.split("<img src=\"").skip(1) {
+        if let Some(name) = chunk.split('"').next() {
+            out.push(name.to_string());
+        }
+    }
+    out
+}
+
+fn assert_format_extensions(names: &[String], what: &str) {
+    assert!(
+        names.iter().any(|f| f.ends_with(".webp")),
+        "{what}: no .webp snapshot present; got {names:?}"
+    );
+    assert!(
+        names.iter().any(|f| f.ends_with(".opus")),
+        "{what}: no .opus clip present; got {names:?}"
+    );
+    assert!(
+        !names
+            .iter()
+            .any(|f| f.ends_with(".jpg") || f.ends_with(".mp3")),
+        "{what}: a hardcoded jpg/mp3 path survived the format switch: {names:?}"
+    );
+}
+
+fn webp_opus_config(out: &std::path::Path, deck: &str, export_format: &str) -> FlashcardConfig {
+    let mut config = cli_like_config(
+        fixture("detour_clip_90s_en.srt"),
+        Some(fixture("detour_clip_90s_it.srt")),
+        Some(fixture("detour_clip_90s.mp4")),
+        out.to_string_lossy().into_owned(),
+        deck,
+        export_format,
+        true,
+    );
+    config.snapshot_format = SnapshotFormat::Webp;
+    config.audio_format = AudioFormat::Opus;
+    config.audio_bitrate = 64;
+    config
+}
+
+/// The generator and the TSV exporter each build the per-card media filename.
+/// If they disagree, generation still "succeeds" — the TSV just points at files
+/// that do not exist. Runs the non-default formats, because a hardcoded `.jpg`
+/// or `.mp3` left behind anywhere is what would slip through otherwise.
+#[tokio::test]
+async fn tsv_media_references_resolve_for_non_default_formats() {
+    if !ffmpeg_available() {
+        eprintln!("[skip] tsv_media_references_resolve_for_non_default_formats: no ffmpeg");
+        return;
+    }
+
+    let out = tempfile::tempdir().expect("create tempdir");
+    let deck = "DetourFmtTsv";
+    let result = run_generate(webp_opus_config(out.path(), deck, "tsv")).await;
+    assert!(
+        result.success,
+        "TSV generation with WebP+Opus failed: {:?}",
+        result.message
+    );
+    assert!(
+        result.output_size_bytes > 0,
+        "TSV run reported output_size_bytes = 0 despite writing media"
+    );
+
+    let media_dir = out.path().join(format!("{deck}.media"));
+    let written: Vec<String> = std::fs::read_dir(&media_dir)
+        .unwrap_or_else(|e| panic!("media dir {} unreadable: {e}", media_dir.display()))
+        .filter_map(Result::ok)
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_format_extensions(&written, "TSV media dir");
+
+    let tsv = std::fs::read_to_string(out.path().join(format!("{deck}.tsv")))
+        .expect("generated TSV missing");
+    let refs = extract_media_refs(&tsv);
+    assert!(!refs.is_empty(), "TSV contains no media references at all");
+    for r in &refs {
+        assert!(
+            written.iter().any(|w| w == r),
+            "TSV references media `{r}` that was never written. Present: {written:?}"
+        );
+    }
+}
+
+/// Same guarantee for apkg, where the chain is longer: a note's `[sound:]` /
+/// `<img>` reference must appear in the `media` manifest, and that manifest
+/// entry must correspond to real bytes inside the archive. A break anywhere
+/// along that chain imports into Anki cleanly and plays nothing.
+#[tokio::test]
+async fn apkg_media_references_resolve_for_non_default_formats() {
+    if !ffmpeg_available() {
+        eprintln!("[skip] apkg_media_references_resolve_for_non_default_formats: no ffmpeg");
+        return;
+    }
+
+    let out = tempfile::tempdir().expect("create tempdir");
+    let deck = "DetourFmtApkg";
+    let result = run_generate(webp_opus_config(out.path(), deck, "apkg")).await;
+    assert!(
+        result.success,
+        "APKG generation with WebP+Opus failed: {:?}",
+        result.message
+    );
+
+    let apkg_path = out.path().join(format!("{deck}.apkg"));
+    assert_eq!(
+        result.output_size_bytes,
+        std::fs::metadata(&apkg_path).expect("stat apkg").len(),
+        "output_size_bytes should be the size of the apkg actually written"
+    );
+
+    let file = std::fs::File::open(&apkg_path).expect("generated apkg missing");
+    let mut zip = zip::ZipArchive::new(file).expect("apkg is not a valid zip");
+
+    let entry_names: Vec<String> = (0..zip.len())
+        .map(|i| {
+            zip.by_index(i)
+                .expect("zip entry")
+                .name()
+                .expect("zip entry name")
+                .to_string()
+        })
+        .collect();
+
+    let manifest: serde_json::Value = {
+        let entry = zip.by_name("media").expect("apkg has no media manifest");
+        serde_json::from_reader(entry).expect("media manifest is not JSON")
+    };
+    let manifest = manifest.as_object().expect("manifest is a JSON object");
+
+    let manifest_names: Vec<String> = manifest
+        .values()
+        .map(|v| v.as_str().expect("manifest values are strings").to_string())
+        .collect();
+    assert_format_extensions(&manifest_names, "apkg manifest");
+
+    // Each manifest key is the name of the archive entry holding those bytes.
+    for key in manifest.keys() {
+        assert!(
+            entry_names.iter().any(|n| n == key),
+            "manifest lists slot `{key}` but the archive has no such entry"
+        );
+    }
+
+    let tmp = tempfile::tempdir().expect("tempdir for db");
+    let db_path = tmp.path().join("collection.anki2");
+    {
+        let mut entry = zip
+            .by_name("collection.anki2")
+            .expect("no collection.anki2");
+        let mut outf = std::fs::File::create(&db_path).expect("create db file");
+        std::io::copy(&mut entry, &mut outf).expect("extract db");
+    }
+    let conn = rusqlite::Connection::open(&db_path).expect("open db");
+    let mut stmt = conn.prepare("SELECT flds FROM notes").expect("prepare");
+    let mut refs = Vec::new();
+    let rows = stmt
+        .query_map([], |r| r.get::<_, String>(0))
+        .expect("query");
+    for flds in rows {
+        refs.extend(extract_media_refs(&flds.expect("read fields")));
+    }
+
+    assert!(!refs.is_empty(), "apkg notes contain no media references");
+    for r in &refs {
+        assert!(
+            manifest_names.iter().any(|m| m == r),
+            "a note references media `{r}` that is not in the apkg manifest"
+        );
+    }
+}

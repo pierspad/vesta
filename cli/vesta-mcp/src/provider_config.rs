@@ -4,9 +4,9 @@
 //! Resolved profiles intentionally do not implement `Debug` or `Serialize`.
 
 use serde::Deserialize;
-use srt_transcribe::pipeline::TranscriptionConfig;
-use srt_translate::TierEntry;
 use std::{collections::BTreeMap, path::Path};
+use vesta_transcribe::pipeline::TranscriptionConfig;
+use vesta_translate::TierEntry;
 
 #[derive(Clone)]
 pub struct TranslationProfile {
@@ -323,7 +323,7 @@ fn resolve_translation(
             let is_local_ocr = matches!(provider.as_str(), "local_ocr" | "paddle");
             let model = if is_local_ocr {
                 let trimmed = entry.model.trim();
-                if srt_ocr::model::validate_model_id(trimmed).is_err() {
+                if vesta_ocr::model::validate_model_id(trimmed).is_err() {
                     return Err("Local OCR model must be a catalog OCR model ID".into());
                 }
                 trimmed.to_string()
@@ -389,7 +389,7 @@ fn resolve_transcription(
     }
     let is_local = matches!(provider.as_str(), "local" | "whisper" | "local_whisper");
     let is_custom = matches!(provider.as_str(), "custom" | "custom_whisper");
-    if is_local && srt_transcribe::model::validate_model_id(&raw.model).is_err() {
+    if is_local && vesta_transcribe::model::validate_model_id(&raw.model).is_err() {
         return Err("Local transcription model must be a catalog Whisper model ID".into());
     }
     let api_key = api_key(raw.api_key_env, !is_local && !is_custom, resolve_env)?;

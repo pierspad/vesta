@@ -117,7 +117,7 @@ def main():
     parser.add_argument('--cancel-timeout', type=float, default=15)
     args = parser.parse_args()
     if not args.binary.is_file():
-        parser.error('Build first: cargo build -p srt-transcribe-cli --features vulkan')
+        parser.error('Build first: cargo build -p vesta-transcribe-cli --features vulkan')
     if args.timeout <= 0 or args.cancel_timeout <= 0:
         parser.error('Timeouts must be positive')
     if args.output_dir:

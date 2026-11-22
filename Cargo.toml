@@ -4,7 +4,7 @@ members = [
     "core/*",
     "lib/*",
     "cli/*",
-    "apps/srt-gui/src-tauri",
+    "apps/vesta-gui/src-tauri",
     "apps/whisper-bench/src-tauri",
 ]
 
@@ -31,18 +31,18 @@ chardetng = "1"
 
 # Internal crates
 vesta-cli = { path = "./cli/vesta-cli", version = "0.35.0-dev.2" }
-srt-download = { path = "./core/srt-download", version = "0.35.0-dev.2" }
-srt-parser = { path = "./core/srt-parser", version = "0.35.0-dev.2" }
-srt-apkg = { path = "./core/srt-apkg", version = "0.35.0-dev.2" }
-srt-extract = { path = "./lib/srt-extract", version = "0.35.0-dev.2" }
-srt-translate = { path = "./lib/srt-translate", version = "0.35.0-dev.2" }
-srt-sync = { path = "./lib/srt-sync", version = "0.35.0-dev.2" }
-srt-autosync = { path = "./lib/srt-autosync", version = "0.35.0-dev.2" }
-srt-flashcards = { path = "./lib/srt-flashcards", version = "0.35.0-dev.2" }
-srt-refine = { path = "./lib/srt-refine", version = "0.35.0-dev.2" }
-srt-transcribe = { path = "./lib/srt-transcribe", version = "0.35.0-dev.2" }
-srt-ankiconnect = { path = "./lib/srt-ankiconnect", version = "0.35.0-dev.2" }
-srt-ocr = { path = "./lib/srt-ocr", version = "0.35.0-dev.2" }
+vesta-download = { path = "./core/vesta-download", version = "0.35.0-dev.2" }
+vesta-parser = { path = "./core/vesta-parser", version = "0.35.0-dev.2" }
+vesta-apkg = { path = "./core/vesta-apkg", version = "0.35.0-dev.2" }
+vesta-extract = { path = "./lib/vesta-extract", version = "0.35.0-dev.2" }
+vesta-translate = { path = "./lib/vesta-translate", version = "0.35.0-dev.2" }
+vesta-sync = { path = "./lib/vesta-sync", version = "0.35.0-dev.2" }
+vesta-autosync = { path = "./lib/vesta-autosync", version = "0.35.0-dev.2" }
+vesta-flashcards = { path = "./lib/vesta-flashcards", version = "0.35.0-dev.2" }
+vesta-refine = { path = "./lib/vesta-refine", version = "0.35.0-dev.2" }
+vesta-transcribe = { path = "./lib/vesta-transcribe", version = "0.35.0-dev.2" }
+vesta-ankiconnect = { path = "./lib/vesta-ankiconnect", version = "0.35.0-dev.2" }
+vesta-ocr = { path = "./lib/vesta-ocr", version = "0.35.0-dev.2" }
 
 [profile.dev]
 opt-level = 0

@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 urls = {}
 for name in ('llmProviders', 'transcribeProviders'):
-    source = (ROOT / f'apps/srt-gui/src/lib/config/{name}.ts').read_text()
+    source = (ROOT / f'apps/vesta-gui/src/lib/config/{name}.ts').read_text()
     for field, url in re.findall(r'(apiKeyUrl|documentationUrl|defaultApiUrl|defaultUrl): "(https://[^" ]+)"', source):
         if field in ('defaultApiUrl', 'defaultUrl'):
             # Only discovery requests; never upload audio or run inference.

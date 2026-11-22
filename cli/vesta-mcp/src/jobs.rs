@@ -2,13 +2,13 @@ use crate::paths::Paths;
 use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::Value;
-use srt_flashcards::{FlashcardConfig, MediaTools};
 use std::{
     collections::BTreeMap,
     sync::{Arc, Mutex, MutexGuard},
 };
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
+use vesta_flashcards::{FlashcardConfig, MediaTools};
 
 const HISTORY_LIMIT: usize = 64;
 
@@ -54,7 +54,7 @@ struct State {
 pub enum OcrTarget {
     BitmapTrack(u32),
     HardcodedRoi {
-        roi: srt_ocr::VideoRoi,
+        roi: vesta_ocr::VideoRoi,
         sample_fps: f64,
     },
 }
@@ -77,7 +77,7 @@ impl Jobs {
             "flashcards",
             move |output, cancel, progress| async move {
                 config.output_dir = output.to_string_lossy().into_owned();
-                let result = srt_flashcards::generate(
+                let result = vesta_flashcards::generate(
                     config,
                     MediaTools::default(),
                     cancel,
@@ -105,15 +105,15 @@ impl Jobs {
         paths: &Paths,
     ) -> Result<JobSnapshot, String> {
         self.start_work(paths, "translation", move |output, cancel, progress| async move {
-            let subtitles = tokio::task::spawn_blocking(move || srt_parser::SrtParser::parse_file(input))
+            let subtitles = tokio::task::spawn_blocking(move || vesta_parser::SrtParser::parse_file(input))
                 .await.map_err(|_| "Cannot read subtitle input".to_string())?
                 .map_err(|e| format!("Cannot parse SRT input: {e}"))?;
             if cancel.is_cancelled() { return Err("Translation cancelled".into()); }
             if subtitles.is_empty() { return Err("Input contains no subtitles".into()); }
             let source = subtitles.clone();
-            let pool = srt_translate::build_pool(&profile.tiers)?;
+            let pool = vesta_translate::build_pool(&profile.tiers)?;
             let path = output.join("translated.srt");
-            let translated = srt_translate::translate_subtitles_tiered_cancellable(
+            let translated = vesta_translate::translate_subtitles_tiered_cancellable(
                 pool, subtitles, &language, profile.batch_size, profile.resume_overlap,
                 profile.title_context.as_deref(), &path,
                 move |event| progress(serde_json::json!({
@@ -122,7 +122,7 @@ impl Jobs {
                     "batch_start": event.batch_start, "batch_end": event.batch_end,
                 })), cancel,
             ).await.map_err(|e| e.to_string())?;
-            let missing = srt_translate::get_missing_or_incorrect_subtitle_ids(&source, &translated);
+            let missing = vesta_translate::get_missing_or_incorrect_subtitle_ids(&source, &translated);
             if !missing.is_empty() {
                 return Err(format!("Translation incomplete: {} subtitles remain; any completed checkpoints are retained in the job output directory", missing.len()));
             }
@@ -152,7 +152,7 @@ impl Jobs {
                 if cancel.is_cancelled() {
                     return Err("Transcription cancelled".into());
                 }
-                let callbacks = srt_transcribe::pipeline::PipelineCallbacks {
+                let callbacks = vesta_transcribe::pipeline::PipelineCallbacks {
                     on_progress: Some(Arc::new(move |event| {
                         if let Ok(value) = serde_json::to_value(event) {
                             progress(value);
@@ -160,7 +160,7 @@ impl Jobs {
                     })),
                     on_segment: None,
                 };
-                let result = srt_transcribe::pipeline::transcribe_to_srt_with_download_policy(
+                let result = vesta_transcribe::pipeline::transcribe_to_srt_with_download_policy(
                     &config,
                     "ffmpeg",
                     callbacks,
@@ -189,7 +189,7 @@ impl Jobs {
             }
             let input_path = std::path::PathBuf::from(input);
             let output_path = output.join("ocr.srt");
-            let callbacks = srt_ocr::OcrCallbacks {
+            let callbacks = vesta_ocr::OcrCallbacks {
                 on_progress: Some(Arc::new(move |event| {
                     if let Ok(value) = serde_json::to_value(event) {
                         progress(value);
@@ -199,7 +199,7 @@ impl Jobs {
             };
             let outcome = match target {
                 OcrTarget::BitmapTrack(track_index) => {
-                    let config = srt_ocr::OcrConfig {
+                    let config = vesta_ocr::OcrConfig {
                         input_path,
                         output_path,
                         track_index,
@@ -209,10 +209,10 @@ impl Jobs {
                         ffmpeg_path: "ffmpeg".into(),
                         ffprobe_path: "ffprobe".into(),
                     };
-                    srt_ocr::ocr_bitmap_track_to_srt(&config, callbacks, &cancel).await
+                    vesta_ocr::ocr_bitmap_track_to_srt(&config, callbacks, &cancel).await
                 }
                 OcrTarget::HardcodedRoi { roi, sample_fps } => {
-                    let config = srt_ocr::HardcodedOcrConfig {
+                    let config = vesta_ocr::HardcodedOcrConfig {
                         input_path,
                         output_path,
                         roi,
@@ -223,7 +223,7 @@ impl Jobs {
                         ffmpeg_path: "ffmpeg".into(),
                         ffprobe_path: "ffprobe".into(),
                     };
-                    srt_ocr::ocr_hardcoded_to_srt(&config, callbacks, &cancel).await
+                    vesta_ocr::ocr_hardcoded_to_srt(&config, callbacks, &cancel).await
                 }
             }
             .map_err(|e| e.to_string())?;

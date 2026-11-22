@@ -1,0 +1,25 @@
+[package]
+name = "vesta-extract-cli"
+version = "0.35.0-dev.2"
+edition.workspace = true
+rust-version.workspace = true
+description = "CLI tool for extracting and formatting SRT subtitle data"
+authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
+license = "GPL-3.0-only"
+repository = "https://github.com/pierspad/vesta"
+readme = "README.md"
+
+[[bin]]
+name = "vesta-extract"
+path = "src/main.rs"
+
+[dependencies]
+vesta-parser = { workspace = true }
+vesta-extract = { workspace = true }
+anyhow.workspace = true
+clap.workspace = true
+tokio.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

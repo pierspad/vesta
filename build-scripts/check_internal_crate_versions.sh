@@ -79,32 +79,32 @@ done < <(find "$PROJECT_ROOT/core" "$PROJECT_ROOT/lib" "$PROJECT_ROOT/cli" -mind
 echo -e "${YELLOW}Controllo coerenza versioni app GUI (atteso: $VERSION)...${NC}"
 
 # 1. package.json
-PKG_JSON="$PROJECT_ROOT/apps/srt-gui/package.json"
+PKG_JSON="$PROJECT_ROOT/apps/vesta-gui/package.json"
 if [ -f "$PKG_JSON" ]; then
     FRONTEND_VERSION=$(sed -n 's/.*"version": "\([^"]*\)".*/\1/p' "$PKG_JSON" | head -n 1 | tr -d '\r')
-    check_equals "apps/srt-gui/package.json" "$PKG_JSON" "$FRONTEND_VERSION"
+    check_equals "apps/vesta-gui/package.json" "$PKG_JSON" "$FRONTEND_VERSION"
 else
-    echo -e "  ${RED}✗${NC} apps/srt-gui/package.json non trovato"
+    echo -e "  ${RED}✗${NC} apps/vesta-gui/package.json non trovato"
     ((ERRORS++))
 fi
 
 # 2. tauri.conf.json
-TAURI_CONF="$PROJECT_ROOT/apps/srt-gui/src-tauri/tauri.conf.json"
+TAURI_CONF="$PROJECT_ROOT/apps/vesta-gui/src-tauri/tauri.conf.json"
 if [ -f "$TAURI_CONF" ]; then
     TAURI_VERSION=$(sed -n 's/.*"version": "\([^"]*\)".*/\1/p' "$TAURI_CONF" | head -n 1 | tr -d '\r')
-    check_equals "apps/srt-gui/src-tauri/tauri.conf.json" "$TAURI_CONF" "$TAURI_VERSION"
+    check_equals "apps/vesta-gui/src-tauri/tauri.conf.json" "$TAURI_CONF" "$TAURI_VERSION"
 else
-    echo -e "  ${RED}✗${NC} apps/srt-gui/src-tauri/tauri.conf.json non trovato"
+    echo -e "  ${RED}✗${NC} apps/vesta-gui/src-tauri/tauri.conf.json non trovato"
     ((ERRORS++))
 fi
 
 # 3. src-tauri/Cargo.toml
-TAURI_CARGO="$PROJECT_ROOT/apps/srt-gui/src-tauri/Cargo.toml"
+TAURI_CARGO="$PROJECT_ROOT/apps/vesta-gui/src-tauri/Cargo.toml"
 if [ -f "$TAURI_CARGO" ]; then
     TAURI_CARGO_VERSION=$(sed -n 's/^version = "\([^"]*\)"/\1/p' "$TAURI_CARGO" | head -n 1 | tr -d '\r')
-    check_equals "apps/srt-gui/src-tauri/Cargo.toml" "$TAURI_CARGO" "$TAURI_CARGO_VERSION"
+    check_equals "apps/vesta-gui/src-tauri/Cargo.toml" "$TAURI_CARGO" "$TAURI_CARGO_VERSION"
 else
-    echo -e "  ${RED}✗${NC} apps/srt-gui/src-tauri/Cargo.toml non trovato"
+    echo -e "  ${RED}✗${NC} apps/vesta-gui/src-tauri/Cargo.toml non trovato"
     ((ERRORS++))
 fi
 
@@ -132,8 +132,8 @@ echo -e "${YELLOW}Controllo [workspace.dependencies] internal crates...${NC}"
 # lib/*/Cargo.toml (stesso find della sezione sopra), non scritta a mano:
 # un elenco statico va fuori sincrono ogni volta che si aggiunge o rinomina
 # un crate — è esattamente quello che è successo il 2026-07-16 quando
-# whisper-common è stato rinominato in srt-transcribe ed è arrivato
-# srt-ankiconnect, entrambi assenti da questo controllo mentre
+# whisper-common è stato rinominato in vesta-transcribe ed è arrivato
+# vesta-ankiconnect, entrambi assenti da questo controllo mentre
 # [workspace.dependencies] nel Cargo.toml radice perdeva le voci corrette
 # durante un merge, senza che nessun gate se ne accorgesse.
 #

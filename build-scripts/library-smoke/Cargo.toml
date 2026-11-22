@@ -11,18 +11,18 @@ anyhow = "1"
 tempfile = "3"
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
-srt-parser = { path = "../../core/srt-parser" }
-srt-apkg = { path = "../../core/srt-apkg" }
-srt-download = { path = "../../core/srt-download" }
-srt-ankiconnect = { path = "../../lib/srt-ankiconnect" }
-srt-autosync = { path = "../../lib/srt-autosync" }
-srt-extract = { path = "../../lib/srt-extract" }
-srt-flashcards = { path = "../../lib/srt-flashcards" }
-srt-ocr = { path = "../../lib/srt-ocr" }
-srt-refine = { path = "../../lib/srt-refine" }
-srt-sync = { path = "../../lib/srt-sync" }
-srt-transcribe = { path = "../../lib/srt-transcribe" }
-srt-translate = { path = "../../lib/srt-translate" }
+vesta-parser = { path = "../../core/vesta-parser" }
+vesta-apkg = { path = "../../core/vesta-apkg" }
+vesta-download = { path = "../../core/vesta-download" }
+vesta-ankiconnect = { path = "../../lib/vesta-ankiconnect" }
+vesta-autosync = { path = "../../lib/vesta-autosync" }
+vesta-extract = { path = "../../lib/vesta-extract" }
+vesta-flashcards = { path = "../../lib/vesta-flashcards" }
+vesta-ocr = { path = "../../lib/vesta-ocr" }
+vesta-refine = { path = "../../lib/vesta-refine" }
+vesta-sync = { path = "../../lib/vesta-sync" }
+vesta-transcribe = { path = "../../lib/vesta-transcribe" }
+vesta-translate = { path = "../../lib/vesta-translate" }
 
 [patch.crates-io]
 # Workspace patches do not flow into downstream projects. This patch is needed

@@ -15,9 +15,9 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "build-scripts" / "library-smoke"
 LIBRARIES = [
-    "srt-apkg", "srt-download", "srt-parser", "srt-ankiconnect",
-    "srt-autosync", "srt-extract", "srt-flashcards", "srt-ocr", "srt-refine",
-    "srt-sync", "srt-transcribe", "srt-translate",
+    "vesta-apkg", "vesta-download", "vesta-parser", "vesta-ankiconnect",
+    "vesta-autosync", "vesta-extract", "vesta-flashcards", "vesta-ocr", "vesta-refine",
+    "vesta-sync", "vesta-transcribe", "vesta-translate",
 ]
 GPU_FEATURES = {"cuda", "rocm", "sycl", "vulkan"}
 
@@ -53,14 +53,14 @@ def main() -> None:
                 single = Path(temp) / f"single-{crate}"
                 single.mkdir()
                 single_manifest = single / "Cargo.toml"
-                relative = f"core/{crate}" if crate in {"srt-apkg", "srt-download", "srt-parser"} else f"lib/{crate}"
+                relative = f"core/{crate}" if crate in {"vesta-apkg", "vesta-download", "vesta-parser"} else f"lib/{crate}"
                 single_manifest.write_text(
                     "[package]\nname = \"vesta-single-smoke\"\nversion = \"0.1.0\"\nedition = \"2024\"\n"
                     f"[dependencies]\n{crate} = {{ path = {json.dumps(str(ROOT / relative))} }}\n"
                     + (
                         "[patch.crates-io]\n"
                         f"whisper-rs-sys = {{ path = {json.dumps(str(ROOT / 'vendor/whisper-rs-sys-0.15.0'))} }}\n"
-                        if crate in {"srt-transcribe", "srt-autosync"}
+                        if crate in {"vesta-transcribe", "vesta-autosync"}
                         else ""
                     )
                 )
@@ -77,7 +77,7 @@ def main() -> None:
         forbidden = [name for name in packages if any(term in name.lower() for term in ("tauri", "webkit", "gtk"))]
         if forbidden:
             raise SystemExit(f"Desktop dependencies leaked into the library graph: {forbidden}")
-        for package_name in ("srt-transcribe", "srt-autosync", "whisper-rs", "whisper-rs-sys"):
+        for package_name in ("vesta-transcribe", "vesta-autosync", "whisper-rs", "whisper-rs-sys"):
             node = next((node for node in metadata["resolve"]["nodes"] if packages_by_id_name(metadata, node["id"]) == package_name), None)
             if node is None:
                 raise SystemExit(f"Could not inspect resolved {package_name} features")
@@ -97,18 +97,18 @@ def render_manifest(content: str, root: Path) -> str:
     import re
 
     replacements = {
-        "../../core/srt-parser": root / "core/srt-parser",
-        "../../core/srt-apkg": root / "core/srt-apkg",
-        "../../core/srt-download": root / "core/srt-download",
-        "../../lib/srt-ankiconnect": root / "lib/srt-ankiconnect",
-        "../../lib/srt-autosync": root / "lib/srt-autosync",
-        "../../lib/srt-extract": root / "lib/srt-extract",
-        "../../lib/srt-flashcards": root / "lib/srt-flashcards",
-        "../../lib/srt-ocr": root / "lib/srt-ocr",
-        "../../lib/srt-refine": root / "lib/srt-refine",
-        "../../lib/srt-sync": root / "lib/srt-sync",
-        "../../lib/srt-transcribe": root / "lib/srt-transcribe",
-        "../../lib/srt-translate": root / "lib/srt-translate",
+        "../../core/vesta-parser": root / "core/vesta-parser",
+        "../../core/vesta-apkg": root / "core/vesta-apkg",
+        "../../core/vesta-download": root / "core/vesta-download",
+        "../../lib/vesta-ankiconnect": root / "lib/vesta-ankiconnect",
+        "../../lib/vesta-autosync": root / "lib/vesta-autosync",
+        "../../lib/vesta-extract": root / "lib/vesta-extract",
+        "../../lib/vesta-flashcards": root / "lib/vesta-flashcards",
+        "../../lib/vesta-ocr": root / "lib/vesta-ocr",
+        "../../lib/vesta-refine": root / "lib/vesta-refine",
+        "../../lib/vesta-sync": root / "lib/vesta-sync",
+        "../../lib/vesta-transcribe": root / "lib/vesta-transcribe",
+        "../../lib/vesta-translate": root / "lib/vesta-translate",
         "../../vendor/whisper-rs-sys-0.15.0": root / "vendor/whisper-rs-sys-0.15.0",
     }
     for old, path in replacements.items():

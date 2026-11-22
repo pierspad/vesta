@@ -1,0 +1,22 @@
+[package]
+name = "vesta-sync"
+version = "0.35.0-dev.2"
+edition.workspace = true
+rust-version.workspace = true
+authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
+description = "Library for synchronizing SRT subtitles with video using anchor points and interpolation"
+license = "GPL-3.0-only"
+repository = "https://github.com/pierspad/vesta"
+keywords = ["srt", "subtitles", "synchronization", "video"]
+categories = ["multimedia"]
+
+[dependencies]
+vesta-parser = { workspace = true }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+
+[lib]
+name = "vesta_sync"
+path = "src/lib.rs"

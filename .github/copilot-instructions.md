@@ -21,7 +21,7 @@ Commit messages are the release notes: `@semantic-release/release-notes-generato
 
 ## 2. 15-Locale Internationalization
 
-Vesta supports 15 UI locales in `apps/srt-gui/src/lib/i18n/locales/`:
+Vesta supports 15 UI locales in `apps/vesta-gui/src/lib/i18n/locales/`:
 `ar`, `de`, `en`, `es`, `fr`, `hi`, `it`, `ja`, `ko`, `nl`, `pl`, `pt`, `ru`, `tr`, `zh`.
 
 When modifying user-facing text:
@@ -34,8 +34,8 @@ When modifying user-facing text:
 ## 3. Architecture & Quality Boundaries
 
 - **Core & Library Crates (`core/*`, `lib/*`)**: GUI-agnostic Rust engines with `CancellationToken` and callback progress reporting.
-- **CLI & MCP (`cli/*`)**: Headless CLI adapters (`vesta-cli`, `srt-*-cli`) and the stdio MCP server (`vesta-mcp`).
-- **Desktop GUI (`apps/srt-gui`)**: Svelte 5 Runes (`$state`, `$derived`, `$props`, `$effect`) + Tauri v2 IPC commands (`apps/srt-gui/src-tauri`).
+- **CLI & MCP (`cli/*`)**: Headless CLI adapters (`vesta-cli`, `vesta-*-cli`) and the stdio MCP server (`vesta-mcp`).
+- **Desktop GUI (`apps/vesta-gui`)**: Svelte 5 Runes (`$state`, `$derived`, `$props`, `$effect`) + Tauri v2 IPC commands (`apps/vesta-gui/src-tauri`).
 - **Plugins (`plugins/*`, `docs/PLUGINS.md`)**: Out-of-process JSON-RPC 2.0 plugins rendered via the declarative 23-widget UI schema.
 
 ## 4. Verification Commands

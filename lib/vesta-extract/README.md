@@ -1,0 +1,25 @@
+# vesta-extract
+
+Library for extracting, summarizing, and formatting subtitle data parsed by `vesta-parser`.
+
+It powers the corresponding headless CLI and supports structured JSON and human-readable output.
+
+```bash
+cargo test -p vesta-extract
+```
+
+License: GPL-3.0-only.
+
+`OutputFormat` (`Json`, `Summary`, `Debug`), `extract(&subtitles, format)`, and
+`calculate_stats(&subtitles)` format parsed `vesta-parser` subtitles in memory.
+`embedded::list_embedded_subtitles` probes media-container tracks;
+`embedded::extract_embedded_subtitle` saves a selected text track as SRT through
+FFmpeg; and `embedded::preview_embedded_subtitle` extracts a bounded plain-text
+preview (up to 100 cues / 64 KiB). Bitmap subtitles need OCR. Probe/extraction
+have finite timeouts and failed extraction preserves an existing output.
+FFmpeg/ffprobe are required only for embedded tracks.
+
+For headless media discovery and extraction, use `vesta-extract-cli` with
+`--input film.mkv --list-tracks` or `--input film.mkv --track 8 --output film_en_8.srt`.
+The GUI and CLI share this module; no desktop runtime is required by the library.
+See [architecture and integration details](../../docs/modules/vesta-extract.md).

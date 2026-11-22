@@ -219,7 +219,7 @@ def arguments():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--input', type=Path, default=ROOT / 'Test_Subs/FILM')
     parser.add_argument('--language', default='en')
-    parser.add_argument('--binary', type=Path, default=ROOT / 'target/release/srt-flashcards')
+    parser.add_argument('--binary', type=Path, default=ROOT / 'target/release/vesta-flashcards')
     parser.add_argument('--output', type=Path, default=ROOT.parent / 'vesta-benchmark-results' / datetime.now().strftime('%Y%m%d-%H%M%S'))
     parser.add_argument('--sizes', default='25,100,300,all', help='Comma-separated card counts and/or all')
     parser.add_argument('--profiles', default='default,large', help='default=256x144, large=640x360')

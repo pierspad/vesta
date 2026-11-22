@@ -1,0 +1,477 @@
+use crate::state::{AppFlashcardState, OperationGuard};
+use tauri::{AppHandle, Emitter, Manager, State};
+use vesta_flashcards::{
+    AudioTrackInfo, DuelingExportOptions, DuelingResult, FlashcardConfig, FlashcardProgressEvent,
+    FlashcardResult, MediaTools, PreviewLine,
+};
+
+use crate::commands::media::{resolve_ffmpeg_path, resolve_ffprobe_path};
+
+async fn resolve_media_tools(app: &AppHandle) -> MediaTools {
+    MediaTools {
+        ffmpeg: resolve_ffmpeg_path(Some(app)).await,
+        ffprobe: resolve_ffprobe_path(Some(app)).await,
+    }
+}
+
+#[tauri::command]
+pub async fn flashcard_list_audio_tracks(
+    app: AppHandle,
+    path: String,
+) -> Result<Vec<AudioTrackInfo>, String> {
+    let ffprobe = resolve_ffprobe_path(Some(&app)).await;
+    vesta_flashcards::list_audio_tracks(&path, &ffprobe).await
+}
+
+#[tauri::command]
+pub async fn flashcard_preview(config: FlashcardConfig) -> Result<Vec<PreviewLine>, String> {
+    tokio::task::spawn_blocking(move || vesta_flashcards::preview(&config))
+        .await
+        .map_err(|e| format!("Flashcard preview failed: {e}"))?
+}
+
+#[tauri::command]
+pub async fn flashcard_export_dueling(
+    config: FlashcardConfig,
+    options: DuelingExportOptions,
+) -> Result<DuelingResult, String> {
+    tokio::task::spawn_blocking(move || {
+        vesta_flashcards::export_dueling_subtitles(&config, options)
+    })
+    .await
+    .map_err(|e| format!("Dueling subtitle export failed: {e}"))?
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)] // Tauri exposes command parameters individually to the frontend.
+pub async fn flashcard_preview_audio(
+    app: AppHandle,
+    media_path: String,
+    sub_path: Option<String>,
+    start_ms: Option<i64>,
+    end_ms: Option<i64>,
+    audio_track_index: Option<usize>,
+    pad_start_ms: Option<i64>,
+    pad_end_ms: Option<i64>,
+    format: Option<vesta_flashcards::AudioFormat>,
+    normalize: Option<bool>,
+    boost: Option<bool>,
+    gain_db: Option<i32>,
+    bitrate: Option<u32>,
+) -> Result<String, String> {
+    let (s_ms, e_ms) = if let (Some(s), Some(e)) = (start_ms, end_ms) {
+        (s, e)
+    } else if let Some(s) = start_ms {
+        (s, s + 3500)
+    } else if let Some(ref sp) = sub_path {
+        let (subs, _) = vesta_flashcards::parse_subtitle_file(sp).map_err(|e| e.to_string())?;
+        // Find first dialogue entry with sensible length (1.2s to 8s), length >= 10 chars, not bracketed music/cues
+        let entry = subs
+            .iter()
+            .find(|e| {
+                let dur = e.end_ms - e.start_ms;
+                let text = e.text.trim();
+                (1200..=8000).contains(&dur)
+                    && text.len() >= 10
+                    && !text.starts_with('[')
+                    && !text.starts_with('(')
+                    && !text.starts_with('♪')
+                    && !text.starts_with('♫')
+            })
+            .or_else(|| {
+                subs.iter()
+                    .find(|e| (e.end_ms - e.start_ms) >= 1000 && !e.text.trim().is_empty())
+            })
+            .or_else(|| subs.first());
+        if let Some(e) = entry {
+            (e.start_ms, e.end_ms)
+        } else {
+            (120_000, 123_500)
+        }
+    } else {
+        (120_000, 123_500)
+    };
+
+    let audio_format = format.unwrap_or_default();
+    let pad_s = pad_start_ms.unwrap_or(0);
+    let pad_e = pad_end_ms.unwrap_or(0);
+    let br = bitrate.unwrap_or(128);
+    let norm = normalize.unwrap_or(true);
+    let gain = gain_db.unwrap_or_else(|| if boost.unwrap_or(false) { 6 } else { 0 });
+
+    let out_file = app
+        .state::<super::preview::PreviewWorkspace>()
+        .allocate(audio_format.extension())?;
+
+    let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
+
+    vesta_flashcards::extract_preview_audio_clip(
+        &media_path,
+        &out_file,
+        s_ms,
+        e_ms,
+        pad_s,
+        pad_e,
+        br,
+        audio_track_index,
+        audio_format,
+        norm,
+        gain,
+        &ffmpeg,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let path = out_file.keep().map_err(|error| error.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub async fn flashcard_preview_snapshot(
+    app: AppHandle,
+    media_path: String,
+    time_ms: i64,
+) -> Result<String, String> {
+    let out_file = app
+        .state::<super::preview::PreviewWorkspace>()
+        .allocate("jpg")?;
+    let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
+
+    vesta_flashcards::extract_preview_snapshot(&media_path, &out_file, time_ms, &ffmpeg)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let path = out_file.keep().map_err(|error| error.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub fn flashcard_parse_subtitles(path: String) -> Result<Vec<vesta_flashcards::SubEntry>, String> {
+    let (entries, _) = vesta_flashcards::parse_subtitle_file(&path).map_err(|e| e.to_string())?;
+    Ok(entries)
+}
+
+#[tauri::command]
+pub async fn flashcard_generate(
+    app: AppHandle,
+    state: State<'_, AppFlashcardState>,
+    config: FlashcardConfig,
+) -> Result<FlashcardResult, String> {
+    let guard = OperationGuard::begin(&state, "Already processing flashcards")?;
+
+    let tools = resolve_media_tools(&app).await;
+
+    let app_for_progress = app.clone();
+    let progress = move |event: FlashcardProgressEvent| {
+        let _ = app_for_progress.emit("flashcard-progress", event);
+    };
+
+    vesta_flashcards::generate(config, tools, guard.token(), &progress).await
+}
+
+/// Cancel an in-flight flashcard generation.
+#[tauri::command]
+pub async fn flashcard_cancel(state: State<'_, AppFlashcardState>) -> Result<bool, String> {
+    Ok(state.lock().map_err(|e| e.to_string())?.operation.cancel())
+}
+
+#[tauri::command]
+pub async fn flashcard_check_deps(app: AppHandle) -> Result<bool, String> {
+    let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
+    Ok(vesta_flashcards::check_ffmpeg(&ffmpeg).await)
+}
+
+fn hoist_binary(dir: &std::path::Path, name: &str) -> Result<(), String> {
+    let file_name = if cfg!(windows) {
+        format!("{name}.exe")
+    } else {
+        name.to_string()
+    };
+    let target = dir.join(&file_name);
+    if target.exists() {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755));
+        }
+        return Ok(());
+    }
+
+    fn find(dir: &std::path::Path, file_name: &str, depth: u8) -> Option<std::path::PathBuf> {
+        let entries = std::fs::read_dir(dir).ok()?;
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() && path.file_name().is_some_and(|n| n == file_name) {
+                return Some(path);
+            }
+            if depth > 0
+                && path.is_dir()
+                && let Some(found) = find(&path, file_name, depth - 1)
+            {
+                return Some(found);
+            }
+        }
+        None
+    }
+
+    if let Some(found) = find(dir, &file_name, 4) {
+        std::fs::rename(&found, &target)
+            .or_else(|_| std::fs::copy(&found, &target).map(|_| ()))
+            .map_err(|e| format!("Failed to move {file_name} into place: {e}"))?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755));
+        }
+    }
+    Ok(())
+}
+
+#[derive(serde::Serialize)]
+pub struct SetupMediaStatus {
+    ready: bool,
+    download_bytes: Option<u64>,
+}
+
+/// Inspect both media tools and the download archive size without downloading it.
+#[tauri::command]
+pub async fn setup_media_status(app: AppHandle) -> Result<SetupMediaStatus, String> {
+    let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
+    let ffprobe = crate::commands::media::resolve_ffprobe_path(Some(&app)).await;
+    let probe_ready = vesta_flashcards::check_ffmpeg(&ffprobe).await;
+    let ready = vesta_flashcards::check_ffmpeg(&ffmpeg).await && probe_ready;
+    let download_bytes = if ready {
+        None
+    } else {
+        match ffmpeg_sidecar::download::ffmpeg_download_url() {
+            Ok(url) => {
+                let client = reqwest::Client::builder()
+                    .timeout(std::time::Duration::from_secs(10))
+                    .build()
+                    .map_err(|error| error.to_string())?;
+                match client.head(url).send().await {
+                    Ok(response) if response.status().is_success() => response
+                        .headers()
+                        .get(reqwest::header::CONTENT_LENGTH)
+                        .and_then(|value| value.to_str().ok())
+                        .and_then(|value| value.parse::<u64>().ok()),
+                    _ => None,
+                }
+            }
+            Err(_) => None,
+        }
+    };
+    Ok(SetupMediaStatus {
+        ready,
+        download_bytes,
+    })
+}
+
+#[tauri::command]
+pub async fn flashcard_download_ffmpeg(app: AppHandle) -> Result<bool, String> {
+    use ffmpeg_sidecar::download::{download_ffmpeg_package, ffmpeg_download_url, unpack_ffmpeg};
+
+    let app_data = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+
+    let dest = app_data.join("ffmpeg_bin");
+    std::fs::create_dir_all(&dest).map_err(|e| e.to_string())?;
+
+    let dest_task = dest.clone();
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
+        let url =
+            ffmpeg_download_url().map_err(|e| format!("Could not determine download URL: {e}"))?;
+        let archive = download_ffmpeg_package(url, &dest_task)
+            .map_err(|e| format!("Download failed: {e}"))?;
+        unpack_ffmpeg(&archive, &dest_task).map_err(|e| format!("Unpack failed: {e}"))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    hoist_binary(&dest, "ffmpeg")?;
+    hoist_binary(&dest, "ffprobe")?;
+
+    let ffmpeg = resolve_ffmpeg_path(Some(&app)).await;
+    if !vesta_flashcards::check_ffmpeg(&ffmpeg).await {
+        return Err("ffmpeg was downloaded but could not be executed. \
+             You can install it manually and place it next to the Vesta executable."
+            .to_string());
+    }
+    let ffprobe = crate::commands::media::resolve_ffprobe_path(Some(&app)).await;
+    let probe_ready = vesta_flashcards::check_ffmpeg(&ffprobe).await;
+    if !probe_ready {
+        return Err("FFprobe was downloaded but could not be executed".into());
+    }
+    Ok(true)
+}
+
+#[tauri::command]
+pub async fn flashcard_check_dir_exists(path: String) -> Result<bool, String> {
+    Ok(std::path::Path::new(&path).is_dir())
+}
+
+#[tauri::command]
+pub async fn flashcard_get_cpu_count() -> Result<usize, String> {
+    Ok(std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4))
+}
+
+#[tauri::command]
+pub async fn flashcard_get_total_memory_mb() -> Result<u64, String> {
+    let sys = sysinfo::System::new_with_specifics(
+        sysinfo::RefreshKind::nothing().with_memory(sysinfo::MemoryRefreshKind::everything()),
+    );
+    let total_mb = sys.total_memory() / (1024 * 1024);
+
+    Ok(if total_mb > 0 { total_mb } else { 4096 })
+}
+
+#[tauri::command]
+pub async fn save_temp_subtitles(
+    app: tauri::AppHandle,
+    lines: Vec<PreviewLine>,
+    use_native: bool,
+) -> Result<String, String> {
+    let app_data = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+
+    let temp_dir = app_data.join("temp_subs");
+    std::fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
+
+    static NEXT_TEMP_SUBS_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let suffix = if use_native { "native" } else { "target" };
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let seq = NEXT_TEMP_SUBS_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let temp_file_path = temp_dir.join(format!("temp_{}_{}_{}.srt", suffix, now, seq));
+
+    let mut subtitles = std::collections::HashMap::new();
+    let mut counter: u32 = 1;
+    for line in lines {
+        if !line.active {
+            continue;
+        }
+
+        let text = if use_native {
+            line.subs2_text.clone()
+        } else {
+            Some(line.subs1_text.clone())
+        };
+
+        let Some(text) = text else { continue };
+
+        subtitles.insert(
+            counter,
+            vesta_parser::Subtitle {
+                id: counter,
+                start: vesta_parser::Timestamp {
+                    milliseconds: line.start_ms.max(0) as u64,
+                },
+                end: vesta_parser::Timestamp {
+                    milliseconds: line.end_ms.max(0) as u64,
+                },
+                text,
+            },
+        );
+        counter += 1;
+    }
+
+    vesta_parser::SrtParser::save_file(&temp_file_path, &subtitles).map_err(|e| e.to_string())?;
+
+    Ok(temp_file_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub async fn flashcard_list_fonts() -> Result<Vec<vesta_flashcards::fonts::FontStatusInfo>, String>
+{
+    vesta_flashcards::fonts::list_fonts().map_err(|e| e.to_string())
+}
+
+#[derive(Clone, serde::Serialize)]
+pub struct FontDownloadProgressEvent {
+    pub font_id: String,
+    pub percentage: u32,
+}
+
+#[tauri::command]
+pub async fn flashcard_download_font(app: AppHandle, font_id: String) -> Result<bool, String> {
+    let app_progress = app.clone();
+    let font_id_progress = font_id.clone();
+
+    vesta_flashcards::fonts::download_font(
+        &font_id,
+        move |percentage| {
+            let _ = app_progress.emit(
+                "font-download-progress",
+                FontDownloadProgressEvent {
+                    font_id: font_id_progress.clone(),
+                    percentage,
+                },
+            );
+        },
+        None,
+    )
+    .await
+    .map(|_| true)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn flashcard_delete_font(font_id: String) -> Result<bool, String> {
+    vesta_flashcards::fonts::delete_font(&font_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn flashcard_merge_apkg(
+    apkg_paths: Vec<String>,
+    output_path: String,
+) -> Result<String, String> {
+    let result_path = output_path.clone();
+    tokio::task::spawn_blocking(move || {
+        let paths: Vec<std::path::PathBuf> = apkg_paths.into_iter().map(Into::into).collect();
+        vesta_flashcards::merge_apkg(&paths, std::path::Path::new(&output_path))
+            .map_err(|e| format!("APKG merge failed: {e}"))
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    Ok(result_path)
+}
+
+#[tauri::command]
+pub async fn flashcard_media_duration(app: AppHandle, path: String) -> Result<f64, String> {
+    let ffprobe = resolve_ffprobe_path(Some(&app)).await;
+    let output = tokio::process::Command::new(ffprobe)
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            &path,
+        ])
+        .output()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).into_owned());
+    }
+    let duration: f64 = String::from_utf8_lossy(&output.stdout)
+        .trim()
+        .parse()
+        .map_err(|_| "Invalid media duration")?;
+    if duration.is_finite() && duration > 0.0 {
+        Ok(duration)
+    } else {
+        Err("Invalid media duration".into())
+    }
+}

@@ -5,11 +5,11 @@ target/
 
 # Binari compilati copiati fuori da target/ (build_all.sh li rigenera)
 /bin/
-cli/*/srt-extract
-cli/*/srt-translate
-cli/*/srt-flashcards
-cli/*/srt-autosync
-cli/*/srt-transcribe
+cli/*/vesta-extract
+cli/*/vesta-translate
+cli/*/vesta-flashcards
+cli/*/vesta-autosync
+cli/*/vesta-transcribe
 
 # IDE
 .vscode/
@@ -82,8 +82,8 @@ commit-plan-continued.sh
 commit-plan-final.sh
 commit-plan.sh
 REFACTOR-PLAN.md
-apps/srt-gui/reports/
-apps/srt-gui/scripts/translation_chunks/
+apps/vesta-gui/reports/
+apps/vesta-gui/scripts/translation_chunks/
 !Test_Subs/fixtures/detour/*.srt
 !Test_Subs/fixtures/detour/detour_clip_90s.mp4
 

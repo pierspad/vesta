@@ -13,21 +13,21 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { workspace = true }
-srt-autosync-cli = { path = "../srt-autosync-cli" }
-srt-extract-cli = { path = "../srt-extract-cli" }
-srt-flashcards-cli = { path = "../srt-flashcards-cli" }
-srt-ocr-cli = { path = "../srt-ocr-cli" }
-srt-refine-cli = { path = "../srt-refine-cli" }
-srt-sync-cli = { path = "../srt-sync-cli" }
-srt-transcribe-cli = { path = "../srt-transcribe-cli" }
-srt-translate-cli = { path = "../srt-translate-cli" }
+vesta-autosync-cli = { path = "../vesta-autosync-cli" }
+vesta-extract-cli = { path = "../vesta-extract-cli" }
+vesta-flashcards-cli = { path = "../vesta-flashcards-cli" }
+vesta-ocr-cli = { path = "../vesta-ocr-cli" }
+vesta-refine-cli = { path = "../vesta-refine-cli" }
+vesta-sync-cli = { path = "../vesta-sync-cli" }
+vesta-transcribe-cli = { path = "../vesta-transcribe-cli" }
+vesta-translate-cli = { path = "../vesta-translate-cli" }
 vesta-mcp = { path = "../vesta-mcp" }
 
 [dev-dependencies]
 tempfile.workspace = true
 
 [features]
-vulkan = ["srt-transcribe-cli/vulkan", "vesta-mcp/vulkan"]
-cuda = ["srt-transcribe-cli/cuda", "vesta-mcp/cuda"]
-rocm = ["srt-transcribe-cli/rocm", "vesta-mcp/rocm"]
-sycl = ["srt-transcribe-cli/sycl", "vesta-mcp/sycl"]
+vulkan = ["vesta-transcribe-cli/vulkan", "vesta-mcp/vulkan"]
+cuda = ["vesta-transcribe-cli/cuda", "vesta-mcp/cuda"]
+rocm = ["vesta-transcribe-cli/rocm", "vesta-mcp/rocm"]
+sycl = ["vesta-transcribe-cli/sycl", "vesta-mcp/sycl"]

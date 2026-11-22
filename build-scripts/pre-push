@@ -10,7 +10,7 @@ cd "$PROJECT_ROOT"
 
 # Fail fast before native compilation, with the same policy used by CI.
 bash build-scripts/check-push-i18n.sh
-(cd apps/srt-gui && npm run check && npm test && npm run build)
+(cd apps/vesta-gui && npm run check && npm test && npm run build)
 
 echo "🔎 Running pre-push quality gates..."
 
@@ -43,7 +43,7 @@ if command -v cargo-audit >/dev/null 2>&1; then
     exit 1
   fi
 fi
-if ! (cd apps/srt-gui && npm audit); then
+if ! (cd apps/vesta-gui && npm audit); then
   echo "❌ Error: npm audit reported vulnerabilities. Push aborted." >&2
   exit 1
 fi

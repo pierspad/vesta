@@ -6,7 +6,7 @@ This manual defines the automated verification gates, regression test scopes, pe
 
 ## 1. Automated Verification Gates
 
-Run the complete local verification gate from the repository root (after `npm ci` in `apps/srt-gui`):
+Run the complete local verification gate from the repository root (after `npm ci` in `apps/vesta-gui`):
 
 ```bash
 python3 build-scripts/quality_check.py --desktop --smoke
@@ -22,7 +22,7 @@ python3 build-scripts/quality_check.py --desktop --smoke
 | `cargo clippy --locked --workspace --all-targets -- -D warnings` | Strict lint gate across all workspace targets. |
 | `cargo test --locked --workspace` | Full workspace Rust test suite (including `vesta` and `whisper-bench`). |
 
-During daily iteration on Linux `x86_64`, [`.cargo/config.toml`](../.cargo/config.toml) routes linking through `clang` + `mold` (install `clang` and `mold` locally) and you can keep compile/link loops fast with targeted crate tests (for example `cargo test --locked -p srt-parser -p srt-apkg`), reserving full `--desktop` / `vulkan` builds for final verification gates and CI.
+During daily iteration on Linux `x86_64`, [`.cargo/config.toml`](../.cargo/config.toml) routes linking through `clang` + `mold` (install `clang` and `mold` locally) and you can keep compile/link loops fast with targeted crate tests (for example `cargo test --locked -p vesta-parser -p vesta-apkg`), reserving full `--desktop` / `vulkan` builds for final verification gates and CI.
 
 Publication in CI waits for the successful push workflow on the exact release commit, including workspace tests and strict Clippy; a missing, failed, or skipped run blocks `semantic-release`. `python3 build-scripts/test_release_workflows.py` validates release queueing, platform prerequisites, and tag/version agreement.
 
@@ -33,7 +33,7 @@ Publication in CI waits for the successful push workflow on the exact release co
 Install Chromium for the opt-in browser suite:
 
 ```bash
-cd apps/srt-gui
+cd apps/vesta-gui
 npm ci
 npx playwright install chromium
 cd ../..
@@ -42,7 +42,7 @@ python3 build-scripts/quality_check.py --browser
 
 Set `VESTA_TEST_CHROMIUM` to an absolute executable path to use an existing Chromium installation.
 Playwright starts a local Vite server and loads the app with synthetic Tauri responses.
-Run only the browser suite with `npm run test:browser` from `apps/srt-gui`.
+Run only the browser suite with `npm run test:browser` from `apps/vesta-gui`.
 It covers narrow and RTL layout, Flashcards export, synchronization and alignment history,
 translation errors and cancellation, transcription model selection and cancellation,
 embedded bitmap PGS OCR and hardcoded video ROI OCR preview/save, Refine deck annotation,
@@ -51,7 +51,7 @@ offline OCR model download, AI Kill Switch enforcement, and shortcut persistence
 The browser suite compares invoked command names and top-level payload keys with registered Rust commands.
 The separate Browser regressions workflow runs on relevant pull requests.
 The suite saves screenshots and retains failure traces under
-`apps/srt-gui/node_modules/.cache/vesta-browser-tests/`.
+`apps/vesta-gui/node_modules/.cache/vesta-browser-tests/`.
 Run the synthetic FFmpeg/APKG smoke test to validate real media and packages.
 
 ### Support logs
@@ -79,36 +79,36 @@ can open its folder.
 ### Atomic Output and Staged Export Persistence
 
 ```bash
-cargo test -p srt-parser -p srt-transcribe -p srt-flashcards
+cargo test -p vesta-parser -p vesta-transcribe -p vesta-flashcards
 ```
 
-- **Atomic file publication (`srt-parser::persistence`)**: Injects failed writers, rejects read-only targets, verifies symlink and permission preservation on Unix, preserves existing `.apkg` archives after media streaming failures, and prevents cancelled transcription runs from publishing partial files.
-- **Staged TSV media publication (`srt-flashcards`)**: Verifies replacement via `.vesta-export-*` staging directories and `.<deck>.tsv.export.lock` locks, rollback after a failed TSV write or media swap, rejection of overlapping publishers, and cleanup after a failed initial export.
+- **Atomic file publication (`vesta-parser::persistence`)**: Injects failed writers, rejects read-only targets, verifies symlink and permission preservation on Unix, preserves existing `.apkg` archives after media streaming failures, and prevents cancelled transcription runs from publishing partial files.
+- **Staged TSV media publication (`vesta-flashcards`)**: Verifies replacement via `.vesta-export-*` staging directories and `.<deck>.tsv.export.lock` locks, rollback after a failed TSV write or media swap, rejection of overlapping publishers, and cleanup after a failed initial export.
 - **Scope boundary**: These are process-level failure tests. They do not simulate `SIGKILL` between filesystem renames or power loss across unjournaled filesystems.
 
 ### Audio Decoding, Hardware Probes, and Process Lifetimes
 
-- **WAV decoding and FFmpeg extraction (`cargo test -p srt-transcribe audio::tests`)**: Covers integer/float WAV downmix, truncated and non-finite sample rejection (preventing silent audio shortening that would shift timestamps), normalization through 32-bit PCM, and real FFmpeg conversion/segmentation. FFmpeg failures report exit status and the last 64 KiB of stderr while draining pipes to prevent deadlocks.
-- **Hardware encoder fallback (`cargo test --locked -p srt-flashcards`)**:
+- **WAV decoding and FFmpeg extraction (`cargo test -p vesta-transcribe audio::tests`)**: Covers integer/float WAV downmix, truncated and non-finite sample rejection (preventing silent audio shortening that would shift timestamps), normalization through 32-bit PCM, and real FFmpeg conversion/segmentation. FFmpeg failures report exit status and the last 64 KiB of stderr while draining pipes to prevent deadlocks.
+- **Hardware encoder fallback (`cargo test --locked -p vesta-flashcards`)**:
   - `software_retries_release_gpu_sessions_for_pending_clips`: Verifies that a failed hardware video encode releases its 3-session GPU permit before retrying on CPU while holding its general worker permit.
   - `generation_probes_hardware_once_and_keeps_the_original_source`: Verifies that video preparation reuses the encoder already probed by the generator rather than running duplicate probes within the same export.
-- **Sync preview preparation (`cargo test --locked -p srt-sync -p srt-autosync -p srt-transcribe`)**: Covers 16 kHz mono PCM WAV (`pcm_s16le`) preview generation, cache reuse (`cache_modified >= source_modified`), failed preview cleanup, external cloud STT synchronization without a local Whisper model, and rejection of text-only responses for alignment.
+- **Sync preview preparation (`cargo test --locked -p vesta-sync -p vesta-autosync -p vesta-transcribe`)**: Covers 16 kHz mono PCM WAV (`pcm_s16le`) preview generation, cache reuse (`cache_modified >= source_modified`), failed preview cleanup, external cloud STT synchronization without a local Whisper model, and rejection of text-only responses for alignment.
 
 ### Synchronization and Autosync Invariants
 
-- **Anchor constraints (`srt-autosync`)**: Reruns treat manual anchors as fixed constraints with a 15-second exclusion window around each manual point. A successful run replaces automatic anchors; an empty result preserves previous anchors.
+- **Anchor constraints (`vesta-autosync`)**: Reruns treat manual anchors as fixed constraints with a 15-second exclusion window around each manual point. A successful run replaces automatic anchors; an empty result preserves previous anchors.
 - **Phrase onset refinement**: Uses Whisper token timestamps only when an unambiguous contiguous match of at least two normalized words is found; otherwise falls back to segment onset.
-- **Authoritative history (`srt-sync::SyncEngine`)**: Retains up to 100 anchor-edit snapshots (including mapper state and checked checkpoints). Add, update, delete, and grouped auto-sync replacements are reversible; no-op edits preserve the redo stack and new edits clear it.
+- **Authoritative history (`vesta-sync::SyncEngine`)**: Retains up to 100 anchor-edit snapshots (including mapper state and checked checkpoints). Add, update, delete, and grouped auto-sync replacements are reversible; no-op edits preserve the redo stack and new edits clear it.
 
 ### Headless CLI and MCP Verification
 
 - **Headless CI job**: Compiles and tests all library and CLI crates without Node, Tauri system libraries, or GPU SDKs, verifying the default CPU dependency graph independently of desktop feature unification.
-- **CLI subprocess tests (`cargo test -p vesta-cli -p srt-flashcards-cli -p srt-translate-cli -p srt-transcribe-cli -p srt-extract-cli -p srt-ocr-cli -p srt-sync-cli -p srt-autosync-cli -p srt-refine-cli`)**: Verify `--help` contracts, exit codes (`0` success, `1` runtime error, `2` usage error, `130` `SIGINT` cancellation), stdout/stderr separation, and preservation of existing output files on failure or `SIGINT`.
+- **CLI subprocess tests (`cargo test -p vesta-cli -p vesta-flashcards-cli -p vesta-translate-cli -p vesta-transcribe-cli -p vesta-extract-cli -p vesta-ocr-cli -p vesta-sync-cli -p vesta-autosync-cli -p vesta-refine-cli`)**: Verify `--help` contracts, exit codes (`0` success, `1` runtime error, `2` usage error, `130` `SIGINT` cancellation), stdout/stderr separation, and preservation of existing output files on failure or `SIGINT`.
 - **MCP protocol tests (`cargo test --locked -p vesta-mcp`)**: Connect a real stdio MCP client (`rmcp`), discover all 12 tool schemas (`get_configuration`, `inspect_subtitles`, `list_embedded_subtitles`, `preview_flashcards`, `generate_flashcards`, `translate_subtitles`, `transcribe_media`, `ocr_subtitles`, `get_job`, `cancel_job`, `list_plugins`, `call_plugin`), and verify path-root isolation, job cancellation, and server-side credential isolation.
 
 ### HTTP Contracts and Provider Links
 
-`cargo test -p srt-transcribe` exercises loopback HTTP requests for OpenAI JSON transcription, Groq translation, Deepgram, and AssemblyAI upload/create/poll, plus authorization failures and model-discovery capability filtering.
+`cargo test -p vesta-transcribe` exercises loopback HTTP requests for OpenAI JSON transcription, Groq translation, Deepgram, and AssemblyAI upload/create/poll, plus authorization failures and model-discovery capability filtering.
 
 To probe external documentation and model-discovery URLs online (optional, not run in offline CI):
 
@@ -125,13 +125,13 @@ python3 build-scripts/check_tauri_versions.py
 python3 build-scripts/test_tauri_versions.py
 ```
 
-- **Static AST pattern check (`npm run check:patterns` in `apps/srt-gui`)**: Parses TypeScript and Svelte script blocks to reject async `forEach` callbacks, async `Promise` executors, and `debugger` statements.
-- **Development CSS check (`npm run test:dev-css` in `apps/srt-gui`)**: Starts ephemeral Vite servers, requests component CSS before component JavaScript, verifies scoped style output, and shuts down cleanly.
-- **Mounted and workflow regression tests (`npm test` in `apps/srt-gui`)**:
+- **Static AST pattern check (`npm run check:patterns` in `apps/vesta-gui`)**: Parses TypeScript and Svelte script blocks to reject async `forEach` callbacks, async `Promise` executors, and `debugger` statements.
+- **Development CSS check (`npm run test:dev-css` in `apps/vesta-gui`)**: Starts ephemeral Vite servers, requests component CSS before component JavaScript, verifies scoped style output, and shuts down cleanly.
+- **Mounted and workflow regression tests (`npm test` in `apps/vesta-gui`)**:
   - Persistent tab containers (`active` prop transitions without unmounting), keyboard shortcut scoping, and portal menu cleanup (`SpeechEngineSelector`, `SearchableSelect`, context menus).
   - Document undo/redo stacks across Synchronize (`sync_undo`/`sync_redo`), Revise (dual-column subtitle alignment and file swap history), Annotate (notes-only snapshots keyed by card ID), and Flashcards preview.
   - Clipboard integration via Tauri's `clipboard-manager` text API with fallback to `navigator.clipboard` in browser previews.
-  - Command registry verification (`commandRegistry.test.js`), ensuring every literal IPC command invoked by the frontend is registered in `apps/srt-gui/src-tauri/src/main.rs`.
+  - Command registry verification (`commandRegistry.test.js`), ensuring every literal IPC command invoked by the frontend is registered in `apps/vesta-gui/src-tauri/src/main.rs`.
 
 ### Localization Policy and Git Hooks
 
@@ -153,10 +153,10 @@ CI runs a dedicated `security` job against both checked-in lockfiles:
 ```bash
 cargo install cargo-audit --locked --version 0.22.2
 cargo audit
-(cd apps/srt-gui && npm audit)
+(cd apps/vesta-gui && npm audit)
 ```
 
-- **Vendored `deepmerge`**: `apps/srt-gui/vendor/deepmerge` provides a checked-in MIT-licensed security fix for `GHSA-gcqx-w48m-w2h4` (preventing prototype poisoning via own data-property writes). `npm run test:merge` tests poisoning regressions and config merge compatibility.
+- **Vendored `deepmerge`**: `apps/vesta-gui/vendor/deepmerge` provides a checked-in MIT-licensed security fix for `GHSA-gcqx-w48m-w2h4` (preventing prototype poisoning via own data-property writes). `npm run test:merge` tests poisoning regressions and config merge compatibility.
 - **Transitive GTK/Tauri advisories**: See [`MAINTENANCE.md`](MAINTENANCE.md#transitive-desktop-dependencies) for notes on `glib` (`RUSTSEC-2024-0429`) and D-Bus crate maintenance notices in the Tauri 2 / GTK3 dependency graph.
 
 ---
@@ -166,7 +166,7 @@ cargo audit
 ### Synthetic Flashcard Smoke Benchmark
 
 ```bash
-cargo build --release -p srt-flashcards-cli   # builds target/release/vesta-flashcards
+cargo build --release -p vesta-flashcards-cli   # builds target/release/vesta-flashcards
 python3 build-scripts/quality_smoke.py --profile release --samples 5
 ```
 
@@ -177,7 +177,7 @@ Generates a 20-second synthetic video with 10 subtitle lines, runs `preview` and
 On a machine with a supported Vulkan GPU and an installed Whisper model:
 
 ```bash
-cargo build -p srt-transcribe-cli --features vulkan   # builds target/debug/vesta-transcribe
+cargo build -p vesta-transcribe-cli --features vulkan   # builds target/debug/vesta-transcribe
 python3 build-scripts/gpu_smoke.py --device 'RX 7800 XT' --vad --output-dir /tmp/vesta-gpu-check
 ```
 
@@ -188,7 +188,7 @@ Verifies CPU execution, Vulkan backend selection (`Vulkan0`), CPU fallback when 
 `CodeEditor.svelte` mirrors native textarea scroll offsets into clipped highlight and line-number viewports without rebuilding DOM nodes or measuring line heights on scroll events. To benchmark scroll frame times in the native development webview:
 
 ```bash
-cd apps/srt-gui
+cd apps/vesta-gui
 npm ci
 npm run tauri -- dev --config '{"build":{"devUrl":"http://localhost:5175/scripts/editor-scroll-benchmark.html"}}'
 ```

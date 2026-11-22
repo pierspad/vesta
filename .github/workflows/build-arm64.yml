@@ -18,7 +18,7 @@ permissions:
 
 env:
   GH_REPO: ${{ github.repository }}
-  TAURI_APP_DIR: apps/srt-gui
+  TAURI_APP_DIR: apps/vesta-gui
   RELEASE_REF: ${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.ref }}
   WHISPER_DONT_GENERATE_BINDINGS: "1"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -95,7 +95,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: apps/srt-gui/package-lock.json
+          cache-dependency-path: apps/vesta-gui/package-lock.json
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -319,7 +319,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: apps/srt-gui/package-lock.json
+          cache-dependency-path: apps/vesta-gui/package-lock.json
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable

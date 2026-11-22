@@ -61,7 +61,7 @@ playwright = "no"
 smoke = "no"
 audit_status = "verified"
 last_audited = "2026-11-21"
-notes = "lib/srt-flashcards/src/merge_apkg.rs + IPC flashcard_merge_apkg. Wave 1 fixed #10.1 model did mismatch; Wave 2 fixed #10.13 checked SQLite ID math & 512 MiB extraction bounds."
+notes = "lib/vesta-flashcards/src/merge_apkg.rs + IPC flashcard_merge_apkg. Wave 1 fixed #10.1 model did mismatch; Wave 2 fixed #10.13 checked SQLite ID math & 512 MiB extraction bounds."
 
 [[item]]
 id = "FC-04"
@@ -106,7 +106,7 @@ playwright = "yes"
 smoke = "no"
 audit_status = "partial"
 last_audited = "2026-11-22"
-notes = "ExportDueling IPC + srt-flashcards-cli dueling. Wave 1 fixed CLI/README docs; Wave 2 fixed #10.14 bare relative target_subs_path; vesta-mcp parity (AUDIT-085) is deferred beyond Wave 3."
+notes = "ExportDueling IPC + vesta-flashcards-cli dueling. Wave 1 fixed CLI/README docs; Wave 2 fixed #10.14 bare relative target_subs_path; vesta-mcp parity (AUDIT-085) is deferred beyond Wave 3."
 
 [[item]]
 id = "FC-07"
@@ -155,7 +155,7 @@ playwright = "yes"
 smoke = "yes"
 audit_status = "verified"
 last_audited = "2026-11-21"
-notes = "core/srt-parser + srt-extract + inspect_subtitles MCP. Wave 2 fixed #10.10 checked timestamps/end>=start and #10.11 trailing SRT coordinate tokens + unit tests."
+notes = "core/vesta-parser + vesta-extract + inspect_subtitles MCP. Wave 2 fixed #10.10 checked timestamps/end>=start and #10.11 trailing SRT coordinate tokens + unit tests."
 
 [[item]]
 id = "EX-02"
@@ -170,7 +170,7 @@ playwright = "yes"
 smoke = "no"
 audit_status = "partial"
 last_audited = "2026-11-22"
-notes = "list_embedded_subtitles in GUI/CLI/MCP; Wave 2 fixed #10.7 tempdir_in staging & symlink refusal in srt-extract/src/embedded.rs; MCP extract_embedded_subtitle parity (AUDIT-085) is deferred beyond Wave 3."
+notes = "list_embedded_subtitles in GUI/CLI/MCP; Wave 2 fixed #10.7 tempdir_in staging & symlink refusal in vesta-extract/src/embedded.rs; MCP extract_embedded_subtitle parity (AUDIT-085) is deferred beyond Wave 3."
 
 [[item]]
 id = "EX-03"
@@ -185,7 +185,7 @@ playwright = "partial"
 smoke = "no"
 audit_status = "verified"
 last_audited = "2026-11-22"
-notes = "Wave 3 resolved PERF-001 (aspect-preserving stream dimension probing, bounded parallel chunked FFmpeg cue rendering, spawn_blocking PNG crop, ETXTBSY retry) and AUDIT-098 (PGS 0x40/0xC0 RLE & mock parallel render tests) in lib/srt-ocr/src/bitmap.rs."
+notes = "Wave 3 resolved PERF-001 (aspect-preserving stream dimension probing, bounded parallel chunked FFmpeg cue rendering, spawn_blocking PNG crop, ETXTBSY retry) and AUDIT-098 (PGS 0x40/0xC0 RLE & mock parallel render tests) in lib/vesta-ocr/src/bitmap.rs."
 
 [[item]]
 id = "EX-04"
@@ -200,7 +200,7 @@ playwright = "partial"
 smoke = "no"
 audit_status = "verified"
 last_audited = "2026-11-22"
-notes = "lib/srt-ocr/src/hardcoded.rs + ExtractTab. Wave 2 fixed PERF-005 (spawn_blocking frame decode) and child.wait/stderr_task cleanup; Wave 3 fixed AUDIT-057 (compute_stream_start_offset_ms, stream/format start_time probing, setpts=PTS-STARTPTS, cue timestamp offsetting, ETXTBSY retry + tests)."
+notes = "lib/vesta-ocr/src/hardcoded.rs + ExtractTab. Wave 2 fixed PERF-005 (spawn_blocking frame decode) and child.wait/stderr_task cleanup; Wave 3 fixed AUDIT-057 (compute_stream_start_offset_ms, stream/format start_time probing, setpts=PTS-STARTPTS, cue timestamp offsetting, ETXTBSY retry + tests)."
 
 [[item]]
 id = "EX-05"
@@ -264,7 +264,7 @@ playwright = "no"
 smoke = "no"
 audit_status = "verified"
 last_audited = "2026-11-21"
-notes = "Wave 2 fixed #12.14 Silero VAD cancel_token & span clamping in srt-transcribe/src/transcribe.rs + unit tests."
+notes = "Wave 2 fixed #12.14 Silero VAD cancel_token & span clamping in vesta-transcribe/src/transcribe.rs + unit tests."
 
 [[item]]
 id = "TR-04"
@@ -279,7 +279,7 @@ playwright = "partial"
 smoke = "no"
 audit_status = "verified"
 last_audited = "2026-11-21"
-notes = "Wave 2 fixed #8.14 OperationGuard on model/VAD uninstall IPC and #8.18 Ctrl-C CancellationToken on srt-transcribe download."
+notes = "Wave 2 fixed #8.14 OperationGuard on model/VAD uninstall IPC and #8.18 Ctrl-C CancellationToken on vesta-transcribe download."
 
 # ==============================================================================
 # 4. TRANSLATE
@@ -298,7 +298,7 @@ playwright = "yes"
 smoke = "no"
 audit_status = "verified"
 last_audited = "2026-11-22"
-notes = "Wave 2 fixed #12.7/#12.8/#12.9 legacy line-start, balanced JSON extraction, and Gemini quote preservation in srt-translate; Wave 3 added TranslateTab.mounted.test.ts (AUDIT-028), WorkflowPanels.mounted.test.ts (AUDIT-029), and theme token migration in TranslateTab & TranslationPreviewPanel (AUDIT-066)."
+notes = "Wave 2 fixed #12.7/#12.8/#12.9 legacy line-start, balanced JSON extraction, and Gemini quote preservation in vesta-translate; Wave 3 added TranslateTab.mounted.test.ts (AUDIT-028), WorkflowPanels.mounted.test.ts (AUDIT-029), and theme token migration in TranslateTab & TranslationPreviewPanel (AUDIT-066)."
 
 [[item]]
 id = "TL-02"
@@ -313,7 +313,7 @@ playwright = "no"
 smoke = "no"
 audit_status = "verified"
 last_audited = "2026-11-22"
-notes = "Wave 1 fixed HIGH #12.1 (compute_resume_position partial/completed resume + 5 unit tests) & srt-translate.md docs; Wave 3 added repair_missing_tiered_repairs_missing_entries_and_persists_checkpoint test in lib/srt-translate/src/lib.rs (AUDIT-098)."
+notes = "Wave 1 fixed HIGH #12.1 (compute_resume_position partial/completed resume + 5 unit tests) & vesta-translate.md docs; Wave 3 added repair_missing_tiered_repairs_missing_entries_and_persists_checkpoint test in lib/vesta-translate/src/lib.rs (AUDIT-098)."
 
 [[item]]
 id = "TL-03"
@@ -343,7 +343,7 @@ playwright = "yes"
 smoke = "no"
 audit_status = "verified"
 last_audited = "2026-11-21"
-notes = "Wave 2 fixed #8.16 srt-translate failure exit code & stderr progress, #8.17 post-parse TOML env expansion, and #8.21 cancel_translation boolean return."
+notes = "Wave 2 fixed #8.16 vesta-translate failure exit code & stderr progress, #8.17 post-parse TOML env expansion, and #8.21 cancel_translation boolean return."
 
 # ==============================================================================
 # 5. SYNC & ALIGN
@@ -362,7 +362,7 @@ playwright = "yes"
 smoke = "no"
 audit_status = "partial"
 last_audited = "2026-11-22"
-notes = "Wave 2 fixed #12.18 LNDS outlier-safe anchor filtering and #12.23 end.max(start) clamping in srt-sync; MCP parity (AUDIT-085) is deferred beyond Wave 3."
+notes = "Wave 2 fixed #12.18 LNDS outlier-safe anchor filtering and #12.23 end.max(start) clamping in vesta-sync; MCP parity (AUDIT-085) is deferred beyond Wave 3."
 
 [[item]]
 id = "SY-02"
@@ -392,7 +392,7 @@ playwright = "yes"
 smoke = "no"
 audit_status = "verified"
 last_audited = "2026-11-22"
-notes = "Wave 1 fixed #14.3, #14.4, and #14.20; Wave 3 resolved AUDIT-069 by moving AlignTab SRT parsing and saving to typed Tauri IPC commands (parse_subtitle_file, save_subtitle_file) backed by core/srt-parser + Vitest and Playwright coverage."
+notes = "Wave 1 fixed #14.3, #14.4, and #14.20; Wave 3 resolved AUDIT-069 by moving AlignTab SRT parsing and saving to typed Tauri IPC commands (parse_subtitle_file, save_subtitle_file) backed by core/vesta-parser + Vitest and Playwright coverage."
 
 # ==============================================================================
 # 6. AUTOSYNC
@@ -426,7 +426,7 @@ playwright = "no"
 smoke = "no"
 audit_status = "partial"
 last_audited = "2026-11-22"
-notes = "Wave 2 fixed #12.3 wordless cloud timestamps and #12.19 invalid-segment filtering in srt-autosync; MCP parity (AUDIT-085) is deferred beyond Wave 3."
+notes = "Wave 2 fixed #12.3 wordless cloud timestamps and #12.19 invalid-segment filtering in vesta-autosync; MCP parity (AUDIT-085) is deferred beyond Wave 3."
 
 [[item]]
 id = "AS-03"
@@ -460,7 +460,7 @@ playwright = "yes"
 smoke = "no"
 audit_status = "verified"
 last_audited = "2026-11-21"
-notes = "Wave 2 fixed #12.10 blank endpoint/model defaults in srt-refine and #12.11 TSV CR/LF & APKG 0x1f escaping in cards.rs."
+notes = "Wave 2 fixed #12.10 blank endpoint/model defaults in vesta-refine and #12.11 TSV CR/LF & APKG 0x1f escaping in cards.rs."
 
 [[item]]
 id = "RF-02"
@@ -490,7 +490,7 @@ playwright = "partial"
 smoke = "no"
 audit_status = "verified"
 last_audited = "2026-11-21"
-notes = "Wave 2 fixed #10.8 120s import_package timeout & non-2xx HTTP error reporting + AnkiConnect mock protocol unit tests in srt-ankiconnect."
+notes = "Wave 2 fixed #10.8 120s import_package timeout & non-2xx HTTP error reporting + AnkiConnect mock protocol unit tests in vesta-ankiconnect."
 
 [[item]]
 id = "RF-04"
@@ -505,7 +505,7 @@ playwright = "partial"
 smoke = "no"
 audit_status = "verified"
 last_audited = "2026-11-21"
-notes = "Wave 2 fixed #8.23 annotation lock-poison recovery in cli/srt-refine-cli/src/lib.rs."
+notes = "Wave 2 fixed #8.23 annotation lock-poison recovery in cli/vesta-refine-cli/src/lib.rs."
 
 # ==============================================================================
 # 8. PLUGINS & EXPERIMENTAL
@@ -712,7 +712,7 @@ playwright = "yes"
 smoke = "yes"
 audit_status = "verified"
 last_audited = "2026-11-21"
-notes = "Wave 2 fixed PERF-003 shared LazyLock<reqwest::Client> with timeouts in core/srt-download/src/lib.rs."
+notes = "Wave 2 fixed PERF-003 shared LazyLock<reqwest::Client> with timeouts in core/vesta-download/src/lib.rs."
 
 # ==============================================================================
 # 11. CLI & MCP INTERFACES
@@ -731,7 +731,7 @@ playwright = "na"
 smoke = "yes"
 audit_status = "partial"
 last_audited = "2026-11-22"
-notes = "Wave 2 fixed #8.16/#8.17/#8.18/#8.23 across srt-translate-cli, srt-transcribe-cli, srt-extract-cli, and srt-refine-cli; srt-flashcards-cli option parity (AUDIT-085) is deferred beyond Wave 3."
+notes = "Wave 2 fixed #8.16/#8.17/#8.18/#8.23 across vesta-translate-cli, vesta-transcribe-cli, vesta-extract-cli, and vesta-refine-cli; vesta-flashcards-cli option parity (AUDIT-085) is deferred beyond Wave 3."
 
 [[item]]
 id = "CM-02"
@@ -795,7 +795,7 @@ playwright = "no"
 smoke = "yes"
 audit_status = "verified"
 last_audited = "2026-11-19"
-notes = "Enforces key parity, placeholder tokens, unused keys, and translation completeness across 15 locales in apps/srt-gui/src/lib/i18n/locales/."
+notes = "Enforces key parity, placeholder tokens, unused keys, and translation completeness across 15 locales in apps/vesta-gui/src/lib/i18n/locales/."
 
 [[item]]
 id = "QC-04"

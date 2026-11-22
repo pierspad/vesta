@@ -4693,284 +4693,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "srt-ankiconnect"
-version = "0.35.0-dev.2"
-dependencies = [
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "srt-apkg"
-version = "0.35.0-dev.2"
-dependencies = [
- "serde_json",
- "tempfile",
- "zip",
-]
-
-[[package]]
-name = "srt-autosync"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "serde",
- "srt-transcribe",
- "tempfile",
- "tokio",
- "tokio-util",
- "whisper-rs",
-]
-
-[[package]]
-name = "srt-autosync-cli"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "clap",
- "srt-autosync",
- "srt-sync",
- "srt-transcribe",
- "tempfile",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
-name = "srt-download"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "futures",
- "reqwest",
- "tempfile",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
-name = "srt-extract"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "srt-parser",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "srt-extract-cli"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "clap",
- "serde_json",
- "srt-extract",
- "srt-parser",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "srt-flashcards"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "dirs 6.0.0",
- "rusqlite",
- "serde",
- "serde_json",
- "sha1_smol",
- "srt-download",
- "srt-parser",
- "tempfile",
- "tokio",
- "tokio-util",
- "zip",
-]
-
-[[package]]
-name = "srt-flashcards-cli"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "clap",
- "srt-flashcards",
- "tempfile",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
-name = "srt-ocr"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "base64 0.22.1",
- "dirs 6.0.0",
- "png",
- "reqwest",
- "serde",
- "serde_json",
- "srt-download",
- "srt-extract",
- "srt-parser",
- "srt-translate",
- "tempfile",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
-name = "srt-ocr-cli"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "clap",
- "serde_json",
- "srt-ocr",
- "srt-parser",
- "srt-translate",
- "tempfile",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
-name = "srt-parser"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "chardetng",
- "encoding_rs",
- "same-file",
- "serde",
- "tempfile",
-]
-
-[[package]]
-name = "srt-refine"
-version = "0.35.0-dev.2"
-dependencies = [
- "rusqlite",
- "serde",
- "serde_json",
- "srt-apkg",
- "srt-translate",
- "tempfile",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
-name = "srt-refine-cli"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "clap",
- "serde",
- "serde_json",
- "srt-refine",
- "srt-translate",
- "tempfile",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
-name = "srt-sync"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "srt-parser",
- "tempfile",
-]
-
-[[package]]
-name = "srt-sync-cli"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "clap",
- "srt-parser",
- "srt-sync",
- "tempfile",
-]
-
-[[package]]
-name = "srt-transcribe"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "dirs 6.0.0",
- "hound",
- "num_cpus",
- "reqwest",
- "serde",
- "serde_json",
- "srt-download",
- "srt-parser",
- "tempfile",
- "tokio",
- "tokio-util",
- "webrtc-vad",
- "whisper-rs",
-]
-
-[[package]]
-name = "srt-transcribe-cli"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "clap",
- "serde_json",
- "srt-transcribe",
- "tempfile",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
-name = "srt-translate"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "futures",
- "governor",
- "httpdate",
- "reqwest",
- "serde",
- "serde_json",
- "srt-parser",
- "tempfile",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
-name = "srt-translate-cli"
-version = "0.35.0-dev.2"
-dependencies = [
- "anyhow",
- "clap",
- "dotenvy",
- "regex",
- "serde",
- "srt-parser",
- "srt-translate",
- "tempfile",
- "tokio",
- "tokio-util",
- "toml 1.1.2+spec-1.1.0",
-]
-
-[[package]]
 name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6110,16 +5832,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.11.0",
- "srt-ankiconnect",
- "srt-autosync",
- "srt-extract",
- "srt-flashcards",
- "srt-ocr",
- "srt-parser",
- "srt-refine",
- "srt-sync",
- "srt-transcribe",
- "srt-translate",
  "subtle",
  "sysinfo",
  "tar",
@@ -6135,9 +5847,65 @@ dependencies = [
  "tower",
  "tower-http 0.7.0",
  "urlencoding",
+ "vesta-ankiconnect",
+ "vesta-autosync",
  "vesta-cli",
+ "vesta-extract",
+ "vesta-flashcards",
+ "vesta-ocr",
+ "vesta-parser",
+ "vesta-refine",
+ "vesta-sync",
+ "vesta-transcribe",
+ "vesta-translate",
  "webkit2gtk",
  "zip",
+]
+
+[[package]]
+name = "vesta-ankiconnect"
+version = "0.35.0-dev.2"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "vesta-apkg"
+version = "0.35.0-dev.2"
+dependencies = [
+ "serde_json",
+ "tempfile",
+ "zip",
+]
+
+[[package]]
+name = "vesta-autosync"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "serde",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "vesta-transcribe",
+ "whisper-rs",
+]
+
+[[package]]
+name = "vesta-autosync-cli"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "clap",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "vesta-autosync",
+ "vesta-sync",
+ "vesta-transcribe",
 ]
 
 [[package]]
@@ -6145,16 +5913,83 @@ name = "vesta-cli"
 version = "0.35.0-dev.2"
 dependencies = [
  "clap",
- "srt-autosync-cli",
- "srt-extract-cli",
- "srt-flashcards-cli",
- "srt-ocr-cli",
- "srt-refine-cli",
- "srt-sync-cli",
- "srt-transcribe-cli",
- "srt-translate-cli",
  "tempfile",
+ "vesta-autosync-cli",
+ "vesta-extract-cli",
+ "vesta-flashcards-cli",
  "vesta-mcp",
+ "vesta-ocr-cli",
+ "vesta-refine-cli",
+ "vesta-sync-cli",
+ "vesta-transcribe-cli",
+ "vesta-translate-cli",
+]
+
+[[package]]
+name = "vesta-download"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "futures",
+ "reqwest",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
+name = "vesta-extract"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "vesta-parser",
+]
+
+[[package]]
+name = "vesta-extract-cli"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "vesta-extract",
+ "vesta-parser",
+]
+
+[[package]]
+name = "vesta-flashcards"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "dirs 6.0.0",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha1_smol",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "vesta-download",
+ "vesta-parser",
+ "zip",
+]
+
+[[package]]
+name = "vesta-flashcards-cli"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "clap",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "vesta-flashcards",
 ]
 
 [[package]]
@@ -6169,15 +6004,180 @@ dependencies = [
  "schemars 1.2.1",
  "serde",
  "serde_json",
- "srt-extract",
- "srt-flashcards",
- "srt-ocr",
- "srt-parser",
- "srt-transcribe",
- "srt-translate",
  "tempfile",
  "tokio",
  "tokio-util",
+ "vesta-extract",
+ "vesta-flashcards",
+ "vesta-ocr",
+ "vesta-parser",
+ "vesta-transcribe",
+ "vesta-translate",
+]
+
+[[package]]
+name = "vesta-ocr"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "dirs 6.0.0",
+ "png",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "vesta-download",
+ "vesta-extract",
+ "vesta-parser",
+ "vesta-translate",
+]
+
+[[package]]
+name = "vesta-ocr-cli"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "vesta-ocr",
+ "vesta-parser",
+ "vesta-translate",
+]
+
+[[package]]
+name = "vesta-parser"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "chardetng",
+ "encoding_rs",
+ "same-file",
+ "serde",
+ "tempfile",
+]
+
+[[package]]
+name = "vesta-refine"
+version = "0.35.0-dev.2"
+dependencies = [
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "vesta-apkg",
+ "vesta-translate",
+]
+
+[[package]]
+name = "vesta-refine-cli"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "vesta-refine",
+ "vesta-translate",
+]
+
+[[package]]
+name = "vesta-sync"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "vesta-parser",
+]
+
+[[package]]
+name = "vesta-sync-cli"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "clap",
+ "tempfile",
+ "vesta-parser",
+ "vesta-sync",
+]
+
+[[package]]
+name = "vesta-transcribe"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "dirs 6.0.0",
+ "hound",
+ "num_cpus",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "vesta-download",
+ "vesta-parser",
+ "webrtc-vad",
+ "whisper-rs",
+]
+
+[[package]]
+name = "vesta-transcribe-cli"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "vesta-transcribe",
+]
+
+[[package]]
+name = "vesta-translate"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "futures",
+ "governor",
+ "httpdate",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "vesta-parser",
+]
+
+[[package]]
+name = "vesta-translate-cli"
+version = "0.35.0-dev.2"
+dependencies = [
+ "anyhow",
+ "clap",
+ "dotenvy",
+ "regex",
+ "serde",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "toml 1.1.2+spec-1.1.0",
+ "vesta-parser",
+ "vesta-translate",
 ]
 
 [[package]]
@@ -6572,13 +6572,13 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.11.0",
- "srt-transcribe",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
  "tempfile",
  "tokio",
  "tokio-util",
+ "vesta-transcribe",
  "zip",
 ]
 

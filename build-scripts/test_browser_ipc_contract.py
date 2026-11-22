@@ -40,7 +40,7 @@ class BrowserIpcContractTests(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            mock_dir = root / "apps/srt-gui/browser-tests"
+            mock_dir = root / "apps/vesta-gui/browser-tests"
             mock_dir.mkdir(parents=True)
             mock_file = mock_dir / "vesta-mock.mjs"
 
@@ -59,7 +59,7 @@ class BrowserIpcContractTests(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            src_dir = root / "apps/srt-gui/src/lib"
+            src_dir = root / "apps/vesta-gui/src/lib"
             src_dir.mkdir(parents=True)
             ts_file = src_dir / "client.ts"
 

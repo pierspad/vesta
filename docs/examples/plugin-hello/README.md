@@ -12,7 +12,7 @@ This directory contains a minimal, working reference implementation of an extern
 
 1. Start Vesta development server:
    ```bash
-   cd apps/srt-gui && npx tauri dev
+   cd apps/vesta-gui && npx tauri dev
    ```
 
 2. Open the **Plugins** manager tab in the sidebar.

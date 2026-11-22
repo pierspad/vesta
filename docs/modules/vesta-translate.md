@@ -1,0 +1,113 @@
+# vesta-translate — LLM subtitle translation
+
+`lib/vesta-translate` translates SRT files with LLMs, batching subtitles with
+overlap for context, with resume support (partial output files are continued,
+holes are repaired), rate limiting, and a **multi-tier failover pool**: you
+declare an ordered list of endpoints (provider + model + key) and the engine
+round-robins inside a tier, then falls to the next tier when entries exhaust
+their quota or hit rate limits.
+
+Supported endpoints: Google (Gemini), Anthropic (Claude), Groq, OpenRouter, and any
+OpenAI-compatible API (OpenAI, Mistral, NVIDIA NIM, Ollama/local, custom).
+
+**Library API highlights**
+
+- `TierEntry` + `build_pool(&tiers)` → `TranslatorPool` (module `pool`:
+  per-provider defaults for base URL, RPM and model live here)
+- `translate_subtitles_tiered_cancellable(pool, subs, target_lang, batch_size,
+  overlap, title_context, output_path, on_progress, cancel_token)`
+- `get_missing_or_incorrect_subtitle_ids(&original, &translated)` (replaces deprecated `get_missing_subtitle_ids(&original, &translated)`)
+- `Translator::generate_response(prompt)` — raw single-prompt call (used by
+  [vesta-refine](vesta-refine.md))
+- `Translator::generate_vision_response(prompt, image_base64, mime_type)` — multimodal prompt + image call across OpenAI-compatible, Gemini, and Anthropic endpoints (used by [vesta-ocr](vesta-ocr.md))
+- `ProviderError`, `ProviderFailureKind`, `TranslationCancelled` (`diagnostics` module)
+- Progress via a plain `Fn(TranslationProgress)` callback; cancellation via
+  `CancellationToken`.
+
+## Errors and optional diagnostics
+
+HTTP failures cannot become successful translations even when their JSON body
+resembles a success response. Empty/whitespace results, including quote-only
+responses, are errors; batch output also rejects empty text and duplicate IDs.
+
+`ProviderError` exposes `provider`, HTTP `status` and `ProviderFailureKind` through
+an anyhow downcast. Its text contains a safe category, never the raw provider
+body. Transport failures remove credential-bearing URLs; malformed translation
+JSON reports a location rather than echoing private subtitle text.
+
+```rust
+use vesta_translate::{Translator, TranslatorConfig};
+
+fn main() -> anyhow::Result<()> {
+    let translator = Translator::try_new(TranslatorConfig::default())?
+        .with_diagnostics(|event| {
+            // The caller owns logging. Only numeric retry metadata is provided.
+            eprintln!("HTTP {}: retry {} in {} ms", event.status, event.attempt, event.retry_in_ms);
+        });
+    let _ = translator;
+    Ok(())
+}
+```
+
+The observer is optional, retained by clones, and must be fast/nonblocking.
+No global logger is installed and the library itself does not print retry/error
+messages. CLI adapters choose stderr; desktop adapters emit `provider-retry`
+events consumed by the support recorder.
+
+## Use as a binary
+
+```bash
+cargo build --release -p vesta-translate-cli
+./target/release/vesta-translate --help
+```
+
+## Use as a Rust dependency
+
+```toml
+[dependencies]
+vesta-parser    = { git = "https://github.com/pierspad/vesta" }
+vesta-translate = { git = "https://github.com/pierspad/vesta" }
+anyhow        = "1"
+tokio         = { version = "1", features = ["full"] }
+tokio-util    = "0.7"
+```
+
+```rust
+use vesta_parser::SrtParser;
+use vesta_translate::{build_pool, TierEntry, translate_subtitles_tiered_cancellable};
+use tokio_util::sync::CancellationToken;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let mut subs = SrtParser::parse_file("movie.en.srt")?;
+    SrtParser::normalize_subtitles(&mut subs);
+
+    let tiers = vec![vec![TierEntry {
+        provider: "google".into(),
+        model: "gemini-3.8-flash".into(),
+        api_key: Some(std::env::var("GEMINI_API_KEY")?),
+        api_url: None,
+        rpm: None,          // provider default
+        max_requests: None, // unlimited
+    }]];
+    let pool = build_pool(&tiers).map_err(anyhow::Error::msg)?;
+
+    let translated = translate_subtitles_tiered_cancellable(
+        pool, subs, "it", 30, 2, Some("Detour (1945)"),
+        std::path::Path::new("movie.it.srt"),
+        |p| eprintln!("{}", p.message),
+        CancellationToken::new(),
+    ).await?;
+
+    println!("Translated {} subtitles", translated.len());
+    Ok(())
+}
+```
+
+## Vendoring & Standalone Integration
+
+Prefer the Cargo Git dependency above. When vendoring into another workspace,
+include `lib/vesta-translate/` and `core/vesta-parser/`, and supply the inherited
+workspace metadata and dependencies (`anyhow`, `tokio`, `tokio-util`, `reqwest`
+with `rustls`, `serde`, `serde_json`, `governor`); see
+[`docs/library-integration.md`](../library-integration.md).

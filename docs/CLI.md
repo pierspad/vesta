@@ -8,7 +8,7 @@ vesta-cli --help
 vesta-cli help flashcards generate
 ```
 
-Each subcommand invokes the corresponding standalone `vesta-*` CLI parser (`vesta-flashcards`, `vesta-extract`, `vesta-ocr`, `vesta-sync`, `vesta-autosync`, `vesta-transcribe`, `vesta-translate`, `vesta-refine`) or the embedded `vesta-mcp` server (`vesta-cli mcp`) directly; standalone binaries do not need to be installed separately at runtime. Delegated usage output displays the matching standalone `vesta-*` command name. Package build paths (`cli/srt-*-cli`) and Rust library APIs are listed in the [module index](modules/README.md).
+Each subcommand invokes the corresponding standalone `vesta-*` CLI parser (`vesta-flashcards`, `vesta-extract`, `vesta-ocr`, `vesta-sync`, `vesta-autosync`, `vesta-transcribe`, `vesta-translate`, `vesta-refine`) or the embedded `vesta-mcp` server (`vesta-cli mcp`) directly; standalone binaries do not need to be installed separately at runtime. Delegated usage output displays the matching standalone `vesta-*` command name. Package build paths (`cli/vesta-*-cli`) and Rust library APIs are listed in the [module index](modules/README.md).
 
 CLI configuration is isolated from desktop preferences: commands do not read the GUI's stored API keys, provider tiers, AI Kill Switch, or note templates. Translation TOML files expand `${VAR_NAME}` from the environment or `.env`; refinement JSON files do not. For the stdio Model Context Protocol server, see [MCP.md](MCP.md).
 
@@ -25,7 +25,7 @@ CLI configuration is isolated from desktop preferences: commands do not read the
 | Translate | Tiered TOML provider pools, batch size, resume overlap, language list, and completeness check | Context preview/editing, interactive subtitle table editing, and remote model discovery |
 | Refine | JSON card inspection (`inspect`) and tiered LLM annotation (`enrich`) for TSV/APKG decks | Interactive card selection/editing, custom TSV column mapping, and GUI auto-run controls |
 | MCP | `vesta-cli mcp --read-root ... --output-root ...` stdio JSON-RPC server (12 tools; see [MCP.md](MCP.md)) | Settings card (`AI assistant integration (MCP)`) detects the bundled `vesta-cli` path and copies ready client JSON |
-| AnkiConnect & Desktop | No dedicated CLI command | Direct AnkiConnect import (`srt-ankiconnect`), setup wizard, update installer, support logs, and local media playback server |
+| AnkiConnect & Desktop | No dedicated CLI command | Direct AnkiConnect import (`vesta-ankiconnect`), setup wizard, update installer, support logs, and local media playback server |
 
 ## Subcommands and Options
 
@@ -48,7 +48,7 @@ vesta-cli flashcards generate --target episode-ja.srt --output out --deck Text \
 - `--audio-track N` selects the zero-based audio stream (`0:a:N`), not the absolute container stream index reported by `extract --list-tracks`.
 - `--jobs` clamps the number of concurrent FFmpeg worker processes to `[1, logical_cores]`.
 - `--no-optimize` disables both video clip pre-transcoding and nearby WebP snapshot batching.
-- Re-running `generate` with the same output directory and deck name atomically replaces the previous export after media extraction completes; see [`cli/srt-flashcards-cli/README.md`](../cli/srt-flashcards-cli/README.md#regenerating-tsv-exports).
+- Re-running `generate` with the same output directory and deck name atomically replaces the previous export after media extraction completes; see [`cli/vesta-flashcards-cli/README.md`](../cli/vesta-flashcards-cli/README.md#regenerating-tsv-exports).
 
 ### `extract`
 
@@ -127,7 +127,7 @@ vesta-cli translate --input episode.srt --language it --config translation.toml 
 vesta-cli translate --input episode.srt --check-missing episode.it.srt
 ```
 
-- Translation requires `--input`, `--language`, and `--config` (defaults to `config.toml`; see [`cli/srt-translate-cli/README.md`](../cli/srt-translate-cli/README.md#configuration)).
+- Translation requires `--input`, `--language`, and `--config` (defaults to `config.toml`; see [`cli/vesta-translate-cli/README.md`](../cli/vesta-translate-cli/README.md#configuration)).
 - `--language-list` and `--check-missing <TRANSLATED_FILE>` run locally without reading `config.toml` or contacting providers.
 - If the output file already exists, completed cues are preserved and translation resumes from the first missing cue (with `resume_overlap` context). Output must not resolve to the input path.
 
@@ -139,7 +139,7 @@ vesta-cli refine enrich --input deck.apkg --output deck.annotated.apkg --config 
 ```
 
 - `inspect` prints deck cards as JSON to stdout without network requests.
-- `enrich` annotates cards using a JSON configuration file (`prompt`, `tiers`, optional `batch_mode` and `batch_size`; see [`cli/srt-refine-cli/README.md`](../cli/srt-refine-cli/README.md)).
+- `enrich` annotates cards using a JSON configuration file (`prompt`, `tiers`, optional `batch_mode` and `batch_size`; see [`cli/vesta-refine-cli/README.md`](../cli/vesta-refine-cli/README.md)).
 - Supported input→output pairs: `TSV → TSV`, `APKG → TSV`, and `APKG → APKG`. In-place updates (`--input` equal to `--output`) are written atomically.
 - By default, any failed or unannotated card aborts publication and exits `1`. `--allow-partial` writes completed card updates before exiting `1`.
 

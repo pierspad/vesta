@@ -124,7 +124,7 @@ def main():
             'ARM64 build jobs must run only on workflow_dispatch')
 
     release_cli_conf = json.loads(
-        (ROOT / 'apps/srt-gui/src-tauri/tauri.release-cli.conf.json').read_text(encoding='utf-8')
+        (ROOT / 'apps/vesta-gui/src-tauri/tauri.release-cli.conf.json').read_text(encoding='utf-8')
     )
     require(release_cli_conf.get('bundle', {}).get('externalBin') == ['binaries/vesta-cli'],
             'tauri.release-cli.conf.json must declare binaries/vesta-cli as externalBin')

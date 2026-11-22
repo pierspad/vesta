@@ -2,7 +2,7 @@
 #
 # 2_compile_vesta.sh — build the headless Vesta flashcard CLI (release).
 #
-# Produces target/release/srt-flashcards, the "main" variant the benchmark
+# Produces target/release/vesta-flashcards, the "main" variant the benchmark
 # compares against subs2srs. To benchmark another Vesta build, compile it
 # separately and add it to vesta_VARIANTS in config.sh.
 
@@ -13,10 +13,10 @@ cd "$REPO_ROOT"
 need cargo
 need ffmpeg
 
-log "Building srt-flashcards-cli in release mode (LTO, opt-level 3)…"
-cargo build --release -p srt-flashcards-cli
+log "Building vesta-flashcards-cli in release mode (LTO, opt-level 3)…"
+cargo build --release -p vesta-flashcards-cli
 
-BIN="target/release/srt-flashcards"
+BIN="target/release/vesta-flashcards"
 [ -x "$BIN" ] || die "Expected binary not found at $BIN"
 ok "Built $BIN"
 "$BIN" --version 2>/dev/null || true

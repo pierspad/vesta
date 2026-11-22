@@ -32,7 +32,7 @@ work.
 ## Check sync audio preparation
 
 1. Load an SRT and a natively playable audio file (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`, `.opus`, `.flac`); playback works directly without conversion.
-2. Load a video container (such as `.mkv` or `.mp4`); `srt-sync::playback` extracts and converts the audio stream into a cached 16 kHz mono PCM WAV (`{hash}.wav`). Flashcard export retains its own independent audio settings.
+2. Load a video container (such as `.mkv` or `.mp4`); `vesta-sync::playback` extracts and converts the audio stream into a cached 16 kHz mono PCM WAV (`{hash}.wav`). Flashcard export retains its own independent audio settings.
 3. Load the same file again and verify that the cached WAV preparation is reused without re-running FFmpeg (unless the source file timestamp is newer than the cache).
 4. Load an invalid media file; expect a visible error and a way to choose another file. FFmpeg child processes have a five-minute timeout.
 5. With no media loaded, verify that the confirmation action is disabled.

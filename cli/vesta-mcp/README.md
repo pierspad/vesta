@@ -1,7 +1,7 @@
 # Vesta MCP server
 
 A local stdio server using the official Rust MCP SDK (`rmcp`). It calls the
-`srt-flashcards`, `srt-extract`, `srt-ocr`, `srt-translate`, and `srt-transcribe` engines and dispatches
+`vesta-flashcards`, `vesta-extract`, `vesta-ocr`, `vesta-translate`, and `vesta-transcribe` engines and dispatches
 installed Vesta plugins over JSON-RPC 2.0 stdio, without Tauri, a network
 listening port, or shell execution.
 

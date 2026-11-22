@@ -9,10 +9,10 @@ log()  { echo -e "  ${C_YELLOW}▶${C_NC} $*"; }
 ok()   { echo -e "  ${C_GREEN}✔${C_NC} $*"; }
 warn() { echo -e "  ${C_YELLOW}⚠${C_NC} $*" >&2; }
 
-vbin="target/release/srt-flashcards"
+vbin="target/release/vesta-flashcards"
 if [ ! -x "$vbin" ]; then
     echo "Building release binary..."
-    cargo build --release -p srt-flashcards-cli
+    cargo build --release -p vesta-flashcards-cli
 fi
 
 RESULTS_GPU_CSV="benchmarking_against_subs2srs/results/results_gpu.csv"

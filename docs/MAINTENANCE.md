@@ -5,7 +5,7 @@ This document outlines boundaries to preserve during modifications.
 
 ## Frontend
 
-Tabs compose views and synchronize with user preferences. Separately verifiable responsibilities reside in `apps/srt-gui/src/lib/workflows`:
+Tabs compose views and synchronize with user preferences. Separately verifiable responsibilities reside in `apps/vesta-gui/src/lib/workflows`:
 
 - **Flashcards**: Episode preparation, batch series generation, previewing, and audio track selection. A stale probe must never overwrite the selection of a different file.
 - **Translate**: Model discovery scoped by provider/credential identity; obsolete results must never update state or the cache. A failed discovery preserves the static fallback and must not trigger infinite request loops. Local tiers enforce an explicit 15-second timeout; rotating or removing credentials invalidates pending results. Versioned persistent caches have a 24-hour TTL and full SHA-256 identities without secrets in filenames.
@@ -28,7 +28,7 @@ Translation checkpoints are atomic snapshots serialized under a lock. Saves occu
 python3 build-scripts/quality_check.py --desktop --smoke
 cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo fmt --all --check
-cargo run --locked --release -p srt-translate --example checkpoint_bench -- /path/to/storage
+cargo run --locked --release -p vesta-translate --example checkpoint_bench -- /path/to/storage
 cargo test --locked -p vesta commands::translate::context_tests::preview_cache_debug_timings_for_1k_10k_and_50k_subtitles --lib -- --nocapture
 ```
 
@@ -38,7 +38,7 @@ Pre-release validation requires installed smoke checks as detailed in QUALITY: A
 
 ## Build-time glob matching
 
-`apps/srt-gui/vendor/picomatch` is a temporary MIT-licensed 4.0.7 fork for
+`apps/vesta-gui/vendor/picomatch` is a temporary MIT-licensed 4.0.7 fork for
 GHSA-fc5q-39xc-vjpf. A single repeated branch containing an unbounded wildcard
 uses upstream's existing risky-extglob literalization policy. Ordinary file
 patterns, escaped stars and character classes retain their behavior. The

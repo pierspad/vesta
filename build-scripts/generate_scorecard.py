@@ -147,10 +147,10 @@ def compute_metrics(repo_root: pathlib.Path) -> CodebaseMetrics:
             prod_panic += len(re.findall(r"\b(?:panic|todo|unimplemented)\s*!", sanitized))
             prod_unsafe += len(re.findall(r"\bunsafe\b", sanitized))
 
-    ipc_cmds = _extract_ipc_commands(repo_root / "apps/srt-gui/src-tauri/src/main.rs")
-    mocked_cmds = _extract_mocked_commands(repo_root / "apps/srt-gui/browser-tests/vesta-mock.mjs")
+    ipc_cmds = _extract_ipc_commands(repo_root / "apps/vesta-gui/src-tauri/src/main.rs")
+    mocked_cmds = _extract_mocked_commands(repo_root / "apps/vesta-gui/browser-tests/vesta-mock.mjs")
 
-    spec_dir = repo_root / "apps/srt-gui/browser-tests"
+    spec_dir = repo_root / "apps/vesta-gui/browser-tests"
     spec_files = sorted(spec_dir.glob("*.spec.mjs")) if spec_dir.exists() else []
     specs_text = "\n".join(p.read_text(encoding="utf-8", errors="ignore") for p in spec_files)
     ipc_spec_referenced = sum(
@@ -172,17 +172,17 @@ def compute_metrics(repo_root: pathlib.Path) -> CodebaseMetrics:
         else 0
     )
 
-    renderer = repo_root / "apps/srt-gui/src/lib/components/PluginRenderer.svelte"
+    renderer = repo_root / "apps/vesta-gui/src/lib/components/PluginRenderer.svelte"
     plugin_widgets = (
         len(set(re.findall(r"""node\.type\s*===\s*['"]([a-zA-Z0-9_]+)['"]""", renderer.read_text(encoding="utf-8"))))
         if renderer.exists()
         else 0
     )
 
-    locales_dir = repo_root / "apps/srt-gui/src/lib/i18n/locales"
+    locales_dir = repo_root / "apps/vesta-gui/src/lib/i18n/locales"
     locales = len(list(locales_dir.glob("*.json"))) if locales_dir.exists() else 0
 
-    src_dir = repo_root / "apps/srt-gui/src"
+    src_dir = repo_root / "apps/vesta-gui/src"
     vitest_files = 0
     vitest_cases = 0
     if src_dir.exists():
@@ -404,15 +404,15 @@ def render_scorecard_md(parsed: dict[str, dict[str, Any]], m: CodebaseMetrics) -
         f"| Rust production LOC (non-test) | {m.rust_prod_loc:,} | `core/`, `lib/`, `cli/`, `apps/*/src-tauri/src/` |",
         f"| Rust unit & integration `#[test]` cases | {m.rust_tests} | Workspace `*.rs` |",
         f"| Rust prod `.unwrap()` / `.expect()` / `panic!()` / `unsafe` | {m.prod_unwrap} / {m.prod_expect} / {m.prod_panic} / {m.prod_unsafe} | Comment/test-stripped scan |",
-        f"| Registered Tauri IPC commands | {m.ipc_total} | `apps/srt-gui/src-tauri/src/main.rs` |",
-        f"| Playwright mock handlers (`vesta-mock.mjs`) | {m.ipc_mocked}/{m.ipc_total} | `apps/srt-gui/browser-tests/vesta-mock.mjs` |",
-        f"| IPC names referenced in Playwright specs | {m.ipc_spec_referenced}/{m.ipc_total} | `apps/srt-gui/browser-tests/*.spec.mjs` |",
-        f"| Vitest files / cases | {m.vitest_files} / {m.vitest_cases} | `apps/srt-gui/src/**/*.test.*` |",
-        f"| Playwright spec files / `test()` decls | {m.playwright_files} / {m.playwright_test_decls} | `apps/srt-gui/browser-tests/*.spec.mjs` |",
+        f"| Registered Tauri IPC commands | {m.ipc_total} | `apps/vesta-gui/src-tauri/src/main.rs` |",
+        f"| Playwright mock handlers (`vesta-mock.mjs`) | {m.ipc_mocked}/{m.ipc_total} | `apps/vesta-gui/browser-tests/vesta-mock.mjs` |",
+        f"| IPC names referenced in Playwright specs | {m.ipc_spec_referenced}/{m.ipc_total} | `apps/vesta-gui/browser-tests/*.spec.mjs` |",
+        f"| Vitest files / cases | {m.vitest_files} / {m.vitest_cases} | `apps/vesta-gui/src/**/*.test.*` |",
+        f"| Playwright spec files / `test()` decls | {m.playwright_files} / {m.playwright_test_decls} | `apps/vesta-gui/browser-tests/*.spec.mjs` |",
         f"| MCP tools (`vesta-mcp`) | {m.mcp_tools} | `cli/vesta-mcp/src/lib.rs` |",
         f"| Unified `vesta-cli` workflows | {m.cli_workflows} | `cli/vesta-cli/src/lib.rs` |",
         f"| Plugin SDK widget primitives | {m.plugin_widgets} | `PluginRenderer.svelte` |",
-        f"| Frontend localization catalogs | {m.locales} | `apps/srt-gui/src/lib/i18n/locales/*.json` |",
+        f"| Frontend localization catalogs | {m.locales} | `apps/vesta-gui/src/lib/i18n/locales/*.json` |",
         "",
         "## Executive Summary by Area",
         "",

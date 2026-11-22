@@ -78,20 +78,20 @@ pub fn run_from(args: Vec<OsString>) -> ExitCode {
         .collect();
 
     match command_name {
-        "vesta-flashcards" => srt_flashcards_cli::run_from(forwarded),
-        "vesta-translate" => srt_translate_cli::run_from(forwarded),
-        "vesta-transcribe" => srt_transcribe_cli::run_from(forwarded),
-        "vesta-sync" => srt_sync_cli::run_from(forwarded),
-        "vesta-autosync" => srt_autosync_cli::run_from(forwarded),
-        "vesta-refine" => srt_refine_cli::run_from(forwarded),
-        "vesta-extract" => match srt_extract_cli::run_from(forwarded) {
+        "vesta-flashcards" => vesta_flashcards_cli::run_from(forwarded),
+        "vesta-translate" => vesta_translate_cli::run_from(forwarded),
+        "vesta-transcribe" => vesta_transcribe_cli::run_from(forwarded),
+        "vesta-sync" => vesta_sync_cli::run_from(forwarded),
+        "vesta-autosync" => vesta_autosync_cli::run_from(forwarded),
+        "vesta-refine" => vesta_refine_cli::run_from(forwarded),
+        "vesta-extract" => match vesta_extract_cli::run_from(forwarded) {
             Ok(()) => ExitCode::SUCCESS,
             Err(error) => {
                 eprintln!("vesta-extract: {error:#}");
                 ExitCode::FAILURE
             }
         },
-        "vesta-ocr" => srt_ocr_cli::run_from(forwarded),
+        "vesta-ocr" => vesta_ocr_cli::run_from(forwarded),
         "vesta-mcp" => vesta_mcp::run_from(forwarded),
         _ => unreachable!("operation mapped above"),
     }

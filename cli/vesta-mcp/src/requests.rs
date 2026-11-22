@@ -2,7 +2,7 @@ use crate::paths::Paths;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
-use srt_flashcards::FlashcardConfig;
+use vesta_flashcards::FlashcardConfig;
 
 /// Translate a subtitle file with a provider profile configured by the server.
 /// Provider secrets are never accepted in tool arguments.
@@ -106,9 +106,9 @@ pub struct OcrRoiRequest {
 }
 
 impl OcrRoiRequest {
-    /// Converts into [`srt_ocr::VideoRoi`] and validates normalized coordinates.
-    pub fn into_video_roi(self) -> Result<srt_ocr::VideoRoi, String> {
-        let roi = srt_ocr::VideoRoi {
+    /// Converts into [`vesta_ocr::VideoRoi`] and validates normalized coordinates.
+    pub fn into_video_roi(self) -> Result<vesta_ocr::VideoRoi, String> {
+        let roi = vesta_ocr::VideoRoi {
             x: self.x,
             y: self.y,
             width: self.width,

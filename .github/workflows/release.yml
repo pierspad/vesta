@@ -53,8 +53,8 @@ jobs:
       - name: Validate i18n translations
         shell: bash
         run: |
-          python3 apps/srt-gui/scripts/check_missing_translations.py \
-            --output apps/srt-gui/reports/missing_translations_report.json \
+          python3 apps/vesta-gui/scripts/check_missing_translations.py \
+            --output apps/vesta-gui/reports/missing_translations_report.json \
             --fail-on-issues
 
       - name: Setup Node.js
@@ -63,11 +63,11 @@ jobs:
           node-version: '22'
 
       - name: Install frontend dependencies
-        working-directory: apps/srt-gui
+        working-directory: apps/vesta-gui
         run: npm ci
 
       - name: Validate frontend before release
-        working-directory: apps/srt-gui
+        working-directory: apps/vesta-gui
         run: |
           npm run check
           npm test

@@ -2,7 +2,7 @@
 
 - **Commit Language & Style**: Always write commit subjects and bodies in **English**, regardless of the conversation language. Use Conventional Commits (`feat:`, `fix:`, `perf:`, `refactor:`, `docs:`, `test:`, `chore:`); commit subjects become release notes. Keep commit bodies empty or at most 1–3 concise lines.
 - **Conventions & Architecture**: Follow [`.cursorrules`](.cursorrules) for repository conventions, [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for crate/IPC boundaries, and [`docs/QUALITY.md`](docs/QUALITY.md) for verification gates.
-- **Backend Error Messages**: Write all Rust backend error strings, logs, and code comments in English. User-facing localization is handled in the frontend via the 15 locale JSON files in `apps/srt-gui/src/lib/i18n/locales/`.
+- **Backend Error Messages**: Write all Rust backend error strings, logs, and code comments in English. User-facing localization is handled in the frontend via the 15 locale JSON files in `apps/vesta-gui/src/lib/i18n/locales/`.
 
 ## Verification & Quality Scripts
 
@@ -18,7 +18,7 @@ Run these scripts from the repository root before considering work complete:
 ## Contract & Hash Verification (`docs/contracts_manifest.json`)
 
 [`build-scripts/check_doc_contracts.py`](build-scripts/check_doc_contracts.py) prevents drift between code and documentation across 6 areas:
-1. **Tauri IPC commands** (`apps/srt-gui/src-tauri/src/main.rs` vs frontend `invoke(...)` and `docs/ARCHITECTURE.md`)
+1. **Tauri IPC commands** (`apps/vesta-gui/src-tauri/src/main.rs` vs frontend `invoke(...)` and `docs/ARCHITECTURE.md`)
 2. **MCP server tools** (`cli/vesta-mcp/src/lib.rs` vs `docs/MCP.md`)
 3. **CLI crates & per-subcommand flags** (`cli/*/src/*.rs` vs `docs/modules/*.md`)
 4. **Plugin SDK widget parity** (`PluginRenderer.svelte` `node.type` branches vs AST-extracted builders in `vesta_plugin.py` and `docs/PLUGINS.md`)
@@ -34,9 +34,9 @@ Commands:
 
 ## Localization (i18n) Verification
 
-All 15 locale catalogs in `apps/srt-gui/src/lib/i18n/locales/` (`ar`, `de`, `en`, `es`, `fr`, `hi`, `it`, `ja`, `ko`, `nl`, `pl`, `pt`, `ru`, `tr`, `zh`) must stay in lockstep with `en.json`:
+All 15 locale catalogs in `apps/vesta-gui/src/lib/i18n/locales/` (`ar`, `de`, `en`, `es`, `fr`, `hi`, `it`, `ja`, `ko`, `nl`, `pl`, `pt`, `ru`, `tr`, `zh`) must stay in lockstep with `en.json`:
 - `bash build-scripts/check-i18n.sh` — Full localization gate (blocks on missing keys, empty values, mismatched `{placeholder}` tokens, hardcoded template strings, or untranslated English strings outside the technical allowlist).
-- `node apps/srt-gui/scripts/check-i18n.mjs` — Check key parity, unused keys, and template hygiene in `apps/srt-gui`.
+- `node apps/vesta-gui/scripts/check-i18n.mjs` — Check key parity, unused keys, and template hygiene in `apps/vesta-gui`.
 - `python3 build-scripts/check_missing_translations.py` — Audit untranslated or missing strings across all 15 locales.
 
 ## Plugin SDK & Headless Testing

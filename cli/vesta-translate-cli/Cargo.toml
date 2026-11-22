@@ -1,0 +1,29 @@
+[package]
+name = "vesta-translate-cli"
+version = "0.35.0-dev.2"
+edition.workspace = true
+rust-version.workspace = true
+description = "CLI tool for translating SRT subtitle files using LLM APIs"
+authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
+license = "GPL-3.0-only"
+repository = "https://github.com/pierspad/vesta"
+readme = "README.md"
+
+[[bin]]
+name = "vesta-translate"
+path = "src/main.rs"
+
+[dependencies]
+vesta-parser = { workspace = true }
+vesta-translate = { workspace = true }
+anyhow.workspace = true
+clap.workspace = true
+tokio.workspace = true
+tokio-util = "0.7"
+dotenvy = "0.15"
+toml = "1.1"
+serde.workspace = true
+regex = "1"
+
+[dev-dependencies]
+tempfile.workspace = true

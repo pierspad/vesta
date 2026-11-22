@@ -143,7 +143,7 @@ def _is_test_file(path: Path) -> bool:
 
 
 def browser_contract(root: Path = ROOT) -> dict[str, dict[str, list[str]]]:
-    src = root / "apps/srt-gui/src-tauri/src"
+    src = root / "apps/vesta-gui/src-tauri/src"
     commands = extract_tauri_commands(src / "commands", src / "main.rs")
     contract: dict[str, dict[str, list[str]]] = {}
     for name in commands["registered"]:
@@ -163,7 +163,7 @@ def browser_contract(root: Path = ROOT) -> dict[str, dict[str, list[str]]]:
             )
         contract[name] = {"required": required, "optional": optional}
 
-    for fixture in (root / "apps/srt-gui/browser-tests").glob("*-mock.mjs"):
+    for fixture in (root / "apps/vesta-gui/browser-tests").glob("*-mock.mjs"):
         for name in re.findall(r'case "([^"]+)":', fixture.read_text(encoding="utf-8")):
             if "|" not in name and name not in contract:
                 raise SystemExit(f"{fixture.name}: unknown Tauri command {name}")
@@ -172,9 +172,9 @@ def browser_contract(root: Path = ROOT) -> dict[str, dict[str, list[str]]]:
 
 def check_mock_coverage(contract: dict[str, dict[str, list[str]]], root: Path = ROOT) -> list[str]:
     errors: list[str] = []
-    mock_files = sorted((root / "apps/srt-gui/browser-tests").glob("*-mock.mjs"))
+    mock_files = sorted((root / "apps/vesta-gui/browser-tests").glob("*-mock.mjs"))
     if not mock_files:
-        return ["No *-mock.mjs fixtures found under apps/srt-gui/browser-tests/"]
+        return ["No *-mock.mjs fixtures found under apps/vesta-gui/browser-tests/"]
     mocked: set[str] = set()
     for fixture in mock_files:
         cases = re.findall(r'case\s+"([^"]+)":', fixture.read_text(encoding="utf-8"))
@@ -192,7 +192,7 @@ def check_mock_coverage(contract: dict[str, dict[str, list[str]]], root: Path = 
 
 def check_frontend_invocations(contract: dict[str, dict[str, list[str]]], root: Path = ROOT) -> list[str]:
     errors: list[str] = []
-    src_root = root / "apps/srt-gui/src"
+    src_root = root / "apps/vesta-gui/src"
     if not src_root.is_dir():
         return errors
 

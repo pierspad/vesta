@@ -90,11 +90,11 @@ For MCP clients, run `vesta-cli mcp` (or standalone `vesta-mcp`) as a local stdi
 
 ## Building from Source
 
-Requires **Rust 1.99+**, **Node.js 22.12+**, npm, FFmpeg, and FFprobe (on Linux also a C/C++ compiler, CMake, pkg-config, `libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, and `librsvg2-dev`; see [whisper build requirements](docs/modules/srt-transcribe.md) for GPU backends).
+Requires **Rust 1.99+**, **Node.js 22.12+**, npm, FFmpeg, and FFprobe (on Linux also a C/C++ compiler, CMake, pkg-config, `libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, and `librsvg2-dev`; see [whisper build requirements](docs/modules/vesta-transcribe.md) for GPU backends).
 
 ```bash
 git clone https://github.com/pierspad/vesta.git
-cd vesta/apps/srt-gui
+cd vesta/apps/vesta-gui
 npm ci
 npx tauri dev
 ```

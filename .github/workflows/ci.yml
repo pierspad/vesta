@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  TAURI_APP_DIR: apps/srt-gui
+  TAURI_APP_DIR: apps/vesta-gui
   WHISPER_DONT_GENERATE_BINDINGS: "1"
   CARGO_INCREMENTAL: "0"
   SCCACHE_GHA_ENABLED: "true"
@@ -55,7 +55,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: apps/srt-gui/package-lock.json
+          cache-dependency-path: apps/vesta-gui/package-lock.json
       - uses: swatinem/rust-cache@v2
         with:
           shared-key: "security-audit"
@@ -64,7 +64,7 @@ jobs:
       - name: Audit locked Rust dependencies
         run: cargo audit
       - name: Audit locked frontend dependencies
-        working-directory: apps/srt-gui
+        working-directory: apps/vesta-gui
         run: npm audit
 
   # Verify embedding/CLI builds without installing GTK, WebKit, Node or a GPU SDK.
@@ -93,18 +93,18 @@ jobs:
       - name: Test reusable engines and standalone entry points
         run: >-
           cargo test --locked --no-fail-fast
-          -p srt-parser -p srt-apkg -p srt-download
-          -p srt-extract -p srt-sync -p srt-translate -p srt-refine
-          -p srt-flashcards -p srt-transcribe -p srt-autosync -p srt-ankiconnect -p srt-ocr
-          -p srt-extract-cli -p srt-sync-cli -p srt-translate-cli
-          -p srt-flashcards-cli -p srt-transcribe-cli -p srt-autosync-cli -p srt-refine-cli -p srt-ocr-cli -p vesta-cli -p vesta-mcp
+          -p vesta-parser -p vesta-apkg -p vesta-download
+          -p vesta-extract -p vesta-sync -p vesta-translate -p vesta-refine
+          -p vesta-flashcards -p vesta-transcribe -p vesta-autosync -p vesta-ankiconnect -p vesta-ocr
+          -p vesta-extract-cli -p vesta-sync-cli -p vesta-translate-cli
+          -p vesta-flashcards-cli -p vesta-transcribe-cli -p vesta-autosync-cli -p vesta-refine-cli -p vesta-ocr-cli -p vesta-cli -p vesta-mcp
       - name: Check external consumers for every library crate
         run: python3 build-scripts/check_library_integration.py --individual
 
   # ===========================================================
   # Setup condiviso: dipendenze di sistema Tauri/whisper.cpp +
   # dist del frontend, richiesto da `tauri::generate_context!()`
-  # (il crate `vesta` non compila senza apps/srt-gui/dist).
+  # (il crate `vesta` non compila senza apps/vesta-gui/dist).
   # Esegue clippy e i test dell'intero workspace sullo stesso runner
   # usando `libvulkan-dev` e `glslc` di Ubuntu 24.04 invece del
   # pacchetto `vulkan-sdk` di LunarG (~10m risparmiati a push).
@@ -121,7 +121,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: apps/srt-gui/package-lock.json
+          cache-dependency-path: apps/vesta-gui/package-lock.json
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -209,7 +209,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: apps/srt-gui/package-lock.json
+          cache-dependency-path: apps/vesta-gui/package-lock.json
 
       # The source scanner imports svelte/compiler to parse Svelte 5 syntax.
       - name: Install frontend dependencies
@@ -217,11 +217,11 @@ jobs:
         run: npm ci
 
       - name: i18n consistency (parity, placeholders, hygiene)
-        run: node apps/srt-gui/scripts/check-i18n.mjs
+        run: node apps/vesta-gui/scripts/check-i18n.mjs
 
       - name: Missing translations report
         run: |
-          python3 apps/srt-gui/scripts/check_missing_translations.py \
+          python3 apps/vesta-gui/scripts/check_missing_translations.py \
             --fail-on-issues \
             --check-stale
 
@@ -241,7 +241,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: apps/srt-gui/package-lock.json
+          cache-dependency-path: apps/vesta-gui/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: ${{ env.TAURI_APP_DIR }}
@@ -281,7 +281,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: apps/srt-gui/package-lock.json
+          cache-dependency-path: apps/vesta-gui/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: ${{ env.TAURI_APP_DIR }}

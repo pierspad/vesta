@@ -60,7 +60,7 @@ def slugify_github(heading: str) -> str:
     return "".join(out)
 
 
-# ── 1. Tauri IPC Commands (apps/srt-gui & apps/whisper-bench) ──────────────
+# ── 1. Tauri IPC Commands (apps/vesta-gui & apps/whisper-bench) ──────────────
 
 def extract_tauri_commands(commands_dir: Path, main_rs: Path) -> Dict[str, Any]:
     defined: Dict[str, Dict[str, Any]] = {}
@@ -120,7 +120,7 @@ def extract_tauri_commands(commands_dir: Path, main_rs: Path) -> Dict[str, Any]:
         "registered": sorted(registered),
         "groups": group_hashes,
         "hash": sha256_json({"defined": group_hashes, "registered": sorted(registered)}),
-        "docs": ["docs/ARCHITECTURE.md", "apps/srt-gui/README.md"],
+        "docs": ["docs/ARCHITECTURE.md", "apps/vesta-gui/README.md"],
     }
 
 
@@ -226,14 +226,14 @@ def _extract_flags_from_block(block: str) -> List[str]:
 def extract_cli_contracts() -> Dict[str, Any]:
     cli_crates = [
         "vesta-cli",
-        "srt-flashcards-cli",
-        "srt-transcribe-cli",
-        "srt-translate-cli",
-        "srt-autosync-cli",
-        "srt-extract-cli",
-        "srt-ocr-cli",
-        "srt-sync-cli",
-        "srt-refine-cli",
+        "vesta-flashcards-cli",
+        "vesta-transcribe-cli",
+        "vesta-translate-cli",
+        "vesta-autosync-cli",
+        "vesta-extract-cli",
+        "vesta-ocr-cli",
+        "vesta-sync-cli",
+        "vesta-refine-cli",
     ]
     result: Dict[str, Any] = {}
     for crate in cli_crates:
@@ -299,7 +299,7 @@ def extract_cli_contracts() -> Dict[str, Any]:
 
 def extract_plugin_contracts() -> Dict[str, Any]:
     client_ts = (
-        ROOT / "apps" / "srt-gui" / "src" / "lib" / "services" / "pluginClient.ts"
+        ROOT / "apps" / "vesta-gui" / "src" / "lib" / "services" / "pluginClient.ts"
     ).read_text(encoding="utf-8")
     wt_match = re.search(r"export\s+type\s+WidgetType\s*=\s*([^;]+);", client_ts)
     widget_types: List[str] = []
@@ -349,7 +349,7 @@ def extract_plugin_contracts() -> Dict[str, Any]:
                     py_plugin_methods.append(item.name)
 
     manifest_rs = (
-        ROOT / "apps" / "srt-gui" / "src-tauri" / "src" / "plugins" / "manifest.rs"
+        ROOT / "apps" / "vesta-gui" / "src-tauri" / "src" / "plugins" / "manifest.rs"
     ).read_text(encoding="utf-8")
     manifest_match = re.search(
         r"pub\s+struct\s+PluginManifest\s*\{(.*?)\}", manifest_rs, re.DOTALL
@@ -469,7 +469,7 @@ def _extract_rust_public_items(content: str) -> List[str]:
 
 def extract_rust_public_apis() -> Dict[str, Any]:
     crate_dirs = sorted(
-        list((ROOT / "core").glob("srt-*")) + list((ROOT / "lib").glob("srt-*"))
+        list((ROOT / "core").glob("vesta-*")) + list((ROOT / "lib").glob("vesta-*"))
     )
     crates: Dict[str, Any] = {}
     for cdir in crate_dirs:
@@ -562,7 +562,7 @@ def verify_cross_contracts(
     # 6c. Plugin WidgetType parity across pluginClient.ts, PluginRenderer.svelte, vesta_plugin.py, and docs/PLUGINS.md
     plugins_md = (ROOT / "docs" / "PLUGINS.md").read_text(encoding="utf-8")
     renderer_svelte = (
-        ROOT / "apps" / "srt-gui" / "src" / "lib" / "components" / "PluginRenderer.svelte"
+        ROOT / "apps" / "vesta-gui" / "src" / "lib" / "components" / "PluginRenderer.svelte"
     ).read_text(encoding="utf-8")
     rendered_types = set(
         re.findall(r'node\.type\s*===\s*"([^"]+)"', renderer_svelte)
@@ -595,9 +595,9 @@ def verify_cross_contracts(
     # 6d. Verify CLI flags referenced in docs/CLI.md and docs/modules/*.md actually exist (per-subcommand aware)
     for crate, info in cli["crates"].items():
         op_name = crate.removesuffix("-cli")
-        if not op_name.startswith("srt-"):
+        if not op_name.startswith("vesta-") or crate == "vesta-cli":
             continue
-        short_op = op_name.removeprefix("srt-")
+        short_op = op_name.removeprefix("vesta-")
         mod_doc = ROOT / "docs" / "modules" / f"{op_name}.md"
         if not mod_doc.exists():
             continue
@@ -756,8 +756,8 @@ def verify_markdown_links() -> Tuple[int, List[str]]:
 
 def build_current_manifest() -> Tuple[Dict[str, Any], Dict[str, Any]]:
     tauri_gui = extract_tauri_commands(
-        ROOT / "apps" / "srt-gui" / "src-tauri" / "src" / "commands",
-        ROOT / "apps" / "srt-gui" / "src-tauri" / "src" / "main.rs",
+        ROOT / "apps" / "vesta-gui" / "src-tauri" / "src" / "commands",
+        ROOT / "apps" / "vesta-gui" / "src-tauri" / "src" / "main.rs",
     )
     mcp = extract_mcp_contracts()
     cli = extract_cli_contracts()

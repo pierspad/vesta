@@ -7,7 +7,7 @@
 //! share a compile with CUDA in the same binary (it overrides the whole
 //! project's C/C++ compiler). Rather than gamble on a single binary that
 //! links all of them, each backend stays a separate build, exactly like
-//! today: what changes is that build is `cli/srt-transcribe-cli` (the exact
+//! today: what changes is that build is `cli/vesta-transcribe-cli` (the exact
 //! CLI/pipeline the main Vesta app uses, so the benchmark can never drift
 //! from what users actually get) instead of a whole extra Tauri app bundle.
 //!
@@ -50,7 +50,7 @@ fn parse_sha256_checksum(text: &str) -> Result<String, String> {
     Ok(token.to_ascii_lowercase())
 }
 
-use srt_transcribe::pipeline::{ProgressUpdate, TranscriptionConfig, TranscriptionOutcome};
+use vesta_transcribe::pipeline::{ProgressUpdate, TranscriptionConfig, TranscriptionOutcome};
 
 const RELEASE_BASE: &str =
     "https://github.com/pierspad/vesta/releases/download/whisper-bench-latest";
@@ -223,7 +223,7 @@ async fn download_with_progress(url: &str, log: &impl Fn(String)) -> Result<Vec<
 }
 
 /// One JSON line from a worker's stdout: either a progress update or the
-/// final result (see `run_json` in `cli/srt-transcribe-cli`).
+/// final result (see `run_json` in `cli/vesta-transcribe-cli`).
 #[derive(Deserialize)]
 #[serde(untagged)]
 enum WorkerLine {

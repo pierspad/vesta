@@ -212,7 +212,7 @@ impl VestaMcp {
         Parameters(request): Parameters<SubtitleRequest>,
     ) -> Result<Json<Value>, String> {
         let path = self.paths.input(request.path.as_ref(), true)?;
-        let info = tokio::task::spawn_blocking(move || srt_flashcards::load_sub_file_info(&path))
+        let info = tokio::task::spawn_blocking(move || vesta_flashcards::load_sub_file_info(&path))
             .await
             .map_err(|e| e.to_string())??;
         serde_json::to_value(info)
@@ -236,7 +236,7 @@ impl VestaMcp {
             return Err("Preview limit must be from 1 to 100".into());
         }
         let config = subtitle_config(&self.paths, &request.target, request.native.as_deref())?;
-        let lines = tokio::task::spawn_blocking(move || srt_flashcards::preview(&config))
+        let lines = tokio::task::spawn_blocking(move || vesta_flashcards::preview(&config))
             .await
             .map_err(|e| e.to_string())??;
         Ok(Json(json!({
@@ -327,7 +327,7 @@ impl VestaMcp {
         if ["local", "whisper", "local_whisper"].contains(&profile.provider.as_str())
             && !profile.allow_model_download
         {
-            let model = srt_transcribe::model::model_file_path(&profile.model)
+            let model = vesta_transcribe::model::model_file_path(&profile.model)
                 .map_err(|_| "Cannot resolve local model".to_string())?;
             if !model.is_file() {
                 return Err("Local Whisper model is not installed; install it with vesta-cli transcribe download or explicitly enable allow_model_download in the server profile".into());
@@ -351,7 +351,7 @@ impl VestaMcp {
         Parameters(request): Parameters<EmbeddedSubtitlesRequest>,
     ) -> Result<Json<Value>, String> {
         let input = self.paths.input(Path::new(&request.input), false)?;
-        let tracks = srt_extract::embedded::list_embedded_subtitles("ffprobe", Path::new(&input))
+        let tracks = vesta_extract::embedded::list_embedded_subtitles("ffprobe", Path::new(&input))
             .await
             .map_err(|e| e.to_string())?;
         Ok(Json(json!({ "tracks": tracks })))

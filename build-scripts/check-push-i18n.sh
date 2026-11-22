@@ -9,8 +9,8 @@ check_tip() {
   local revision="$1"
   local destination="$SNAPSHOT/$revision"
   mkdir -p "$destination"
-  git archive "$revision" apps/srt-gui/src apps/srt-gui/scripts | tar -x -C "$destination"
-  ln -s "$ROOT/apps/srt-gui/node_modules" "$destination/apps/srt-gui/node_modules"
+  git archive "$revision" apps/vesta-gui/src apps/vesta-gui/scripts | tar -x -C "$destination"
+  ln -s "$ROOT/apps/vesta-gui/node_modules" "$destination/apps/vesta-gui/node_modules"
   bash "$ROOT/build-scripts/check-i18n.sh" "$destination"
 }
 seen=0

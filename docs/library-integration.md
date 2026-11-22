@@ -14,7 +14,7 @@ Use `--offline` when all required crates are already cached:
 python3 /path/to/vesta/build-scripts/check_library_integration.py --offline
 ```
 
-The check resolves all 12 core and library crates, rejects Tauri/GTK/WebKit in the resolved dependency graph, confirms that no Whisper GPU backend is enabled (`srt-transcribe`, `srt-autosync`, `whisper-rs`, `whisper-rs-sys`), and compiles/runs a consumer binary locally without network requests, Anki, or FFmpeg.
+The check resolves all 12 core and library crates, rejects Tauri/GTK/WebKit in the resolved dependency graph, confirms that no Whisper GPU backend is enabled (`vesta-transcribe`, `vesta-autosync`, `whisper-rs`, `whisper-rs-sys`), and compiles/runs a consumer binary locally without network requests, Anki, or FFmpeg.
 
 The headless CPU CI job runs this command with `--individual`, which creates a separate temporary consumer and runs `cargo check` for each crate before the combined smoke project to catch dependency or feature assumptions hidden by feature unification.
 
@@ -24,14 +24,14 @@ For an application that consumes the whole library set, pin a Git dependency to 
 
 ```toml
 [dependencies]
-srt-parser = { git = "https://github.com/pierspad/vesta", rev = "<commit-sha>" }
+vesta-parser = { git = "https://github.com/pierspad/vesta", rev = "<commit-sha>" }
 ```
 
 This pattern is convenient for a small consumer of one crate. For several crates from one repository, a Cargo workspace dependency table or a local checkout with path dependencies can avoid repeating the repository and revision. Check each crate's manifest for its dependency and feature requirements.
 
 Copying a crate directory by itself is insufficient: manifests inherit edition, Rust version, and dependencies through `*.workspace = true`, and internal Vesta crates are declared as workspace dependencies. Cargo resolves those declarations from the repository workspace for Git dependencies. A copied folder has neither that workspace context nor the sibling source crates.
 
-The repository root contains a `[patch.crates-io]` override for `whisper-rs-sys`, used by `srt-transcribe` and `srt-autosync`. Cargo patches are local to the root manifest that declares them; they do not propagate to a downstream consumer. The smoke fixture repeats the patch with an explicit local path. To reproduce Vesta's supported Whisper sys build from a Git consumer, apply the same repository revision as a patch:
+The repository root contains a `[patch.crates-io]` override for `whisper-rs-sys`, used by `vesta-transcribe` and `vesta-autosync`. Cargo patches are local to the root manifest that declares them; they do not propagate to a downstream consumer. The smoke fixture repeats the patch with an explicit local path. To reproduce Vesta's supported Whisper sys build from a Git consumer, apply the same repository revision as a patch:
 
 ```toml
 [patch.crates-io]
@@ -46,29 +46,29 @@ Transcription needs a supported native toolchain and system libraries for the se
 
 | Crate | Local downstream check |
 | --- | --- |
-| `srt-parser` | Parse, save, and reload SRT data |
-| `srt-apkg` | ZIP and unpack a package fixture |
-| `srt-download` | Reuse a cached file without a network request |
-| `srt-ankiconnect` | Construct a public note value; no Anki server required |
-| `srt-autosync` | Construct public outcome type; model/audio work requires external assets |
-| `srt-extract` | Calculate stats and export JSON |
-| `srt-ocr` | Decode synthetic PGS bitmap cues and list OCR models |
-| `srt-flashcards` | Run deterministic subtitle preview |
-| `srt-refine` | Interpolate a prompt and strip HTML |
-| `srt-sync` | Add an anchor, map a subtitle, and sample the next index |
-| `srt-transcribe` | Deserialize config and confirm the default build is CPU-only |
-| `srt-translate` | Build a local provider pool and read provider defaults |
+| `vesta-parser` | Parse, save, and reload SRT data |
+| `vesta-apkg` | ZIP and unpack a package fixture |
+| `vesta-download` | Reuse a cached file without a network request |
+| `vesta-ankiconnect` | Construct a public note value; no Anki server required |
+| `vesta-autosync` | Construct public outcome type; model/audio work requires external assets |
+| `vesta-extract` | Calculate stats and export JSON |
+| `vesta-ocr` | Decode synthetic PGS bitmap cues and list OCR models |
+| `vesta-flashcards` | Run deterministic subtitle preview |
+| `vesta-refine` | Interpolate a prompt and strip HTML |
+| `vesta-sync` | Add an anchor, map a subtitle, and sample the next index |
+| `vesta-transcribe` | Deserialize config and confirm the default build is CPU-only |
+| `vesta-translate` | Build a local provider pool and read provider defaults |
 
 The smoke check validates source integration and public API signatures only; runtime media and cloud paths require their respective external tools and credentials.
 
 ## Measuring checkpoint writes
 
-`lib/srt-translate/examples/checkpoint_bench.rs` measures the real `SrtParser::save_file` call used for incremental translation checkpoints, including filesystem writes. Run it manually from the workspace root:
+`lib/vesta-translate/examples/checkpoint_bench.rs` measures the real `SrtParser::save_file` call used for incremental translation checkpoints, including filesystem writes. Run it manually from the workspace root:
 
 ```sh
-cargo run --release -p srt-translate --example checkpoint_bench
+cargo run --release -p vesta-translate --example checkpoint_bench
 # Or measure the actual filesystem containing your output subtitles:
-cargo run --release -p srt-translate --example checkpoint_bench -- /path/to/output-directory
+cargo run --release -p vesta-translate --example checkpoint_bench -- /path/to/output-directory
 ```
 
 It prints CSV rows for 100, 1,000, 10,000, and 50,000 subtitle entries, with a warmup write and repeated measurements. The benchmark has no timing assertions and is not part of CI; use results from the target filesystem and hardware when evaluating checkpoint cost. The default temporary directory may reside in RAM, so provide a directory on the actual output filesystem when making performance decisions.

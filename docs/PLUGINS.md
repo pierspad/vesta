@@ -530,7 +530,7 @@ python3 docs/examples/plugin-hello/vesta_plugin.py test ./my-plugin
 
 1. Start Vesta in development mode:
    ```bash
-   cd apps/srt-gui && npx tauri dev
+   cd apps/vesta-gui && npx tauri dev
    ```
 2. Open the **Plugins** tab in the sidebar.
 3. Switch the install bar to **Local Folder** and select `docs/examples/plugin-hello` (or paste a GitHub/GitLab repository URL under **Repository URL**).

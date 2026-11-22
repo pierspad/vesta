@@ -14,8 +14,8 @@ use tauri_plugin_dialog::DialogExt;
 use tokio_util::sync::CancellationToken;
 
 use hardware::DetectedHardware;
-use srt_transcribe::pipeline::{PipelineCallbacks, TranscriptionConfig, transcribe_to_srt};
-use srt_transcribe::{gpu_backend_name, gpu_supported, model};
+use vesta_transcribe::pipeline::{PipelineCallbacks, TranscriptionConfig, transcribe_to_srt};
+use vesta_transcribe::{gpu_backend_name, gpu_supported, model};
 
 // ─── Event helpers ──────────────────────────────────────────────────────────
 
@@ -54,7 +54,7 @@ async fn bench_info() -> Result<BenchInfo, String> {
         app_version: env!("CARGO_PKG_VERSION").to_string(),
         gpu_backend: gpu_backend_name(),
         gpu_supported: gpu_supported(),
-        default_threads: srt_transcribe::transcribe::default_n_threads(),
+        default_threads: vesta_transcribe::transcribe::default_n_threads(),
         physical_cores: num_cpus::get_physical(),
         models: model::list_models().map_err(|e| e.to_string())?,
         vad_installed: model::vad_model_installed(model::DEFAULT_VAD_MODEL_ID),
@@ -330,7 +330,7 @@ fn variant_plan(hw: &DetectedHardware) -> Vec<(String, VariantKind)> {
     }
 
     // CUDA/ROCm/SYCL are never compiled into the launcher (see Cargo.toml) —
-    // each is a separate `srt-transcribe` worker binary fetched on demand
+    // each is a separate `vesta-transcribe` worker binary fetched on demand
     // only when this OS supports it and matching hardware was detected.
     for backend in workers::BACKENDS {
         if !workers::applies_to_this_os(backend.id) || !workers::hardware_wants(backend.id, hw) {
@@ -419,7 +419,7 @@ async fn run_bench(
             hw.amd,
             hw.intel_gpu,
             hw.vulkan_loader,
-            srt_transcribe::transcribe::default_n_threads()
+            vesta_transcribe::transcribe::default_n_threads()
         ),
     );
     if let Some(s) = audio_seconds {

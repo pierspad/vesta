@@ -72,19 +72,19 @@ discover_test_media "$_cfg_repo_root"
 
 # ── Vesta variants ────────────────────────────────────────────────────────────
 # Compare one or more Vesta builds against each other and against subs2srs.
-# Format: "label|path_to_srt-flashcards_binary|jobs"
+# Format: "label|path_to_vesta-flashcards_binary|jobs"
 #   jobs = MAX  -> Vesta's "max" plan (cores-1, the GUI's top setting)
 #   jobs = 1    -> single ffmpeg worker, an apples-to-apples match for subs2srs
 #   jobs = N    -> exactly N parallel workers
 # `2_compile_vesta.sh` builds the binary into target/release. To compare a
 # branch/fork, build it elsewhere and add a line pointing at it, e.g.:
-#   "experimental|/path/to/other/target/release/srt-flashcards|MAX"
+#   "experimental|/path/to/other/target/release/vesta-flashcards|MAX"
 #
 # With the two variants below, each film is timed as 5 series:
 #   subs2srs (TSV) · Vesta export TSV/APKG (max) · Vesta export TSV/APKG (1 core)
 vesta_VARIANTS=(
-  "max|target/release/srt-flashcards|MAX"
-  "single|target/release/srt-flashcards|1"
+  "max|target/release/vesta-flashcards|MAX"
+  "single|target/release/vesta-flashcards|1"
 )
 
 # Export formats to benchmark for Vesta (subs2srs only produces TSV).

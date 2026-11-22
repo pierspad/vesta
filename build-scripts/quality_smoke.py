@@ -47,7 +47,7 @@ def main():
         parser.error('--samples must be between 1 and 10')
     binary = ROOT / 'target' / args.profile / ('vesta-flashcards.exe' if os.name == 'nt' else 'vesta-flashcards')
     if not binary.exists():
-        parser.error(f'Build first: cargo build -p srt-flashcards-cli {"--release" if args.profile == "release" else ""}')
+        parser.error(f'Build first: cargo build -p vesta-flashcards-cli {"--release" if args.profile == "release" else ""}')
     for tool in ('ffmpeg', 'ffprobe'):
         if not shutil.which(tool):
             parser.error(f'{tool} is required; media tests must not silently skip')

@@ -3,15 +3,15 @@
   "description": "Structural contract hashes for Vesta macro-areas and micro-areas. Run `python3 build-scripts/check_doc_contracts.py --update` after updating affected documentation.",
   "macro_areas": {
     "tauri_ipc": {
-      "hash": "2425b8ab3bb3ffa6",
+      "hash": "3abc9dcd6f6147c8",
       "defined_count": 109,
       "registered_count": 109,
       "groups": {
-        "auto_sync": "1ddf2385d7490a26",
+        "auto_sync": "57eeeb96758eef3d",
         "config": "e64b09924b1a5799",
         "experimental": "d07d248dff0f5be4",
-        "extract": "9c8f97a1538145ba",
-        "flashcards": "9829f77ba3c867b9",
+        "extract": "cf44695f0c0b050f",
+        "flashcards": "ad5e13c7cba87a30",
         "info": "265d481335c689da",
         "main": "838097f6f9c01b6d",
         "net": "03f68af50294afd7",
@@ -25,7 +25,7 @@
       },
       "docs": [
         "docs/ARCHITECTURE.md",
-        "apps/srt-gui/README.md"
+        "apps/vesta-gui/README.md"
       ]
     },
     "mcp_server": {
@@ -72,9 +72,9 @@
       ]
     },
     "cli_adapters": {
-      "hash": "f09fc2780a429e23",
+      "hash": "e0b253c8760b3895",
       "crates": {
-        "srt-autosync-cli": {
+        "vesta-autosync-cli": {
           "hash": "1d2908a1939ffe04",
           "subcommands": [],
           "subcommand_flags": {},
@@ -89,11 +89,34 @@
           ],
           "docs": [
             "docs/CLI.md",
-            "cli/srt-autosync-cli/README.md",
-            "docs/modules/srt-autosync.md"
+            "cli/vesta-autosync-cli/README.md",
+            "docs/modules/vesta-autosync.md"
           ]
         },
-        "srt-extract-cli": {
+        "vesta-cli": {
+          "hash": "b0f82c1286b867ff",
+          "subcommands": [
+            "autosync",
+            "extract",
+            "flashcards",
+            "mcp",
+            "ocr",
+            "refine",
+            "sync",
+            "transcribe",
+            "translate"
+          ],
+          "subcommand_flags": {},
+          "flags": [
+            "--help",
+            "--version"
+          ],
+          "docs": [
+            "docs/CLI.md",
+            "cli/vesta-cli/README.md"
+          ]
+        },
+        "vesta-extract-cli": {
           "hash": "718b13709b382628",
           "subcommands": [],
           "subcommand_flags": {},
@@ -108,11 +131,11 @@
           ],
           "docs": [
             "docs/CLI.md",
-            "cli/srt-extract-cli/README.md",
-            "docs/modules/srt-extract.md"
+            "cli/vesta-extract-cli/README.md",
+            "docs/modules/vesta-extract.md"
           ]
         },
-        "srt-flashcards-cli": {
+        "vesta-flashcards-cli": {
           "hash": "f56f894938bc39c3",
           "subcommands": [
             "dueling",
@@ -302,11 +325,11 @@
           ],
           "docs": [
             "docs/CLI.md",
-            "cli/srt-flashcards-cli/README.md",
-            "docs/modules/srt-flashcards.md"
+            "cli/vesta-flashcards-cli/README.md",
+            "docs/modules/vesta-flashcards.md"
           ]
         },
-        "srt-ocr-cli": {
+        "vesta-ocr-cli": {
           "hash": "8d4895852525139e",
           "subcommands": [
             "download",
@@ -353,11 +376,11 @@
           ],
           "docs": [
             "docs/CLI.md",
-            "cli/srt-ocr-cli/README.md",
-            "docs/modules/srt-ocr.md"
+            "cli/vesta-ocr-cli/README.md",
+            "docs/modules/vesta-ocr.md"
           ]
         },
-        "srt-refine-cli": {
+        "vesta-refine-cli": {
           "hash": "9d48ec73b9c20ad1",
           "subcommands": [
             "each",
@@ -390,11 +413,11 @@
           ],
           "docs": [
             "docs/CLI.md",
-            "cli/srt-refine-cli/README.md",
-            "docs/modules/srt-refine.md"
+            "cli/vesta-refine-cli/README.md",
+            "docs/modules/vesta-refine.md"
           ]
         },
-        "srt-sync-cli": {
+        "vesta-sync-cli": {
           "hash": "dabef9e5e97784e4",
           "subcommands": [],
           "subcommand_flags": {},
@@ -405,11 +428,11 @@
           ],
           "docs": [
             "docs/CLI.md",
-            "cli/srt-sync-cli/README.md",
-            "docs/modules/srt-sync.md"
+            "cli/vesta-sync-cli/README.md",
+            "docs/modules/vesta-sync.md"
           ]
         },
-        "srt-transcribe-cli": {
+        "vesta-transcribe-cli": {
           "hash": "93f2e44cdcbff0c4",
           "subcommands": [
             "download",
@@ -458,11 +481,11 @@
           ],
           "docs": [
             "docs/CLI.md",
-            "cli/srt-transcribe-cli/README.md",
-            "docs/modules/srt-transcribe.md"
+            "cli/vesta-transcribe-cli/README.md",
+            "docs/modules/vesta-transcribe.md"
           ]
         },
-        "srt-translate-cli": {
+        "vesta-translate-cli": {
           "hash": "175e66e157cffe5c",
           "subcommands": [],
           "subcommand_flags": {},
@@ -476,31 +499,8 @@
           ],
           "docs": [
             "docs/CLI.md",
-            "cli/srt-translate-cli/README.md",
-            "docs/modules/srt-translate.md"
-          ]
-        },
-        "vesta-cli": {
-          "hash": "b0f82c1286b867ff",
-          "subcommands": [
-            "autosync",
-            "extract",
-            "flashcards",
-            "mcp",
-            "ocr",
-            "refine",
-            "sync",
-            "transcribe",
-            "translate"
-          ],
-          "subcommand_flags": {},
-          "flags": [
-            "--help",
-            "--version"
-          ],
-          "docs": [
-            "docs/CLI.md",
-            "cli/vesta-cli/README.md"
+            "cli/vesta-translate-cli/README.md",
+            "docs/modules/vesta-translate.md"
           ]
         }
       }
@@ -646,65 +646,65 @@
       ]
     },
     "rust_libraries": {
-      "hash": "c139c430f3ee26f1",
+      "hash": "7cc9c6c10f5d12ed",
       "crates": {
-        "srt-ankiconnect": {
-          "path": "lib/srt-ankiconnect",
+        "vesta-ankiconnect": {
+          "path": "lib/vesta-ankiconnect",
           "symbol_count": 9,
           "files": {
             "src/lib.rs": "1b4ad168921c4a2f"
           },
           "hash": "0262697c23583408",
           "docs": [
-            "lib/srt-ankiconnect/README.md",
-            "docs/modules/srt-ankiconnect.md",
+            "lib/vesta-ankiconnect/README.md",
+            "docs/modules/vesta-ankiconnect.md",
             "docs/modules/README.md"
           ]
         },
-        "srt-apkg": {
-          "path": "core/srt-apkg",
+        "vesta-apkg": {
+          "path": "core/vesta-apkg",
           "symbol_count": 3,
           "files": {
             "src/lib.rs": "51f88c34081e6223"
           },
           "hash": "ad4a92ec6955d37f",
           "docs": [
-            "core/srt-apkg/README.md",
-            "docs/modules/srt-apkg.md",
+            "core/vesta-apkg/README.md",
+            "docs/modules/vesta-apkg.md",
             "docs/modules/README.md"
           ]
         },
-        "srt-autosync": {
-          "path": "lib/srt-autosync",
+        "vesta-autosync": {
+          "path": "lib/vesta-autosync",
           "symbol_count": 55,
           "files": {
             "src/consensus.rs": "d3e5707166f9afd9",
-            "src/lib.rs": "72312f9abaceca8c",
-            "src/matching.rs": "e250e8f618bb57fd",
+            "src/lib.rs": "756ca9785622bfa9",
+            "src/matching.rs": "5d783f24420d5316",
             "src/normalization.rs": "0cee2738f819c34c"
           },
-          "hash": "59869be8ad658ccc",
+          "hash": "ab5858be41564bcb",
           "docs": [
-            "lib/srt-autosync/README.md",
-            "docs/modules/srt-autosync.md",
+            "lib/vesta-autosync/README.md",
+            "docs/modules/vesta-autosync.md",
             "docs/modules/README.md"
           ]
         },
-        "srt-download": {
-          "path": "core/srt-download",
+        "vesta-download": {
+          "path": "core/vesta-download",
           "symbol_count": 1,
           "files": {
             "src/lib.rs": "12672ada34d4a523"
           },
           "hash": "32b7f6d228811c0a",
           "docs": [
-            "core/srt-download/README.md",
-            "docs/modules/srt-download.md",
+            "core/vesta-download/README.md",
+            "docs/modules/vesta-download.md",
             "docs/modules/README.md"
           ]
         },
-        "srt-extract": {
-          "path": "lib/srt-extract",
+        "vesta-extract": {
+          "path": "lib/vesta-extract",
           "symbol_count": 12,
           "files": {
             "src/embedded.rs": "4137abdad707e844",
@@ -712,13 +712,13 @@
           },
           "hash": "502b75d8d96b9542",
           "docs": [
-            "lib/srt-extract/README.md",
-            "docs/modules/srt-extract.md",
+            "lib/vesta-extract/README.md",
+            "docs/modules/vesta-extract.md",
             "docs/modules/README.md"
           ]
         },
-        "srt-flashcards": {
-          "path": "lib/srt-flashcards",
+        "vesta-flashcards": {
+          "path": "lib/vesta-flashcards",
           "symbol_count": 74,
           "files": {
             "src/dueling.rs": "aaa59f36ae4a84f5",
@@ -734,13 +734,13 @@
           },
           "hash": "43f7996f2327c5d0",
           "docs": [
-            "lib/srt-flashcards/README.md",
-            "docs/modules/srt-flashcards.md",
+            "lib/vesta-flashcards/README.md",
+            "docs/modules/vesta-flashcards.md",
             "docs/modules/README.md"
           ]
         },
-        "srt-ocr": {
-          "path": "lib/srt-ocr",
+        "vesta-ocr": {
+          "path": "lib/vesta-ocr",
           "symbol_count": 48,
           "files": {
             "src/backend.rs": "2069b8258b898119",
@@ -754,13 +754,13 @@
           },
           "hash": "856abe5fe8ff219f",
           "docs": [
-            "lib/srt-ocr/README.md",
-            "docs/modules/srt-ocr.md",
+            "lib/vesta-ocr/README.md",
+            "docs/modules/vesta-ocr.md",
             "docs/modules/README.md"
           ]
         },
-        "srt-parser": {
-          "path": "core/srt-parser",
+        "vesta-parser": {
+          "path": "core/vesta-parser",
           "symbol_count": 21,
           "files": {
             "src/encoding.rs": "3941ff9a4a65a000",
@@ -769,13 +769,13 @@
           },
           "hash": "646f594911623fb7",
           "docs": [
-            "core/srt-parser/README.md",
-            "docs/modules/srt-parser.md",
+            "core/vesta-parser/README.md",
+            "docs/modules/vesta-parser.md",
             "docs/modules/README.md"
           ]
         },
-        "srt-refine": {
-          "path": "lib/srt-refine",
+        "vesta-refine": {
+          "path": "lib/vesta-refine",
           "symbol_count": 14,
           "files": {
             "src/cards.rs": "a745f00079f0f287",
@@ -784,13 +784,13 @@
           },
           "hash": "18f4c4042b9d5493",
           "docs": [
-            "lib/srt-refine/README.md",
-            "docs/modules/srt-refine.md",
+            "lib/vesta-refine/README.md",
+            "docs/modules/vesta-refine.md",
             "docs/modules/README.md"
           ]
         },
-        "srt-sync": {
-          "path": "lib/srt-sync",
+        "vesta-sync": {
+          "path": "lib/vesta-sync",
           "symbol_count": 77,
           "files": {
             "src/engine.rs": "f55fd9342a7bf242",
@@ -802,13 +802,13 @@
           },
           "hash": "d4e46e5a8c2e1ea1",
           "docs": [
-            "lib/srt-sync/README.md",
-            "docs/modules/srt-sync.md",
+            "lib/vesta-sync/README.md",
+            "docs/modules/vesta-sync.md",
             "docs/modules/README.md"
           ]
         },
-        "srt-transcribe": {
-          "path": "lib/srt-transcribe",
+        "vesta-transcribe": {
+          "path": "lib/vesta-transcribe",
           "symbol_count": 66,
           "files": {
             "src/audio.rs": "0de0f97320d4141e",
@@ -820,13 +820,13 @@
           },
           "hash": "7a81cc3c7b6abb93",
           "docs": [
-            "lib/srt-transcribe/README.md",
-            "docs/modules/srt-transcribe.md",
+            "lib/vesta-transcribe/README.md",
+            "docs/modules/vesta-transcribe.md",
             "docs/modules/README.md"
           ]
         },
-        "srt-translate": {
-          "path": "lib/srt-translate",
+        "vesta-translate": {
+          "path": "lib/vesta-translate",
           "symbol_count": 54,
           "files": {
             "src/diagnostics.rs": "96b19fdd79657f24",
@@ -840,8 +840,8 @@
           },
           "hash": "fe13a940ce17f26b",
           "docs": [
-            "lib/srt-translate/README.md",
-            "docs/modules/srt-translate.md",
+            "lib/vesta-translate/README.md",
+            "docs/modules/vesta-translate.md",
             "docs/modules/README.md"
           ]
         }

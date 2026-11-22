@@ -1,6 +1,6 @@
 # Native Snapshot Batching Benchmark Suite
 
-The native snapshot batching implementation lives in `lib/srt-flashcards/src/snapshot_batch.rs` and is shared by both the CLI and desktop application. `verify_native.py` is an external benchmark and verification harness that executes the compiled Rust binary (`srt-flashcards`) and validates output equivalence across A/B runs.
+The native snapshot batching implementation lives in `lib/vesta-flashcards/src/snapshot_batch.rs` and is shared by both the CLI and desktop application. `verify_native.py` is an external benchmark and verification harness that executes the compiled Rust binary (`vesta-flashcards`) and validates output equivalence across A/B runs.
 
 ## Running the Benchmark Suite
 

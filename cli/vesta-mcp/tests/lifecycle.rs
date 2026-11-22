@@ -1,4 +1,4 @@
-use srt_flashcards::FlashcardConfig;
+use vesta_flashcards::FlashcardConfig;
 use vesta_mcp::{Jobs, Paths, Status};
 
 #[tokio::test]

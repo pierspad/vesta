@@ -3,7 +3,7 @@ name: Browser regressions
 on:
   pull_request:
     paths:
-      - apps/srt-gui/**
+      - apps/vesta-gui/**
       - build-scripts/check_doc_contracts.py
       - build-scripts/browser_ipc_contract.py
       - build-scripts/quality_check.py
@@ -22,11 +22,11 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: apps/srt-gui/package-lock.json
+          cache-dependency-path: apps/vesta-gui/package-lock.json
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-      - working-directory: apps/srt-gui
+      - working-directory: apps/vesta-gui
         run: |
           npm ci
           npx playwright install --with-deps chromium
@@ -35,5 +35,5 @@ jobs:
         if: failure()
         with:
           name: browser-failures
-          path: apps/srt-gui/node_modules/.cache/vesta-browser-tests/
+          path: apps/vesta-gui/node_modules/.cache/vesta-browser-tests/
           include-hidden-files: true

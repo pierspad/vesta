@@ -19,8 +19,8 @@ class TestDocContracts(unittest.TestCase):
             "1-automated-verification-gates",
         )
         self.assertEqual(
-            cdc.slugify_github("`srt-flashcards` — Anki Deck & Media Generator"),
-            "srt-flashcards--anki-deck--media-generator",
+            cdc.slugify_github("`vesta-flashcards` — Anki Deck & Media Generator"),
+            "vesta-flashcards--anki-deck--media-generator",
         )
         self.assertEqual(
             cdc.slugify_github("Step 3: Export (`tsv` / `apkg`)"),
@@ -56,13 +56,13 @@ class TestDocContracts(unittest.TestCase):
 
         mutated_rust = copy.deepcopy(manifest)
         mutated_rust["macro_areas"]["rust_libraries"]["hash"] = "1111111111111111"
-        mutated_rust["macro_areas"]["rust_libraries"]["crates"]["srt-refine"][
+        mutated_rust["macro_areas"]["rust_libraries"]["crates"]["vesta-refine"][
             "hash"
         ] = "2222222222222222"
         drifts_rust = cdc.compare_manifests(manifest, mutated_rust)
         self.assertEqual(len(drifts_rust), 1)
-        self.assertIn("crate 'srt-refine'", drifts_rust[0])
-        self.assertIn("docs/modules/srt-refine.md", drifts_rust[0])
+        self.assertIn("crate 'vesta-refine'", drifts_rust[0])
+        self.assertIn("docs/modules/vesta-refine.md", drifts_rust[0])
 
     def test_verify_cross_contracts_detects_missing_mcp_tool_or_widget(self) -> None:
         _, ctx = cdc.build_current_manifest()
@@ -112,7 +112,7 @@ class TestDocContracts(unittest.TestCase):
 
     def test_subcommand_specific_cli_flag_resolution(self) -> None:
         _, ctx = cdc.build_current_manifest()
-        refine_sub = ctx["cli"]["crates"]["srt-refine-cli"]["subcommand_flags"]
+        refine_sub = ctx["cli"]["crates"]["vesta-refine-cli"]["subcommand_flags"]
         self.assertIn("--input", refine_sub["inspect"])
         self.assertNotIn("--allow-partial", refine_sub["inspect"])
         self.assertIn("--allow-partial", refine_sub["enrich"])

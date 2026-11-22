@@ -34,7 +34,7 @@ def check_pairs(cargo, npm):
 def main():
     with (ROOT / 'Cargo.lock').open('rb') as handle:
         cargo = tomllib.load(handle)
-    npm = json.loads((ROOT / 'apps/srt-gui/package-lock.json').read_text())
+    npm = json.loads((ROOT / 'apps/vesta-gui/package-lock.json').read_text())
     errors = check_pairs(cargo, npm)
     if errors:
         print('\n'.join(errors), file=sys.stderr)

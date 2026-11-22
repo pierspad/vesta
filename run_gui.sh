@@ -11,10 +11,10 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="$SCRIPT_DIR/apps/srt-gui"
+APP_DIR="$SCRIPT_DIR/apps/vesta-gui"
 
 if [ ! -d "$APP_DIR" ]; then
-    echo -e "${RED}❌ Error: apps/srt-gui directory not found in $SCRIPT_DIR${NC}"
+    echo -e "${RED}❌ Error: apps/vesta-gui directory not found in $SCRIPT_DIR${NC}"
     exit 1
 fi
 

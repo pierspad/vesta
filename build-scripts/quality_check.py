@@ -135,19 +135,19 @@ def main():
                 (ROOT, ['python3', 'build-scripts/generate_scorecard.py', '--check']),
                 (ROOT, ['python3', 'build-scripts/scorecard_db.py', 'check']),
                 (ROOT, ['python3', 'build-scripts/test_scorecard.py']),
-                (ROOT / 'apps/srt-gui', ['npm', 'run', 'check']),
-                (ROOT / 'apps/srt-gui', ['npm', 'test']),
-                (ROOT / 'apps/srt-gui', ['npm', 'run', 'test:dev-css']),
-                (ROOT / 'apps/srt-gui', ['npm', 'run', 'check:i18n']),
-                (ROOT / 'apps/srt-gui', ['python3', 'scripts/check_missing_translations.py', '--fail-on-issues', '--output', str(Path(tempfile.gettempdir()) / 'vesta-quality-i18n.json')]),
-                (ROOT / 'apps/srt-gui', ['npm', 'run', 'build']),
+                (ROOT / 'apps/vesta-gui', ['npm', 'run', 'check']),
+                (ROOT / 'apps/vesta-gui', ['npm', 'test']),
+                (ROOT / 'apps/vesta-gui', ['npm', 'run', 'test:dev-css']),
+                (ROOT / 'apps/vesta-gui', ['npm', 'run', 'check:i18n']),
+                (ROOT / 'apps/vesta-gui', ['python3', 'scripts/check_missing_translations.py', '--fail-on-issues', '--output', str(Path(tempfile.gettempdir()) / 'vesta-quality-i18n.json')]),
+                (ROOT / 'apps/vesta-gui', ['npm', 'run', 'build']),
                 (ROOT, ['cargo', 'fmt', '--all', '--check']),
                 (ROOT, clippy),
                 (ROOT, rust), (ROOT, ['bash', 'build-scripts/check_internal_crate_versions.sh'])]
     if args.browser:
-        commands.append((ROOT / 'apps/srt-gui', ['npm', 'run', 'test:browser']))
+        commands.append((ROOT / 'apps/vesta-gui', ['npm', 'run', 'test:browser']))
     if args.smoke:
-        commands += [(ROOT, ['cargo', 'build', '--locked', '-p', 'srt-flashcards-cli']),
+        commands += [(ROOT, ['cargo', 'build', '--locked', '-p', 'vesta-flashcards-cli']),
                      (ROOT, ['python3', 'build-scripts/quality_smoke.py'])]
     timings = []
     for cwd, command in commands:

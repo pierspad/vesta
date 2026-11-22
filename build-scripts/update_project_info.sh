@@ -66,7 +66,7 @@ update_file() {
 # ===========================================================
 # 1. tauri.conf.json
 # ===========================================================
-TAURI_CONF="$PROJECT_ROOT/apps/srt-gui/src-tauri/tauri.conf.json"
+TAURI_CONF="$PROJECT_ROOT/apps/vesta-gui/src-tauri/tauri.conf.json"
 if [ -f "$TAURI_CONF" ]; then
     # Aggiorna productName
     sed -i "s/\"productName\": \".*\"/\"productName\": \"${APP_NAME}\"/" "$TAURI_CONF"
@@ -83,7 +83,7 @@ fi
 # ===========================================================
 # 2. src-tauri/Cargo.toml
 # ===========================================================
-TAURI_CARGO="$PROJECT_ROOT/apps/srt-gui/src-tauri/Cargo.toml"
+TAURI_CARGO="$PROJECT_ROOT/apps/vesta-gui/src-tauri/Cargo.toml"
 if [ -f "$TAURI_CARGO" ]; then
     SAFE_PKGDESC="${PKGDESC//&/\\&}"
     SAFE_PKGDESC="${SAFE_PKGDESC//\//\\/}"
@@ -99,7 +99,7 @@ fi
 # ===========================================================
 # 3. package.json (frontend)
 # ===========================================================
-PKG_JSON="$PROJECT_ROOT/apps/srt-gui/package.json"
+PKG_JSON="$PROJECT_ROOT/apps/vesta-gui/package.json"
 if [ -f "$PKG_JSON" ]; then
     # Usa un approccio che funziona senza jq
     sed -i "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/" "$PKG_JSON"
@@ -167,7 +167,7 @@ done < <(find "$PROJECT_ROOT/core" "$PROJECT_ROOT/lib" "$PROJECT_ROOT/cli" -mind
 # ===========================================================
 # 9. Frontend Svelte Fallbacks (Sidebar.svelte, SettingsTab.svelte)
 # ===========================================================
-SIDEBAR_SVELTE="$PROJECT_ROOT/apps/srt-gui/src/lib/components/Sidebar.svelte"
+SIDEBAR_SVELTE="$PROJECT_ROOT/apps/vesta-gui/src/lib/components/Sidebar.svelte"
 if [ -f "$SIDEBAR_SVELTE" ]; then
     # Update fallback version in Sidebar.svelte
     sed -i "s/appVersionNum = \"v[^\"]*\"/appVersionNum = \"v${VERSION}\"/g" "$SIDEBAR_SVELTE"
@@ -175,7 +175,7 @@ if [ -f "$SIDEBAR_SVELTE" ]; then
     update_file "$SIDEBAR_SVELTE" "fallback version"
 fi
 
-SETTINGS_TAB_SVELTE="$PROJECT_ROOT/apps/srt-gui/src/lib/tabs/SettingsTab.svelte"
+SETTINGS_TAB_SVELTE="$PROJECT_ROOT/apps/vesta-gui/src/lib/tabs/SettingsTab.svelte"
 if [ -f "$SETTINGS_TAB_SVELTE" ]; then
     # Update fallback version in SettingsTab.svelte
     sed -i "s/appVersionNum = \"v[^\"]*\"/appVersionNum = \"v${VERSION}\"/g" "$SETTINGS_TAB_SVELTE"

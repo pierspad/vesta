@@ -12,7 +12,7 @@ Keep changes focused. Explain the problem and resulting behavior, link related i
 
 ## Development
 
-Run frontend checks from `apps/srt-gui/`:
+Run frontend checks from `apps/vesta-gui/`:
 
 ```sh
 npm ci
@@ -43,4 +43,4 @@ must describe differences in encoding and media counts. See
 
 Update the English catalog and all supported locales when changing interface
 copy. Preserve interpolation tokens and run `npm run check:i18n` in
-`apps/srt-gui/`. Product names and formats can remain untranslated.
+`apps/vesta-gui/`. Product names and formats can remain untranslated.

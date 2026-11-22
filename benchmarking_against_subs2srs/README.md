@@ -34,7 +34,7 @@ To add a film, drop the three files into the folder and re-run — no config edi
 The suite measures wall-clock execution time across identical media inputs:
 
 * **Headless CLI execution:** Both tools run from the command line without a GUI.
-  Vesta's CLI (`srt-flashcards`) invokes the library engine directly. subs2srs
+  Vesta's CLI (`vesta-flashcards`) invokes the library engine directly. subs2srs
   ships only as a .NET 3.5 WinForms GUI, so a small headless harness
   (see below) drives its generation classes directly.
 * **Sequential execution for subs2srs:** subs2srs runs single-threaded with
@@ -87,10 +87,10 @@ ships the max and single-core variants of the local build:
 
 ```bash
 vesta_VARIANTS=(
-  "max|target/release/srt-flashcards|MAX"
-  "single|target/release/srt-flashcards|1"
+  "max|target/release/vesta-flashcards|MAX"
+  "single|target/release/vesta-flashcards|1"
   # benchmark an alternative branch or build, e.g.:
-  # "experiment|/path/to/other-checkout/target/release/srt-flashcards|MAX"
+  # "experiment|/path/to/other-checkout/target/release/vesta-flashcards|MAX"
 )
 ```
 
@@ -105,7 +105,7 @@ them side by side. A local, gitignored `config.local.sh` can override `TEST_MEDI
 | `config.sh` | Media auto-discovery, Vesta variants, formats, parallelism, paths. |
 | `lib/common.sh` | Shared bash helpers (logging, timing, median). |
 | `1_compile_subs2srs.sh` | Build `subs2srs-headless.exe` + wire ffmpeg. |
-| `2_compile_vesta.sh` | `cargo build --release -p srt-flashcards-cli`. |
+| `2_compile_vesta.sh` | `cargo build --release -p vesta-flashcards-cli`. |
 | `3_run_benchmarks.sh` | Time every tool/variant/format → `results/results.csv`. |
 | `4_generate_report.sh` | SVG charts (`report/plot.py`: combined + one per film) + `results/summary.md`. |
 | `subs2srs-headless/` | The headless harness sources (`Program.cs`, `Stubs.cs`). |

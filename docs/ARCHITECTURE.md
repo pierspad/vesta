@@ -4,7 +4,7 @@ Vesta is a modular Cargo workspace layered from foundational formats to GUI-agno
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  apps/srt-gui              Tauri v2 + Svelte 5 desktop application           │
+│  apps/vesta-gui              Tauri v2 + Svelte 5 desktop application           │
 │  apps/whisper-bench        Whisper.cpp & VAD benchmarking utility           │
 │  cli/vesta-cli             Unified CLI dispatcher (vesta-cli <command>)         │
 │  cli/vesta-mcp             Model Context Protocol (stdio MCP server)        │
@@ -12,26 +12,26 @@ Vesta is a modular Cargo workspace layered from foundational formats to GUI-agno
                                        │ depends on
 ┌──────────────────────────────────────▼──────────────────────────────────────┐
 │  lib/ (feature engines — GUI-agnostic, cancellation & progress callbacks)    │
-│  • srt-flashcards   (Anki deck compiler)         ──► cli/srt-flashcards-cli │
-│  • srt-translate    (LLM multi-tier translator)  ──► cli/srt-translate-cli  │
-│  • srt-transcribe   (Whisper & VAD transcription)──► cli/srt-transcribe-cli │
-│  • srt-autosync     (VAD speech auto-aligner)    ──► cli/srt-autosync-cli   │
-│  • srt-extract      (Media & subtitle extractor) ──► cli/srt-extract-cli    │
-│  • srt-ocr          (Bitmap & ROI OCR engine)    ──► cli/srt-ocr-cli        │
-│  • srt-refine       (LLM deck annotation)       ──► cli/srt-refine-cli     │
-│  • srt-sync         (Anchor-based retiming)     ──► cli/srt-sync-cli       │
-│  • srt-ankiconnect  (AnkiConnect HTTP client)                               │
+│  • vesta-flashcards   (Anki deck compiler)         ──► cli/vesta-flashcards-cli │
+│  • vesta-translate    (LLM multi-tier translator)  ──► cli/vesta-translate-cli  │
+│  • vesta-transcribe   (Whisper & VAD transcription)──► cli/vesta-transcribe-cli │
+│  • vesta-autosync     (VAD speech auto-aligner)    ──► cli/vesta-autosync-cli   │
+│  • vesta-extract      (Media & subtitle extractor) ──► cli/vesta-extract-cli    │
+│  • vesta-ocr          (Bitmap & ROI OCR engine)    ──► cli/vesta-ocr-cli        │
+│  • vesta-refine       (LLM deck annotation)       ──► cli/vesta-refine-cli     │
+│  • vesta-sync         (Anchor-based retiming)     ──► cli/vesta-sync-cli       │
+│  • vesta-ankiconnect  (AnkiConnect HTTP client)                               │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │ depends on
 ┌──────────────────────────────────────▼──────────────────────────────────────┐
 │  core/ (foundational utilities)                                             │
-│  • srt-parser       (SRT parser/writer with automatic charset detection)    │
-│  • srt-apkg         (Anki .apkg ZIP archive builder & extractor)            │
-│  • srt-download     (Cancellable downloads & atomic publication)            │
+│  • vesta-parser       (SRT parser/writer with automatic charset detection)    │
+│  • vesta-apkg         (Anki .apkg ZIP archive builder & extractor)            │
+│  • vesta-download     (Cancellable downloads & atomic publication)            │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-The `core/` layer also contains `srt-download`, shared by callers that need
+The `core/` layer also contains `vesta-download`, shared by callers that need
 cancellable resource downloads and atomic publication.
 
 ---
@@ -40,16 +40,16 @@ cancellable resource downloads and atomic publication.
 
 | Layer | Crates | Responsibilities & Design Rules |
 |---|---|---|
-| **core** | `srt-parser`, `srt-apkg`, `srt-download` | Foundational primitives. Minimal external dependencies, zero knowledge of higher engines or GUI. Auto-charset detection via `chardetng` + `encoding_rs`, lossless timing arithmetic, direct ZIP/SQLite archive serialization, and cancellable atomic resource downloads. |
-| **lib** | `srt-flashcards`, `srt-translate`, `srt-transcribe`, `srt-autosync`, `srt-extract`, `srt-ocr`, `srt-refine`, `srt-sync`, `srt-ankiconnect` | Self-contained domain engines. **Zero GUI/Tauri coupling**. Long-running tasks accept a `tokio_util::sync::CancellationToken` and report progress through callbacks. External tools and heavy dependencies (FFmpeg processes, `whisper-rs`, `rusqlite`, `reqwest`) are encapsulated here. |
-| **cli** | `vesta-cli`, `vesta-mcp`, and `srt-*-cli` (`vesta-flashcards`, `vesta-translate`, `vesta-transcribe`, `vesta-autosync`, `vesta-extract`, `vesta-ocr`, `vesta-sync`, `vesta-refine`) | Headless terminal frontends powered by `clap`, plus the `vesta-cli` unified entry point and `vesta-mcp` stdio MCP server (12 tools). Thin adapters over corresponding `lib/` engines for scripting, batch processing, CI, AI assistants, and benchmarking. |
-| **apps** | `apps/srt-gui` (`vesta`), `apps/whisper-bench` | Desktop composition roots. Svelte owns presentation/state; Tauri commands adapt IPC to `lib/` crates and own process-level services such as local media streaming, declarative plugin subprocess management (`src-tauri/src/plugins`), dialogs, and window integration. |
+| **core** | `vesta-parser`, `vesta-apkg`, `vesta-download` | Foundational primitives. Minimal external dependencies, zero knowledge of higher engines or GUI. Auto-charset detection via `chardetng` + `encoding_rs`, lossless timing arithmetic, direct ZIP/SQLite archive serialization, and cancellable atomic resource downloads. |
+| **lib** | `vesta-flashcards`, `vesta-translate`, `vesta-transcribe`, `vesta-autosync`, `vesta-extract`, `vesta-ocr`, `vesta-refine`, `vesta-sync`, `vesta-ankiconnect` | Self-contained domain engines. **Zero GUI/Tauri coupling**. Long-running tasks accept a `tokio_util::sync::CancellationToken` and report progress through callbacks. External tools and heavy dependencies (FFmpeg processes, `whisper-rs`, `rusqlite`, `reqwest`) are encapsulated here. |
+| **cli** | `vesta-cli`, `vesta-mcp`, and `vesta-*-cli` (`vesta-flashcards`, `vesta-translate`, `vesta-transcribe`, `vesta-autosync`, `vesta-extract`, `vesta-ocr`, `vesta-sync`, `vesta-refine`) | Headless terminal frontends powered by `clap`, plus the `vesta-cli` unified entry point and `vesta-mcp` stdio MCP server (12 tools). Thin adapters over corresponding `lib/` engines for scripting, batch processing, CI, AI assistants, and benchmarking. |
+| **apps** | `apps/vesta-gui` (`vesta`), `apps/whisper-bench` | Desktop composition roots. Svelte owns presentation/state; Tauri commands adapt IPC to `lib/` crates and own process-level services such as local media streaming, declarative plugin subprocess management (`src-tauri/src/plugins`), dialogs, and window integration. |
 
 ---
 
 ## Key Pipelines and Data Flow
 
-### 1. Flashcard Generation Pipeline (`srt-flashcards`)
+### 1. Flashcard Generation Pipeline (`vesta-flashcards`)
 
 ```
 FlashcardConfig ──► build_matched_lines()  (Parse SRT ─► Normalize ─► Time Shift ─►
@@ -66,10 +66,10 @@ FlashcardConfig ──► build_matched_lines()  (Parse SRT ─► Normalize ─
                                      ▼
                                Export Output
                                      ├── TSV Deck (Anki-importable with media filenames)
-                                     └── Native `.apkg` Package (`srt-apkg` + SQLite collection)
+                                     └── Native `.apkg` Package (`vesta-apkg` + SQLite collection)
 ```
 
-### 2. Speech-to-Text Transcription (`srt-transcribe`)
+### 2. Speech-to-Text Transcription (`vesta-transcribe`)
 
 ```
 Media Input (Video/Audio)
@@ -89,7 +89,7 @@ Transcription Dispatcher
 Post-processing & Formatting ─► `.srt` output
 ```
 
-### 3. LLM Translation & Refinement (`srt-translate`, `srt-refine`)
+### 3. LLM Translation & Refinement (`vesta-translate`, `vesta-refine`)
 
 ```
 Tiered Configuration (`TierEntry`: Provider + Model + Rate Limits)
@@ -108,7 +108,7 @@ Translation & Refine Engine
         └── Deck Enrichment: Adds definitions, grammatical breakdowns, and target-language notes.
 ```
 
-### 4. Automatic Subtitle Synchronization (`srt-autosync`, `srt-sync`)
+### 4. Automatic Subtitle Synchronization (`vesta-autosync`, `vesta-sync`)
 
 ```
 Video/Audio File + Desynchronized Subtitle
@@ -120,7 +120,7 @@ Audio Sampling and Whisper Transcription
 Fuzzy Text Matcher
         │ Matches transcript fragments to subtitle text and proposes anchors
         ▼
-Retiming Calculation (`srt-sync`)
+Retiming Calculation (`vesta-sync`)
         │ Computes linear / affine time-stretch and global offset transformations
         ▼
 Aligned Output Subtitle (.srt)
@@ -141,7 +141,7 @@ desktop. Its adapter owns Ctrl+C, output-format validation and complete/partial
 publication policy; the engine owns batching, failover and cancellation cleanup.
 
 The desktop tabs compose UI and event lifetimes. The modules in
-`apps/srt-gui/src/lib/workflows` own flashcard execution/aggregation/merge,
+`apps/vesta-gui/src/lib/workflows` own flashcard execution/aggregation/merge,
 bounded file discovery, transcription failover and model/backend/VAD discovery.
 Their injected IPC functions and callbacks support headless regression tests.
 Reactive discovery state lives in `TranscriptionResources`; live transcript
@@ -253,14 +253,14 @@ cargo build --release -p vesta-cli
 cargo build --release -p vesta-mcp
 
 # Build standalone CLIs
-cargo build --release -p srt-flashcards-cli
-cargo build --release -p srt-transcribe-cli
-cargo build --release -p srt-translate-cli
-cargo build --release -p srt-autosync-cli
-cargo build --release -p srt-extract-cli
-cargo build --release -p srt-ocr-cli
-cargo build --release -p srt-sync-cli
-cargo build --release -p srt-refine-cli
+cargo build --release -p vesta-flashcards-cli
+cargo build --release -p vesta-transcribe-cli
+cargo build --release -p vesta-translate-cli
+cargo build --release -p vesta-autosync-cli
+cargo build --release -p vesta-extract-cli
+cargo build --release -p vesta-ocr-cli
+cargo build --release -p vesta-sync-cli
+cargo build --release -p vesta-refine-cli
 
 # Run flashcard generation via unified CLI (or standalone binary)
 ./target/release/vesta-cli flashcards \
@@ -290,10 +290,10 @@ if the backup cannot be preserved) and surfaced to the user with the backup path
 unreadable configuration fails startup instead of being silently replaced by defaults.
 API keys are stored in this configuration file; it is not an encrypted keychain.
 
-Embedded subtitle discovery/extraction lives in `srt-extract::embedded` and uses
+Embedded subtitle discovery/extraction lives in `vesta-extract::embedded` and uses
 FFprobe/FFmpeg. Text tracks convert directly to SRT; bitmap tracks (PGS, VobSub,
-DVB, XSUB) and burned-in video ROI regions (`VideoRoi` in `srt-ocr::hardcoded`)
-are extracted and converted via `srt-ocr` using offline pure-Rust PaddleOCR v4
+DVB, XSUB) and burned-in video ROI regions (`VideoRoi` in `vesta-ocr::hardcoded`)
+are extracted and converted via `vesta-ocr` using offline pure-Rust PaddleOCR v4
 ONNX models (`LocalOcrBackend`) and/or configured Vision LLM tiers
 (`VisionLlmBackend` via `CompositeOcrBackend`, preferring dedicated ITT tiers in
 Settings → ITT (`vesta-itt-tiers`) before falling back to LLM tiers; Vision
@@ -301,7 +301,7 @@ LLM tiers remain subject to the AI Kill Switch, while downloaded local OCR
 models keep offline OCR available). The desktop Extract tab saves independent
 SRT files, keeping the existing workflows simple.
 
-Fresh per-episode APKG exports can be merged by `srt-flashcards::merge_apkg`.
+Fresh per-episode APKG exports can be merged by `vesta-flashcards::merge_apkg`.
 The frontend writes episodes to distinct directories; the merger remaps note/card
 IDs, combines metadata/media, rejects conflicts, and publishes a complete archive.
 It is intended for fresh Vesta exports, not scheduled Anki collections.
@@ -335,7 +335,7 @@ AssemblyAI jobs may continue after local cancellation. See [QUALITY](QUALITY.md)
 
 `sync_prepare_media_for_playback` returns natively playable audio paths (`mp3`,
 `wav`, `ogg`, `m4a`, `aac`, `opus`, `flac`) directly. Other containers (such as
-MKV or MP4) are prepared by `srt-sync::playback`: reuse a fresh nonempty cache
+MKV or MP4) are prepared by `vesta-sync::playback`: reuse a fresh nonempty cache
 entry (`cache_modified >= source_modified`), or transcode the audio stream via
 FFmpeg into uncompressed 16 kHz mono PCM WAV (`pcm_s16le`, `{hash}.wav`) via an
 atomically published unique temporary sibling. This preview policy avoids video decoding and
@@ -391,7 +391,7 @@ hidden when irrelevant rather than influencing another export format's payload.
 
 ## Native snapshot extraction and verification
 
-`lib/srt-flashcards/src/snapshot_batch.rs` is an internal Rust module used by
+`lib/vesta-flashcards/src/snapshot_batch.rs` is an internal Rust module used by
 both desktop and CLI generation. It groups at most eight nearby WebP requests
 in an eight-second window, probes eligible H.264/HEVC HD streams and selects
 actual packet PTS. Conservative fallbacks preserve original seek semantics at
@@ -418,10 +418,10 @@ Cancellation requests stop work without releasing its slot early; normal return,
 error and future drop release the slot through RAII. Auto-sync reserves both
 sync and transcription resources with a shared cancellation token.
 
-`core/srt-download` owns HTTP streaming, unique temporary files, cache checks,
+`core/vesta-download` owns HTTP streaming, unique temporary files, cache checks,
 publication and cancellation. Font and model catalogs retain their domain policy.
 Translation APIs share one worker engine, with tier selection in `scheduler.rs`;
-`JoinSet` owns the workers and propagates failures. `srt-refine::cards` owns TSV
+`JoinSet` owns the workers and propagates failures. `vesta-refine::cards` owns TSV
 and APKG persistence separately from LLM orchestration. Desktop `media_stream`
 owns range serving independently of application startup and command registration.
 
@@ -455,7 +455,7 @@ a config/i18n initialization cycle.
 
 ## Atomic output publication
 
-`srt-parser::persistence` owns temporary-sibling publication for subtitle and
+`vesta-parser::persistence` owns temporary-sibling publication for subtitle and
 companion files. Parser saves, manual-sync session saves, transcription SRT,
 flashcard TSV/APKG exports and CLI extraction outputs use it. The streaming
 callback must finish and flush buffered/archive writers before publication;
