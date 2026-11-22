@@ -45,7 +45,7 @@ def main():
     args = parser.parse_args()
     if not 1 <= args.samples <= 10:
         parser.error('--samples must be between 1 and 10')
-    binary = ROOT / 'target' / args.profile / ('srt-flashcards.exe' if os.name == 'nt' else 'srt-flashcards')
+    binary = ROOT / 'target' / args.profile / ('vesta-flashcards.exe' if os.name == 'nt' else 'vesta-flashcards')
     if not binary.exists():
         parser.error(f'Build first: cargo build -p srt-flashcards-cli {"--release" if args.profile == "release" else ""}')
     for tool in ('ffmpeg', 'ffprobe'):

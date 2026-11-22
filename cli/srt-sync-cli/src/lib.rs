@@ -29,10 +29,10 @@ fn parse_anchor(value: &str) -> Result<Anchor, String> {
 
 #[derive(Parser)]
 #[command(
-    name = "srt-sync",
+    name = "vesta-sync",
     about = "Retime SRT subtitles with manual anchors",
     version,
-    after_help = "Example:\n  srt-sync -i input.srt -o synced.srt --anchor 12:14500 --anchor 80:93500\n\nRepeat --anchor SUBTITLE_ID:CORRECTED_MS at each measured timing point. IDs refer to source subtitle numbers; corrected times are non-negative milliseconds and must increase with source time."
+    after_help = "Example:\n  vesta-sync -i input.srt -o synced.srt --anchor 12:14500 --anchor 80:93500\n\nRepeat --anchor SUBTITLE_ID:CORRECTED_MS at each measured timing point. IDs refer to source subtitle numbers; corrected times are non-negative milliseconds and must increase with source time."
 )]
 struct Cli {
     /// Source SRT file to retime.
@@ -55,7 +55,7 @@ pub fn run_from(args: Vec<std::ffi::OsString>) -> ExitCode {
         }
     };
     if let Err(error) = run(cli) {
-        eprintln!("srt-sync: {error:#}");
+        eprintln!("vesta-sync: {error:#}");
         return ExitCode::FAILURE;
     }
     ExitCode::SUCCESS

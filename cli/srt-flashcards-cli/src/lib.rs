@@ -1,4 +1,4 @@
-//! # srt-flashcards CLI
+//! # vesta-flashcards CLI
 //!
 //! Headless front-end for the [`srt_flashcards`] engine. It turns a subtitle
 //! file (optionally a target + native pair) plus a media file into an Anki deck
@@ -6,7 +6,7 @@
 //! the Vesta desktop app uses, with no GUI dependency.
 //!
 //! This binary is the "shell": it parses CLI arguments and delegates all logic
-//! to the library, mirroring the `srt-extract` / `srt-translate` CLIs.
+//! to the library, mirroring the `vesta-extract` / `vesta-translate` CLIs.
 
 use std::process::ExitCode;
 use std::sync::atomic::{AtomicI64, Ordering};
@@ -22,7 +22,7 @@ use tokio_util::sync::CancellationToken;
 
 #[derive(Parser)]
 #[command(
-    name = "srt-flashcards",
+    name = "vesta-flashcards",
     version,
     about = "Turn subtitles + media into Anki flashcards (headless subs2srs-style engine)",
     long_about = None
@@ -36,23 +36,23 @@ struct Cli {
 enum Command {
     /// Generate flashcards (TSV + media folder, or a .apkg package).
     #[command(
-        after_help = "Examples:\n  srt-flashcards generate -t target.srt -o deck --video movie.mkv\n  srt-flashcards generate -t target.srt -o deck --no-audio --no-snapshots --no-video\n\nA media source is needed only for enabled media outputs. Outputs without a source are skipped: --audio/--video supply audio, while snapshots/clips need --video. Use --format apkg for a packaged deck."
+        after_help = "Examples:\n  vesta-flashcards generate -t target.srt -o deck --video movie.mkv\n  vesta-flashcards generate -t target.srt -o deck --no-audio --no-snapshots --no-video\n\nA media source is needed only for enabled media outputs. Outputs without a source are skipped: --audio/--video supply audio, while snapshots/clips need --video. Use --format apkg for a packaged deck."
     )]
     Generate(GenerateArgs),
     /// Print a summary of a subtitle file (count, format, actors, duration).
-    #[command(after_help = "Example:\n  srt-flashcards info subtitles.srt")]
+    #[command(after_help = "Example:\n  vesta-flashcards info subtitles.srt")]
     Info {
         /// Subtitle file to inspect.
         file: String,
     },
     /// Run the parse/match/filter pipeline and report line counts (no media).
     #[command(
-        after_help = "Example:\n  srt-flashcards preview -t target.srt --native native.srt --only-cjk\n\nPreview reads subtitle files only and never creates the --output directory (--output is optional for preview). Its CLI options are shared with generate; media/export options are ignored."
+        after_help = "Example:\n  vesta-flashcards preview -t target.srt --native native.srt --only-cjk\n\nPreview reads subtitle files only and never creates the --output directory (--output is optional for preview). Its CLI options are shared with generate; media/export options are ignored."
     )]
     Preview(GenerateArgs),
     /// Export bilingual "dueling" subtitles (.ass or .srt) from matched subtitle tracks.
     #[command(
-        after_help = "Examples:\n  srt-flashcards dueling -t target.srt --native native.srt -o episode.dueling.ass\n  srt-flashcards dueling -t target.srt --native native.srt --dueling-format srt -o episode.dueling.srt"
+        after_help = "Examples:\n  vesta-flashcards dueling -t target.srt --native native.srt -o episode.dueling.ass\n  vesta-flashcards dueling -t target.srt --native native.srt --dueling-format srt -o episode.dueling.srt"
     )]
     Dueling(DuelingArgs),
 }
@@ -456,7 +456,7 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
         Command::Generate(args) => {
             if args.output.as_ref().is_none_or(|s| s.trim().is_empty()) {
                 eprintln!(
-                    "error: the following required arguments were not provided:\n  --output <OUTPUT>\n\nUsage: srt-flashcards generate --target <TARGET> --output <OUTPUT>\n\nFor more information, try '--help'."
+                    "error: the following required arguments were not provided:\n  --output <OUTPUT>\n\nUsage: vesta-flashcards generate --target <TARGET> --output <OUTPUT>\n\nFor more information, try '--help'."
                 );
                 return Ok(ExitCode::from(2));
             }

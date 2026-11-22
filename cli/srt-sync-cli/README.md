@@ -1,4 +1,4 @@
-# srt-sync CLI
+# vesta-sync (`srt-sync-cli`)
 
 Manual, headless retiming through `srt-sync::SyncEngine`. No Tauri, FFmpeg or
 Whisper installation is needed to run this command.

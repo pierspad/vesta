@@ -7,18 +7,18 @@ fn command() -> Command {
     Command::new("vesta")
         .version(env!("CARGO_PKG_VERSION"))
         .about("Vesta headless subtitle and flashcard workflows")
-        .long_about("Run headless Vesta operations. Each operation forwards its options to the same CLI implementation used by its standalone srt-* command.")
+        .long_about("Run headless Vesta operations. Each operation forwards its options to the same CLI implementation used by its standalone vesta-* command.")
         .after_help("Examples:\n  vesta flashcards preview --help\n  vesta translate --language-list\n  vesta transcribe run --help\n\nEach command accepts the standalone adapter's options; use its --help for requirements and examples.")
         .subcommand_required(false)
         .arg_required_else_help(false)
-        .subcommand(Command::new("flashcards").about("Create or inspect flashcards (srt-flashcards options)"))
-        .subcommand(Command::new("translate").about("Translate subtitles (srt-translate options)"))
-        .subcommand(Command::new("transcribe").about("Transcribe media to subtitles (srt-transcribe options)"))
-        .subcommand(Command::new("sync").about("Retime subtitles (srt-sync options)"))
-        .subcommand(Command::new("autosync").about("Align subtitles to media (srt-autosync options)"))
-        .subcommand(Command::new("refine").about("Inspect or annotate flashcard decks (srt-refine options)"))
-        .subcommand(Command::new("extract").about("Inspect SRT files or list/extract embedded subtitle tracks (srt-extract options)"))
-        .subcommand(Command::new("ocr").about("Extract and OCR bitmap subtitle tracks or hardcoded video ROI subtitles to SRT (srt-ocr options)"))
+        .subcommand(Command::new("flashcards").about("Create or inspect flashcards (vesta-flashcards options)"))
+        .subcommand(Command::new("translate").about("Translate subtitles (vesta-translate options)"))
+        .subcommand(Command::new("transcribe").about("Transcribe media to subtitles (vesta-transcribe options)"))
+        .subcommand(Command::new("sync").about("Retime subtitles (vesta-sync options)"))
+        .subcommand(Command::new("autosync").about("Align subtitles to media (vesta-autosync options)"))
+        .subcommand(Command::new("refine").about("Inspect or annotate flashcard decks (vesta-refine options)"))
+        .subcommand(Command::new("extract").about("Inspect SRT files or list/extract embedded subtitle tracks (vesta-extract options)"))
+        .subcommand(Command::new("ocr").about("Extract and OCR bitmap subtitle tracks or hardcoded video ROI subtitles to SRT (vesta-ocr options)"))
 }
 
 /// Dispatch arguments to the existing command implementations without requiring
@@ -53,14 +53,14 @@ pub fn run_from(args: Vec<OsString>) -> ExitCode {
     }
 
     let command_name = match operation_text.as_ref() {
-        "flashcards" => "srt-flashcards",
-        "translate" => "srt-translate",
-        "transcribe" => "srt-transcribe",
-        "sync" => "srt-sync",
-        "autosync" => "srt-autosync",
-        "refine" => "srt-refine",
-        "extract" => "srt-extract",
-        "ocr" => "srt-ocr",
+        "flashcards" => "vesta-flashcards",
+        "translate" => "vesta-translate",
+        "transcribe" => "vesta-transcribe",
+        "sync" => "vesta-sync",
+        "autosync" => "vesta-autosync",
+        "refine" => "vesta-refine",
+        "extract" => "vesta-extract",
+        "ocr" => "vesta-ocr",
         unknown => {
             let error = command().error(
                 ErrorKind::InvalidSubcommand,
@@ -76,20 +76,20 @@ pub fn run_from(args: Vec<OsString>) -> ExitCode {
         .collect();
 
     match command_name {
-        "srt-flashcards" => srt_flashcards_cli::run_from(forwarded),
-        "srt-translate" => srt_translate_cli::run_from(forwarded),
-        "srt-transcribe" => srt_transcribe_cli::run_from(forwarded),
-        "srt-sync" => srt_sync_cli::run_from(forwarded),
-        "srt-autosync" => srt_autosync_cli::run_from(forwarded),
-        "srt-refine" => srt_refine_cli::run_from(forwarded),
-        "srt-extract" => match srt_extract_cli::run_from(forwarded) {
+        "vesta-flashcards" => srt_flashcards_cli::run_from(forwarded),
+        "vesta-translate" => srt_translate_cli::run_from(forwarded),
+        "vesta-transcribe" => srt_transcribe_cli::run_from(forwarded),
+        "vesta-sync" => srt_sync_cli::run_from(forwarded),
+        "vesta-autosync" => srt_autosync_cli::run_from(forwarded),
+        "vesta-refine" => srt_refine_cli::run_from(forwarded),
+        "vesta-extract" => match srt_extract_cli::run_from(forwarded) {
             Ok(()) => ExitCode::SUCCESS,
             Err(error) => {
-                eprintln!("srt-extract: {error:#}");
+                eprintln!("vesta-extract: {error:#}");
                 ExitCode::FAILURE
             }
         },
-        "srt-ocr" => srt_ocr_cli::run_from(forwarded),
+        "vesta-ocr" => srt_ocr_cli::run_from(forwarded),
         _ => unreachable!("operation mapped above"),
     }
 }

@@ -2,7 +2,7 @@ use std::process::Command;
 
 #[test]
 fn help_explains_on_demand_model_and_external_tool_requirements() {
-    let output = Command::new(env!("CARGO_BIN_EXE_srt-autosync"))
+    let output = Command::new(env!("CARGO_BIN_EXE_vesta-autosync"))
         .arg("--help")
         .output()
         .unwrap();
@@ -20,7 +20,7 @@ fn missing_subtitle_fails_without_touching_output_or_downloading_a_model() {
     let output = dir.path().join("synced.srt");
     std::fs::write(&output, "keep this output").unwrap();
 
-    let result = Command::new(env!("CARGO_BIN_EXE_srt-autosync"))
+    let result = Command::new(env!("CARGO_BIN_EXE_vesta-autosync"))
         .args([
             input.to_str().unwrap(),
             media.to_str().unwrap(),
@@ -100,7 +100,7 @@ fn ctrl_c_cancels_analysis_with_130_and_preserves_output() {
         ),
     );
 
-    let child = Command::new(env!("CARGO_BIN_EXE_srt-autosync"))
+    let child = Command::new(env!("CARGO_BIN_EXE_vesta-autosync"))
         .args([
             input.to_str().unwrap(),
             media.to_str().unwrap(),

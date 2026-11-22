@@ -1,4 +1,4 @@
-//! # srt-translate CLI
+//! # vesta-translate CLI
 //!
 //! Command-line interface for translating SRT subtitles using LLM APIs with
 //! tiered multi-provider failover (`srt_translate::{build_pool, translate_subtitles_tiered_cancellable}`).
@@ -119,10 +119,10 @@ fn expand_config_env_vars(config: &mut Config) -> Result<()> {
 }
 
 #[derive(Parser)]
-#[command(name = "srt-translate")]
+#[command(name = "vesta-translate")]
 #[command(about = "Translate SRT files using LLM APIs with tiered multi-provider failover", long_about = None)]
 #[command(
-    after_help = "Examples:\n  srt-translate --input movie.srt --language it --config config.toml\n  srt-translate --language-list\n  srt-translate --input original.srt --check-missing translated.srt\n\nTranslation requires --input, --language, and a TOML config with at least one usable tier. --language-list is standalone; --check-missing needs --input but does not contact providers."
+    after_help = "Examples:\n  vesta-translate --input movie.srt --language it --config config.toml\n  vesta-translate --language-list\n  vesta-translate --input original.srt --check-missing translated.srt\n\nTranslation requires --input, --language, and a TOML config with at least one usable tier. --language-list is standalone; --check-missing needs --input but does not contact providers."
 )]
 struct Cli {
     /// Path to the SRT file to translate.
@@ -164,7 +164,7 @@ async fn run_async(args: Vec<std::ffi::OsString>) -> ExitCode {
     match run_cli(args).await {
         Ok(code) => code,
         Err(error) => {
-            eprintln!("srt-translate: {error:#}");
+            eprintln!("vesta-translate: {error:#}");
             ExitCode::FAILURE
         }
     }
@@ -458,7 +458,7 @@ fn check_missing_subtitles(original_path: &PathBuf, translated_path: &PathBuf) -
         println!();
         println!("💡 Tip: Re-run the translation to fix these issues:");
         println!(
-            "   srt-translate -i {} -l <lang> -o {}",
+            "   vesta-translate -i {} -l <lang> -o {}",
             original_path.display(),
             translated_path.display()
         );
@@ -515,7 +515,7 @@ fn print_language_list() {
     println!("  ar      | Arabic");
     println!();
     println!("Note: Other language codes may work but won't have optimized examples.");
-    println!("Usage: srt-translate -i file.srt -l <code>");
+    println!("Usage: vesta-translate -i file.srt -l <code>");
 }
 
 pub(crate) fn strip_language_suffix(input_filename: &str) -> &str {

@@ -10,7 +10,7 @@ repository = "https://github.com/pierspad/vesta"
 readme = "README.md"
 
 [[bin]]
-name = "srt-ocr"
+name = "vesta-ocr"
 path = "src/main.rs"
 
 [dependencies]

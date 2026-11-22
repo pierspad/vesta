@@ -2,7 +2,7 @@ use std::process::Command;
 
 #[test]
 fn run_help_explains_cloud_requirements_and_local_only_options() {
-    let help = Command::new(env!("CARGO_BIN_EXE_srt-transcribe"))
+    let help = Command::new(env!("CARGO_BIN_EXE_vesta-transcribe"))
         .args(["run", "--help"])
         .output()
         .unwrap();
@@ -16,7 +16,7 @@ fn run_help_explains_cloud_requirements_and_local_only_options() {
 
 #[test]
 fn cloud_argument_errors_are_reported_before_media_processing() {
-    let missing_url = Command::new(env!("CARGO_BIN_EXE_srt-transcribe"))
+    let missing_url = Command::new(env!("CARGO_BIN_EXE_vesta-transcribe"))
         .args([
             "run",
             "missing.wav",
@@ -30,7 +30,7 @@ fn cloud_argument_errors_are_reported_before_media_processing() {
     assert_eq!(missing_url.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&missing_url.stderr).contains("--api-url is required"));
 
-    let local_only = Command::new(env!("CARGO_BIN_EXE_srt-transcribe"))
+    let local_only = Command::new(env!("CARGO_BIN_EXE_vesta-transcribe"))
         .args([
             "run",
             "missing.wav",
@@ -57,7 +57,7 @@ fn json_mode_keeps_validation_failures_on_stdout_as_terminal_records() {
         (vec!["--provider", "custom"], "--api-url is required"),
         (vec!["--provider", "groq"], "--api-key is required"),
     ] {
-        let result = Command::new(env!("CARGO_BIN_EXE_srt-transcribe"))
+        let result = Command::new(env!("CARGO_BIN_EXE_vesta-transcribe"))
             .args(["run", "missing.wav", "--output", "out.srt"])
             .args(provider_args)
             .arg("--json")
@@ -85,7 +85,7 @@ fn json_failure_is_one_machine_readable_line_and_nonzero() {
     let output = dir.path().join("transcript.srt");
     std::fs::write(&output, "existing output").unwrap();
 
-    let result = Command::new(env!("CARGO_BIN_EXE_srt-transcribe"))
+    let result = Command::new(env!("CARGO_BIN_EXE_vesta-transcribe"))
         .current_dir(dir.path())
         .args([
             "run",
@@ -147,7 +147,7 @@ fn json_sigint_emits_cancelled_terminal_record_without_stderr_noise() {
     .unwrap();
     std::fs::set_permissions(&ffmpeg, std::fs::Permissions::from_mode(0o700)).unwrap();
 
-    let child = Command::new(env!("CARGO_BIN_EXE_srt-transcribe"))
+    let child = Command::new(env!("CARGO_BIN_EXE_vesta-transcribe"))
         .current_dir(dir.path())
         .args([
             "run",

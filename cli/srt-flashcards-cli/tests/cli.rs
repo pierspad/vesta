@@ -1,7 +1,7 @@
 use std::process::Command;
 
 fn run(args: &[&str]) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_srt-flashcards"))
+    Command::new(env!("CARGO_BIN_EXE_vesta-flashcards"))
         .args(args)
         .output()
         .unwrap()
@@ -14,7 +14,7 @@ fn each_leaf_help_explains_usage_and_preview_boundaries() {
             "generate",
             "A media source is needed only for enabled media outputs",
         ),
-        ("info", "srt-flashcards info subtitles.srt"),
+        ("info", "vesta-flashcards info subtitles.srt"),
         ("preview", "never creates the --output directory"),
     ] {
         let output = run(&[command, "--help"]);
@@ -157,7 +157,7 @@ fn failed_media_generation_preserves_existing_tsv_and_media() {
     )
     .unwrap();
     std::fs::set_permissions(&ffmpeg, std::fs::Permissions::from_mode(0o700)).unwrap();
-    let result = Command::new(env!("CARGO_BIN_EXE_srt-flashcards"))
+    let result = Command::new(env!("CARGO_BIN_EXE_vesta-flashcards"))
         .args([
             "generate",
             "--target",
@@ -228,7 +228,7 @@ fn ctrl_c_returns_130_and_preserves_existing_tsv_and_media() {
     .unwrap();
     std::fs::set_permissions(&ffmpeg, std::fs::Permissions::from_mode(0o700)).unwrap();
 
-    let child = Command::new(env!("CARGO_BIN_EXE_srt-flashcards"))
+    let child = Command::new(env!("CARGO_BIN_EXE_vesta-flashcards"))
         .args([
             "generate",
             "--target",

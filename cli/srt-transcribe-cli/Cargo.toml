@@ -8,7 +8,7 @@ authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
 license = "GPL-3.0-only"
 
 [[bin]]
-name = "srt-transcribe"
+name = "vesta-transcribe"
 path = "src/main.rs"
 
 [dependencies]

@@ -4,7 +4,7 @@ use std::{
 };
 
 fn run(args: &[&str]) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_srt-refine"))
+    Command::new(env!("CARGO_BIN_EXE_vesta-refine"))
         .args(args)
         .output()
         .unwrap()
@@ -30,7 +30,7 @@ fn inspect_help_shows_a_no_provider_example() {
     let output = run(&["inspect", "--help"]);
     assert!(output.status.success());
     let help = String::from_utf8_lossy(&output.stdout);
-    assert!(help.contains("srt-refine inspect --input deck.apkg"));
+    assert!(help.contains("vesta-refine inspect --input deck.apkg"));
     assert!(help.contains("without contacting any provider"));
 }
 
@@ -327,7 +327,7 @@ fn ctrl_c_cancels_inflight_work_without_publishing() {
             }
         }
     });
-    let mut child = Command::new(env!("CARGO_BIN_EXE_srt-refine"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_vesta-refine"))
         .args([
             "enrich",
             "--input",

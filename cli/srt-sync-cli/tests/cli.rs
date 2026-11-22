@@ -2,7 +2,7 @@ use srt_parser::SrtParser;
 use std::process::Command;
 
 fn run(args: &[&str]) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_srt-sync"))
+    Command::new(env!("CARGO_BIN_EXE_vesta-sync"))
         .args(args)
         .output()
         .unwrap()

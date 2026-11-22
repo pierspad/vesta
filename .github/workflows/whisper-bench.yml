@@ -274,13 +274,14 @@ jobs:
         run: |
           mkdir -p dist-out
           os_slug="linux"
-          src="target/release/srt-transcribe"
+          src="target/release/vesta-transcribe"
           ext=""
           if [ "${{ runner.os }}" = "Windows" ]; then
             os_slug="windows"
-            src="target/release/srt-transcribe.exe"
+            src="target/release/vesta-transcribe.exe"
             ext=".exe"
           fi
+          # Keep the published worker asset slug compatible with existing whisper-bench releases.
           out="dist-out/srt-transcribe-${{ matrix.gpu }}-${os_slug}${ext}"
           cp "$src" "$out"
           (cd dist-out && sha256sum "$(basename "$out")" > "$(basename "$out").sha256")

@@ -1,4 +1,4 @@
-# srt-flashcards (CLI)
+# vesta-flashcards (`srt-flashcards-cli`)
 
 Headless command-line interface for the [`srt-flashcards`](../../lib/srt-flashcards)
 engine. Generates Anki flashcard decks (`tsv` + media folder or `.apkg`) from
@@ -6,29 +6,29 @@ subtitle and media files without a GUI dependency.
 
 ```bash
 cargo build --release -p srt-flashcards-cli
-# → target/release/srt-flashcards   (requires ffmpeg/ffprobe on PATH for media)
+# → target/release/vesta-flashcards   (requires ffmpeg/ffprobe on PATH for media)
 ```
 
 ## Usage
 
 ```bash
 # Inspect a subtitle file
-srt-flashcards info Detour-en.srt
+vesta-flashcards info Detour-en.srt
 
 # Dry-run the pipeline (counts only, no media, --output not required)
-srt-flashcards preview --target Detour-en.srt --native Detour-it.srt
+vesta-flashcards preview --target Detour-en.srt --native Detour-it.srt
 
 # Generate a TSV deck + media folder
-srt-flashcards generate \
+vesta-flashcards generate \
   --target Detour-en.srt --native Detour-it.srt \
   --video "Detour(1945).mp4" --output out --format tsv --deck Detour
 
 # Generate a self-contained .apkg with seven requested media workers
-srt-flashcards generate -t Detour-en.srt -n Detour-it.srt \
+vesta-flashcards generate -t Detour-en.srt -n Detour-it.srt \
   -v "Detour(1945).mp4" -o out -f apkg -d Detour -j 7
 
 # Export bilingual dueling subtitles (.ass or .srt)
-srt-flashcards dueling -t Detour-en.srt --native Detour-it.srt \
+vesta-flashcards dueling -t Detour-en.srt --native Detour-it.srt \
   --dueling-format ass -o Detour.dueling.ass
 ```
 
@@ -52,7 +52,7 @@ srt-flashcards dueling -t Detour-en.srt --native Detour-it.srt \
 | `--min-chars` / `--exclude-words` / … | Subtitle filters (see `--help`). |
 | `--ffmpeg` / `--ffprobe` | Override the binaries to invoke. |
 
-Run `srt-flashcards generate --help` for the full list of filters, context lines,
+Run `vesta-flashcards generate --help` for the full list of filters, context lines,
 codecs, and bitrates. Video padding, custom note templates, and font management
 are configured through the library or GUI; see the
 [coverage matrix](../../docs/CLI.md#feature-coverage-by-interface).

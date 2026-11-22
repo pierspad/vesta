@@ -1,4 +1,4 @@
-//! # srt-autosync CLI
+//! # vesta-autosync CLI
 //!
 //! Headless front-end for the [`srt_autosync`] engine: aligns an out-of-sync
 //! SRT file to a media file by transcribing strategic audio samples with
@@ -20,11 +20,11 @@ use tokio_util::sync::CancellationToken;
 
 #[derive(Parser)]
 #[command(
-    name = "srt-autosync",
+    name = "vesta-autosync",
     version,
     about = "Automatically re-sync an SRT file to a media file using Whisper anchor points",
     long_about = None,
-    after_help = "Example:\n  srt-autosync input.srt movie.mkv -o synced.srt --model small --language ja\n\nThe Whisper model is downloaded on demand. ffmpeg and ffprobe must be installed or selected with --ffmpeg/--ffprobe. Use --quick for fewer, faster samples."
+    after_help = "Example:\n  vesta-autosync input.srt movie.mkv -o synced.srt --model small --language ja\n\nThe Whisper model is downloaded on demand. ffmpeg and ffprobe must be installed or selected with --ffmpeg/--ffprobe. Use --quick for fewer, faster samples."
 )]
 struct Cli {
     /// SRT file to re-sync.
@@ -58,7 +58,7 @@ async fn run_async(args: Vec<std::ffi::OsString>) -> ExitCode {
     match run(args).await {
         Ok(code) => code,
         Err(error) => {
-            eprintln!("srt-autosync: {error:#}");
+            eprintln!("vesta-autosync: {error:#}");
             ExitCode::FAILURE
         }
     }

@@ -9,7 +9,7 @@ repository = "https://github.com/pierspad/vesta"
 readme = "README.md"
 
 [[bin]]
-name = "srt-refine"
+name = "vesta-refine"
 path = "src/main.rs"
 
 [dependencies]

@@ -2,7 +2,7 @@ use std::process::Command;
 
 #[test]
 fn help_describes_both_file_modes_and_embedded_modes_reject_unused_format() {
-    let help = Command::new(env!("CARGO_BIN_EXE_srt-extract"))
+    let help = Command::new(env!("CARGO_BIN_EXE_vesta-extract"))
         .arg("--help")
         .output()
         .unwrap();
@@ -13,7 +13,7 @@ fn help_describes_both_file_modes_and_embedded_modes_reject_unused_format() {
     assert!(help_text.contains("ffprobe"));
     assert!(help_text.contains("Output must be a different file"));
 
-    let invalid = Command::new(env!("CARGO_BIN_EXE_srt-extract"))
+    let invalid = Command::new(env!("CARGO_BIN_EXE_vesta-extract"))
         .args(["--input", "film.mkv", "--list-tracks", "--format", "json"])
         .output()
         .unwrap();
@@ -26,7 +26,7 @@ fn json_stdout_is_machine_readable() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("input.srt");
     std::fs::write(&input, "1\n00:00:01,000 --> 00:00:02,000\n日本語\n").unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_srt-extract"))
+    let output = Command::new(env!("CARGO_BIN_EXE_vesta-extract"))
         .args(["--input", input.to_str().unwrap(), "--format", "json"])
         .output()
         .unwrap();
@@ -41,7 +41,7 @@ fn json_stdout_is_machine_readable() {
 
 #[test]
 fn invalid_format_is_rejected_before_opening_input() {
-    let output = Command::new(env!("CARGO_BIN_EXE_srt-extract"))
+    let output = Command::new(env!("CARGO_BIN_EXE_vesta-extract"))
         .args(["--input", "missing.srt", "--format", "typo"])
         .output()
         .unwrap();
@@ -56,7 +56,7 @@ fn missing_input_does_not_overwrite_output() {
     let input = dir.path().join("missing.srt");
     let destination = dir.path().join("output.json");
     std::fs::write(&destination, "existing").unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_srt-extract"))
+    let output = Command::new(env!("CARGO_BIN_EXE_vesta-extract"))
         .args([
             "--input",
             input.to_str().unwrap(),
@@ -78,7 +78,7 @@ fn output_cannot_replace_the_input_file() {
     let original = "1\n00:00:01,000 --> 00:00:02,000\nHello\n";
     std::fs::write(&input, original).unwrap();
 
-    let output = Command::new(env!("CARGO_BIN_EXE_srt-extract"))
+    let output = Command::new(env!("CARGO_BIN_EXE_vesta-extract"))
         .args([
             "--input",
             input.to_str().unwrap(),

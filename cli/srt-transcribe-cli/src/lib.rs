@@ -1,4 +1,4 @@
-//! # srt-transcribe CLI
+//! # vesta-transcribe CLI
 //!
 //! Headless front-end for [`srt_transcribe::pipeline`]: turns a media file
 //! (video or audio) into an SRT subtitle file using whisper.cpp locally or a
@@ -6,7 +6,7 @@
 //! GUI dependency.
 //!
 //! This binary is the "shell": it parses CLI arguments and delegates all logic
-//! to the library, mirroring the `srt-flashcards` / `srt-translate` CLIs.
+//! to the library, mirroring the `vesta-flashcards` / `vesta-translate` CLIs.
 
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -23,7 +23,7 @@ use tokio_util::sync::CancellationToken;
 
 #[derive(Parser)]
 #[command(
-    name = "srt-transcribe",
+    name = "vesta-transcribe",
     version,
     about = "Transcribe a media file to SRT subtitles (whisper.cpp or cloud providers)",
     long_about = None
@@ -37,22 +37,24 @@ struct Cli {
 enum Command {
     /// Transcribe a media file to SRT.
     #[command(
-        after_help = "Examples:\n  srt-transcribe run movie.mkv -o movie.srt\n  srt-transcribe run audio.wav -o audio.srt --provider groq --model <provider-model> --api-key \"$GROQ_API_KEY\"\n  srt-transcribe run movie.mkv -o movie.en.srt --provider custom --model <provider-model> --api-url http://localhost:8000/v1\n\nReplace <provider-model> with a model supported by your provider. Cloud providers need --api-key except anonymous custom endpoints. Custom providers need --api-url. --word-timestamps, --quality, --vad, and --no-gpu apply only to the local provider."
+        after_help = "Examples:\n  vesta-transcribe run movie.mkv -o movie.srt\n  vesta-transcribe run audio.wav -o audio.srt --provider groq --model <provider-model> --api-key \"$GROQ_API_KEY\"\n  vesta-transcribe run movie.mkv -o movie.en.srt --provider custom --model <provider-model> --api-url http://localhost:8000/v1\n\nReplace <provider-model> with a model supported by your provider. Cloud providers need --api-key except anonymous custom endpoints. Custom providers need --api-url. --word-timestamps, --quality, --vad, and --no-gpu apply only to the local provider."
     )]
     Run(RunArgs),
     /// List available Whisper models (and the Silero VAD add-on) with status.
-    #[command(after_help = "Example:\n  srt-transcribe models")]
+    #[command(after_help = "Example:\n  vesta-transcribe models")]
     Models,
     /// Download a Whisper model (e.g. "base", "small") or "vad" (Silero VAD).
     #[command(
-        after_help = "Examples:\n  srt-transcribe download base\n  srt-transcribe download vad"
+        after_help = "Examples:\n  vesta-transcribe download base\n  vesta-transcribe download vad"
     )]
     Download {
         /// Model ID to download (e.g. "base", "small", "vad", or "vad:<variant>"; see `models`).
         model_id: String,
     },
     /// Delete a downloaded Whisper model, or "vad" for the Silero VAD model.
-    #[command(after_help = "Examples:\n  srt-transcribe remove base\n  srt-transcribe remove vad")]
+    #[command(
+        after_help = "Examples:\n  vesta-transcribe remove base\n  vesta-transcribe remove vad"
+    )]
     Remove {
         /// Model ID to remove (e.g. "base", "small", "vad", or "vad:<variant>").
         model_id: String,
@@ -87,7 +89,7 @@ struct RunArgs {
     #[arg(long)]
     quality: bool,
     /// Run Silero VAD before transcribing: skips silence/music and reduces
-    /// hallucinations (local provider only; requires `srt-transcribe download vad`).
+    /// hallucinations (local provider only; requires `vesta-transcribe download vad`).
     #[arg(long)]
     vad: bool,
     /// Force CPU execution even if a GPU backend is compiled in (local provider only). By default,
@@ -129,7 +131,7 @@ async fn run_async(args: Vec<std::ffi::OsString>) -> ExitCode {
     match run_cli(args).await {
         Ok(code) => code,
         Err(error) => {
-            eprintln!("srt-transcribe: {error:#}");
+            eprintln!("vesta-transcribe: {error:#}");
             ExitCode::FAILURE
         }
     }

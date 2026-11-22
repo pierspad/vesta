@@ -1,4 +1,4 @@
-//! # srt-ocr CLI
+//! # vesta-ocr CLI
 //!
 //! Headless front-end for [`srt_ocr`]: extracts bitmap subtitle tracks or
 //! burned-in subtitle regions from a media container and converts them into an
@@ -23,7 +23,7 @@ const DEFAULT_LOCAL_OCR_MODEL_ID: &str = "paddleocr-v4-mobile-multi";
 
 #[derive(Parser)]
 #[command(
-    name = "srt-ocr",
+    name = "vesta-ocr",
     version,
     about = "Extract and OCR bitmap subtitle tracks or hardcoded video ROI subtitles to SRT",
     long_about = None
@@ -38,20 +38,20 @@ struct Cli {
 enum Command {
     /// Extract and OCR a bitmap subtitle track or burned-in video ROI to SRT.
     #[command(
-        after_help = "Examples:\n  srt-ocr run -i movie.mkv -o movie.srt -t 2\n  srt-ocr run -i movie.mkv -o movie.srt --roi 0.08,0.74,0.84,0.20 --provider paddle\n  srt-ocr run -i movie.mkv -o movie.srt -t 2 --provider openai --model gpt-4o-mini --api-key \"$OPENAI_API_KEY\"\n  srt-ocr run -i movie.mkv -o movie.srt -t 2 --provider custom --model llava --api-url http://localhost:11434/v1\n\nFind subtitle stream indices with `srt-extract -i movie.mkv --list-tracks`. Cloud providers require --api-key; --provider custom requires --api-url."
+        after_help = "Examples:\n  vesta-ocr run -i movie.mkv -o movie.srt -t 2\n  vesta-ocr run -i movie.mkv -o movie.srt --roi 0.08,0.74,0.84,0.20 --provider paddle\n  vesta-ocr run -i movie.mkv -o movie.srt -t 2 --provider openai --model gpt-4o-mini --api-key \"$OPENAI_API_KEY\"\n  vesta-ocr run -i movie.mkv -o movie.srt -t 2 --provider custom --model llava --api-url http://localhost:11434/v1\n\nFind subtitle stream indices with `vesta-extract -i movie.mkv --list-tracks`. Cloud providers require --api-key; --provider custom requires --api-url."
     )]
     Run(RunArgs),
     /// List available local OCR models and cache status.
-    #[command(after_help = "Example:\n  srt-ocr models")]
+    #[command(after_help = "Example:\n  vesta-ocr models")]
     Models,
     /// Download a local OCR model into the cache directory.
-    #[command(after_help = "Example:\n  srt-ocr download paddleocr-v4-mobile-multi")]
+    #[command(after_help = "Example:\n  vesta-ocr download paddleocr-v4-mobile-multi")]
     Download {
         /// Model ID to download (see `models`).
         model_id: String,
     },
     /// Remove a cached local OCR model.
-    #[command(after_help = "Example:\n  srt-ocr remove paddleocr-v4-mobile-multi")]
+    #[command(after_help = "Example:\n  vesta-ocr remove paddleocr-v4-mobile-multi")]
     Remove {
         /// Model ID to remove (see `models`).
         model_id: String,
@@ -113,7 +113,7 @@ async fn run_async(args: Vec<std::ffi::OsString>) -> ExitCode {
     match run_cli(args).await {
         Ok(code) => code,
         Err(error) => {
-            eprintln!("srt-ocr: {error:#}");
+            eprintln!("vesta-ocr: {error:#}");
             ExitCode::FAILURE
         }
     }

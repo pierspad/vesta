@@ -1,4 +1,4 @@
-//! # srt-extract CLI
+//! # vesta-extract CLI
 //!
 //! Command-line interface for extracting data and embedded tracks from SRT and media files.
 //! Parses CLI arguments and delegates processing to the `srt-extract` library.
@@ -10,13 +10,13 @@ use srt_parser::SrtParser;
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(name = "srt-extract")]
+#[command(name = "vesta-extract")]
 #[command(
     about = "Inspect SRT files and list or extract embedded subtitle tracks from media containers",
     long_about = None
 )]
 #[command(
-    after_help = "Examples:\n  srt-extract -i subtitles.srt --format summary\n  srt-extract -i movie.mkv --list-tracks\n  srt-extract -i movie.mkv --track 2 -o subtitles.srt\n\nEmbedded-track listing and extraction require ffprobe; extraction also requires ffmpeg. --track requires --output and cannot be combined with --list-tracks. --format applies only to SRT input. Output must be a different file from input."
+    after_help = "Examples:\n  vesta-extract -i subtitles.srt --format summary\n  vesta-extract -i movie.mkv --list-tracks\n  vesta-extract -i movie.mkv --track 2 -o subtitles.srt\n\nEmbedded-track listing and extraction require ffprobe; extraction also requires ffmpeg. --track requires --output and cannot be combined with --list-tracks. --format applies only to SRT input. Output must be a different file from input."
 )]
 struct Cli {
     /// SRT file to read, or media container when using --list-tracks/--track.
@@ -63,7 +63,7 @@ async fn run_async(args: Vec<std::ffi::OsString>) -> Result<()> {
         res = run_inner(cli) => res,
         sig = tokio::signal::ctrl_c() => {
             if sig.is_ok() {
-                eprintln!("\nsrt-extract cancelled.");
+                eprintln!("\nvesta-extract cancelled.");
             }
             anyhow::bail!("Cancelled by user")
         }
@@ -152,11 +152,11 @@ mod tests {
     #[test]
     fn embedded_modes_require_unambiguous_arguments() {
         assert!(
-            Cli::try_parse_from(["srt-extract", "--input", "film.mkv", "--track", "2"]).is_err()
+            Cli::try_parse_from(["vesta-extract", "--input", "film.mkv", "--track", "2"]).is_err()
         );
         assert!(
             Cli::try_parse_from([
-                "srt-extract",
+                "vesta-extract",
                 "--input",
                 "film.mkv",
                 "--list-tracks",
@@ -168,7 +168,7 @@ mod tests {
             .is_err()
         );
         let cli = Cli::try_parse_from([
-            "srt-extract",
+            "vesta-extract",
             "--input",
             "film.mkv",
             "--track",
@@ -180,7 +180,7 @@ mod tests {
         assert_eq!(cli.track, Some(2));
         assert_eq!(cli.ffmpeg, "ffmpeg");
         assert!(
-            Cli::try_parse_from(["srt-extract", "--input", "film.mkv", "--list-tracks"])
+            Cli::try_parse_from(["vesta-extract", "--input", "film.mkv", "--list-tracks"])
                 .unwrap()
                 .list_tracks
         );

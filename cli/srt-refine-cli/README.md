@@ -1,4 +1,4 @@
-# srt-refine CLI
+# vesta-refine (`srt-refine-cli`)
 
 Inspect and annotate TSV/APKG decks using `srt-refine`'s shared card I/O and
 tiered refinement engine. No desktop, Whisper, or Anki installation is required.

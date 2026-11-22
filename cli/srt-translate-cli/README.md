@@ -1,4 +1,4 @@
-# srt-translate-cli
+# vesta-translate (`srt-translate-cli`)
 
 Command-line tool for translating SRT subtitle files using AI/LLM APIs.
 
@@ -13,23 +13,23 @@ cargo install --locked --path cli/srt-translate-cli
 ```
 
 The desktop executable also dispatches `vesta translate ...`. Build the standalone
-binary with `cargo build --locked --release -p srt-translate-cli`; this does not
-require Tauri. See the [unified CLI guide](../../docs/CLI.md).
+binary (`vesta-translate`) with `cargo build --locked --release -p srt-translate-cli`;
+this does not require Tauri. See the [unified CLI guide](../../docs/CLI.md).
 
 ## Usage
 
 ```bash
 # Basic usage (language required, config.toml read from the working directory)
-srt-translate --input movie.srt --language it
+vesta-translate --input movie.srt --language it
 
 # Custom config path and output file
-srt-translate -i movie.srt -l es -c my-config.toml -o movie.es.srt
+vesta-translate -i movie.srt -l es -c my-config.toml -o movie.es.srt
 
 # Check a translated file for missing subtitles or line count mismatches
-srt-translate -i movie.srt --check-missing movie.it.srt
+vesta-translate -i movie.srt --check-missing movie.it.srt
 
 # List supported language codes
-srt-translate --language-list
+vesta-translate --language-list
 ```
 
 Ctrl+C stops in-flight requests, exits 130, and leaves the last completed

@@ -14,6 +14,7 @@ fn top_level_help_lists_operations_and_no_arguments_show_help() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("Vesta headless subtitle and flashcard workflows"));
         assert!(stdout.contains("Each command accepts the standalone adapter's options"));
+        assert!(stdout.contains("(vesta-flashcards options)"));
         for operation in [
             "flashcards",
             "translate",

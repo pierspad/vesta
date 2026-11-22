@@ -14,7 +14,7 @@ use tokio_util::sync::CancellationToken;
 
 #[derive(Parser)]
 #[command(
-    name = "srt-refine",
+    name = "vesta-refine",
     about = "Inspect and annotate TSV/APKG decks",
     version
 )]
@@ -27,7 +27,7 @@ struct Cli {
 enum Command {
     /// Print card fields as JSON without contacting any provider.
     #[command(
-        after_help = "Example:\n  srt-refine inspect --input deck.apkg > cards.json\n\nInput must be a TSV or APKG deck."
+        after_help = "Example:\n  vesta-refine inspect --input deck.apkg > cards.json\n\nInput must be a TSV or APKG deck."
     )]
     Inspect {
         /// TSV or APKG deck to read.
@@ -283,7 +283,7 @@ async fn run_async(args: Vec<std::ffi::OsString>) -> ExitCode {
     match run(args).await {
         Ok(code) => ExitCode::from(code),
         Err(error) => {
-            eprintln!("srt-refine: {error:#}");
+            eprintln!("vesta-refine: {error:#}");
             ExitCode::FAILURE
         }
     }

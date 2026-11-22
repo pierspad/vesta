@@ -1,14 +1,14 @@
-# srt-extract-cli
+# vesta-extract (`srt-extract-cli`)
 
 Command-line adapter for `srt-extract`. It formats external SRT files and lists or extracts embedded text subtitles without loading the desktop application.
 
 ```bash
 cargo build --release -p srt-extract-cli
 
-./target/release/srt-extract --input movie.srt --format json
-./target/release/srt-extract --input movie.srt --format stats
-./target/release/srt-extract --input movie.srt --format summary
-./target/release/srt-extract --input movie.srt --format debug --output report.txt
+./target/release/vesta-extract --input movie.srt --format json
+./target/release/vesta-extract --input movie.srt --format stats
+./target/release/vesta-extract --input movie.srt --format summary
+./target/release/vesta-extract --input movie.srt --format debug --output report.txt
 ```
 
 | Format | Output |
@@ -18,13 +18,13 @@ cargo build --release -p srt-extract-cli
 | `summary` | Short file overview |
 | `debug` | Detailed diagnostic representation |
 
-Run `srt-extract --help` for the authoritative option list. Licensed GPL-3.0-only.
+Run `vesta-extract --help` for the authoritative option list. Licensed GPL-3.0-only.
 
 ## Embedded tracks
 
 ```bash
-srt-extract --input movie.mkv --list-tracks
-srt-extract --input movie.mkv --track 8 --output movie_en_8.srt
+vesta-extract --input movie.mkv --list-tracks
+vesta-extract --input movie.mkv --track 8 --output movie_en_8.srt
 ```
 
 Discovery emits JSON with absolute stream indices. Extraction requires `--output`;

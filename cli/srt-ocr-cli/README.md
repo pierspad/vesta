@@ -1,4 +1,4 @@
-# srt-ocr-cli
+# vesta-ocr (`srt-ocr-cli`)
 
 Headless command-line interface for extracting embedded bitmap subtitle tracks (PGS,
 VobSub, DVB, XSUB) or burned-in video ROI subtitles from media containers and
@@ -6,7 +6,7 @@ converting them into SRT subtitles via offline PaddleOCR ONNX models or Vision L
 
 ```bash
 cargo build --release -p srt-ocr-cli
-./target/release/srt-ocr --help
+./target/release/vesta-ocr --help
 ```
 
 ## Subcommands

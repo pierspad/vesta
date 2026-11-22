@@ -107,7 +107,7 @@ async def smoke(args, directory):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--binary', type=Path, default=ROOT / 'target/debug/srt-transcribe')
+    parser.add_argument('--binary', type=Path, default=ROOT / 'target/debug/vesta-transcribe')
     parser.add_argument('--media', type=Path, default=ROOT / 'Test_Subs/fixtures/detour/detour_clip_90s.mp4')
     parser.add_argument('--model', default='base', help='Already installed model; no downloads are performed')
     parser.add_argument('--device', help='Expected device name substring in native Vulkan logs')

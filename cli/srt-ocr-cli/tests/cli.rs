@@ -102,7 +102,7 @@ fn create_single_cue_pgs_mkv(dir: &Path) -> PathBuf {
 
 #[test]
 fn top_level_and_run_help_expose_subcommands_and_flags() {
-    let top = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let top = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .arg("--help")
         .output()
         .unwrap();
@@ -112,7 +112,7 @@ fn top_level_and_run_help_expose_subcommands_and_flags() {
         assert!(top_text.contains(sub), "missing {sub} in:\n{top_text}");
     }
 
-    let run = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let run = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .args(["run", "--help"])
         .output()
         .unwrap();
@@ -147,7 +147,7 @@ fn top_level_and_run_help_expose_subcommands_and_flags() {
 #[test]
 fn models_and_remove_work_with_isolated_cache_dir() {
     let cache = tempfile::tempdir().unwrap();
-    let list_out = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let list_out = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .env("VESTA_OCR_CACHE_DIR", cache.path())
         .arg("models")
         .output()
@@ -169,7 +169,7 @@ fn models_and_remove_work_with_isolated_cache_dir() {
 
     let model_file = cache.path().join("paddleocr-v4-mobile-latin.onnx");
     std::fs::write(&model_file, b"stub").unwrap();
-    let list_installed = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let list_installed = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .env("VESTA_OCR_CACHE_DIR", cache.path())
         .arg("models")
         .output()
@@ -177,7 +177,7 @@ fn models_and_remove_work_with_isolated_cache_dir() {
     assert!(list_installed.status.success());
     assert!(String::from_utf8_lossy(&list_installed.stdout).contains("[downloaded]"));
 
-    let remove_ok = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let remove_ok = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .env("VESTA_OCR_CACHE_DIR", cache.path())
         .args(["remove", "paddleocr-v4-mobile-latin"])
         .output()
@@ -186,7 +186,7 @@ fn models_and_remove_work_with_isolated_cache_dir() {
     assert!(String::from_utf8_lossy(&remove_ok.stdout).contains("Model removed."));
     assert!(!model_file.exists());
 
-    let remove_absent = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let remove_absent = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .env("VESTA_OCR_CACHE_DIR", cache.path())
         .args(["remove", "paddleocr-v4-mobile-latin"])
         .output()
@@ -198,7 +198,7 @@ fn models_and_remove_work_with_isolated_cache_dir() {
 #[test]
 fn rejects_cloud_provider_without_api_key_in_text_and_json_modes() {
     for provider in ["openai", "google", "anthropic"] {
-        let text_res = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+        let text_res = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
             .args([
                 "run",
                 "--input",
@@ -219,7 +219,7 @@ fn rejects_cloud_provider_without_api_key_in_text_and_json_modes() {
             String::from_utf8_lossy(&text_res.stderr)
         );
 
-        let json_res = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+        let json_res = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
             .args([
                 "run",
                 "--input",
@@ -253,7 +253,7 @@ fn rejects_cloud_provider_without_api_key_in_text_and_json_modes() {
 
 #[test]
 fn rejects_custom_provider_without_api_url_in_text_and_json_modes() {
-    let text_res = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let text_res = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .args([
             "run",
             "--input",
@@ -270,7 +270,7 @@ fn rejects_custom_provider_without_api_url_in_text_and_json_modes() {
     assert_eq!(text_res.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&text_res.stderr).contains("--api-url is required"));
 
-    let json_res = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let json_res = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .args([
             "run",
             "--input",
@@ -307,7 +307,7 @@ fn rejects_identical_input_and_output_files() {
     let same = dir.path().join("media.mkv");
     std::fs::write(&same, b"stub media").unwrap();
 
-    let text_res = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let text_res = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .args([
             "run",
             "--input",
@@ -323,7 +323,7 @@ fn rejects_identical_input_and_output_files() {
     assert!(String::from_utf8_lossy(&text_res.stderr).contains("same file"));
     assert_eq!(std::fs::read(&same).unwrap(), b"stub media");
 
-    let json_res = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let json_res = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .args([
             "run",
             "--input",
@@ -424,7 +424,7 @@ fn create_single_cue_burned_in_mkv(dir: &Path) -> PathBuf {
 }
 
 fn assert_json_failure(args: &[&str], expected_error_substr: &str) {
-    let json_res = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let json_res = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .args(args)
         .output()
         .unwrap();
@@ -446,7 +446,7 @@ fn assert_json_failure(args: &[&str], expected_error_substr: &str) {
 
 #[test]
 fn rejects_conflicting_track_and_roi_with_exit_code_2() {
-    let res = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let res = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .args([
             "run",
             "--input",
@@ -470,7 +470,7 @@ fn rejects_conflicting_track_and_roi_with_exit_code_2() {
 
 #[test]
 fn rejects_missing_track_and_roi_in_text_and_json_modes() {
-    let text_res = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let text_res = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .args(["run", "--input", "missing.mkv", "--output", "out.srt"])
         .output()
         .unwrap();
@@ -505,7 +505,7 @@ fn validates_roi_format_bounds_and_fps() {
         "0.08,0.74,0.01,0.20",
         "NaN,0.74,0.5,0.20",
     ] {
-        let text_res = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+        let text_res = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
             .args([
                 "run",
                 "--input",
@@ -538,7 +538,7 @@ fn validates_roi_format_bounds_and_fps() {
     }
 
     for bad_fps in ["0.4", "15.1", "NaN"] {
-        let text_res = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+        let text_res = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
             .args([
                 "run",
                 "--input",
@@ -605,7 +605,7 @@ fn local_ocr_and_paddle_validate_models_without_requiring_keys() {
 
         // Default model resolves `llava` -> `paddleocr-v4-mobile-multi` and skips API key check,
         // failing only because the ONNX model file is not yet downloaded in the cache dir.
-        let missing_default = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+        let missing_default = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
             .env("VESTA_OCR_CACHE_DIR", cache.path())
             .args([
                 "run",
@@ -633,7 +633,7 @@ fn local_ocr_and_paddle_validate_models_without_requiring_keys() {
     }
 
     // Explicit catalog model ID is preserved.
-    let explicit = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let explicit = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .env("VESTA_OCR_CACHE_DIR", cache.path())
         .args([
             "run",
@@ -667,7 +667,7 @@ fn end_to_end_json_ocr_against_loopback_vision_endpoint() {
 
     let (addr, server) = spawn_vision_mock_server("Hello from OCR CLI");
 
-    let result = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let result = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .args([
             "run",
             "--input",
@@ -720,7 +720,7 @@ fn end_to_end_json_roi_ocr_against_loopback_vision_endpoint() {
 
     let (addr, server) = spawn_vision_mock_server("Hardcoded OCR CLI line");
 
-    let result = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let result = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .args([
             "run",
             "--input",
@@ -808,7 +808,7 @@ fn json_sigint_emits_cancelled_terminal_record_without_stderr_noise() {
     .unwrap();
     std::fs::set_permissions(&ffprobe, std::fs::Permissions::from_mode(0o700)).unwrap();
 
-    let child = Command::new(env!("CARGO_BIN_EXE_srt-ocr"))
+    let child = Command::new(env!("CARGO_BIN_EXE_vesta-ocr"))
         .current_dir(dir.path())
         .args([
             "run",

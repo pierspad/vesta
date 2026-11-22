@@ -16,7 +16,7 @@ fn config(path: &std::path::Path, url: &str) {
 
 #[test]
 fn language_list_is_a_standalone_mode_and_rejects_ignored_options() {
-    let help = Command::new(env!("CARGO_BIN_EXE_srt-translate"))
+    let help = Command::new(env!("CARGO_BIN_EXE_vesta-translate"))
         .arg("--help")
         .output()
         .unwrap();
@@ -24,7 +24,7 @@ fn language_list_is_a_standalone_mode_and_rejects_ignored_options() {
     assert!(String::from_utf8_lossy(&help.stdout).contains("--language-list is standalone"));
 
     let dir = tempfile::tempdir().unwrap();
-    let result = Command::new(env!("CARGO_BIN_EXE_srt-translate"))
+    let result = Command::new(env!("CARGO_BIN_EXE_vesta-translate"))
         .current_dir(dir.path())
         .arg("--language-list")
         .output()
@@ -37,7 +37,7 @@ fn language_list_is_a_standalone_mode_and_rejects_ignored_options() {
     assert!(String::from_utf8_lossy(&result.stdout).contains("English"));
     assert!(!dir.path().join("config.toml").exists());
 
-    let invalid = Command::new(env!("CARGO_BIN_EXE_srt-translate"))
+    let invalid = Command::new(env!("CARGO_BIN_EXE_vesta-translate"))
         .args(["--language-list", "--check-missing", "translated.srt"])
         .output()
         .unwrap();
@@ -57,7 +57,7 @@ fn incomplete_check_returns_failure_for_scripts() {
     .unwrap();
     std::fs::write(&translated, subtitle("Uno")).unwrap();
 
-    let result = Command::new(env!("CARGO_BIN_EXE_srt-translate"))
+    let result = Command::new(env!("CARGO_BIN_EXE_vesta-translate"))
         .current_dir(dir.path())
         .args([
             "--input",
@@ -87,7 +87,7 @@ fn output_symlink_to_input_is_rejected_before_translation() {
     config(&configuration, "http://127.0.0.1:1/v1");
     let before = std::fs::read(&input).unwrap();
 
-    let result = Command::new(env!("CARGO_BIN_EXE_srt-translate"))
+    let result = Command::new(env!("CARGO_BIN_EXE_vesta-translate"))
         .current_dir(dir.path())
         .args([
             "--input",
@@ -119,7 +119,7 @@ fn output_hardlink_to_input_is_rejected_before_translation() {
     config(&configuration, "http://127.0.0.1:1/v1");
     let before = std::fs::read(&input).unwrap();
 
-    let result = Command::new(env!("CARGO_BIN_EXE_srt-translate"))
+    let result = Command::new(env!("CARGO_BIN_EXE_vesta-translate"))
         .current_dir(dir.path())
         .args([
             "--input",
@@ -206,7 +206,7 @@ fn ctrl_c_cancels_translation_with_130_and_keeps_last_checkpoint() {
         }
     });
 
-    let child = Command::new(env!("CARGO_BIN_EXE_srt-translate"))
+    let child = Command::new(env!("CARGO_BIN_EXE_vesta-translate"))
         .current_dir(dir.path())
         .args([
             "--input",

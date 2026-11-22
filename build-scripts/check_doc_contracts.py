@@ -606,7 +606,13 @@ def verify_cross_contracts(
         }
         mod_text = mod_doc.read_text(encoding="utf-8")
         for line in mod_text.splitlines():
-            if op_name in line or f"vesta-cli {short_op}" in line or f"vesta {short_op}" in line:
+            bin_name = f"vesta-{short_op}"
+            if (
+                bin_name in line
+                or op_name in line
+                or f"vesta-cli {short_op}" in line
+                or f"vesta {short_op}" in line
+            ):
                 check_part = (
                     line.split(" -- ", 1)[1]
                     if ("cargo " in line and " -- " in line)
@@ -617,7 +623,7 @@ def verify_cross_contracts(
                 # Determine if a specific subcommand is invoked on this line
                 active_flag_set = all_flags
                 for sub_name, sflags in sub_flags.items():
-                    if re.search(rf"\b(?:{re.escape(op_name)}|{re.escape(short_op)})\s+{re.escape(sub_name)}\b", check_part):
+                    if re.search(rf"\b(?:{re.escape(bin_name)}|{re.escape(op_name)}|{re.escape(short_op)})\s+{re.escape(sub_name)}\b", check_part):
                         active_flag_set = sflags
                         break
                 for flag_match in re.finditer(r"(--[a-z0-9-]+)", check_part):
