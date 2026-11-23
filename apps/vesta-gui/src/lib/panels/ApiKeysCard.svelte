@@ -112,7 +112,7 @@
           : 'border-white/10'}"
       >
         <div class="flex items-start gap-3">
-          <ProviderIcon provider={key.apiType} />
+          <ProviderIcon provider={isBuiltinEndpointId(key.id) ? "local" : key.apiType} />
 
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-0.5">

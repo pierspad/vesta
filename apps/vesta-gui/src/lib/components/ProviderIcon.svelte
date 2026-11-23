@@ -56,7 +56,7 @@
     <svg class={glyph} viewBox="0 0 24 24" fill="currentColor">
       <path d="M17.304 3.541h-3.672l6.696 16.918H24l-6.696-16.918zm-10.608 0L0 20.459h3.744l1.368-3.576h7.056l1.368 3.576h3.744L10.584 3.541H6.696zm.096 10.454l2.4-6.252 2.376 6.252H6.792z" />
     </svg>
-  {:else if provider === "local" || provider === "local_whisper"}
+  {:else if provider === "local" || provider === "local_whisper" || provider === "local_ocr"}
     <svg class={glyph} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
     </svg>

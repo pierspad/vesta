@@ -149,7 +149,7 @@
     </div>
     <div class="p-4 rounded-xl bg-white/5 border border-white/10">
       <p class="text-xs uppercase tracking-wide text-gray-500 mb-1">{t("settings.default")}</p>
-      <p class="text-2xl font-bold text-white">{store.defaultWhisperModel ? (t(`transcribe.model${store.defaultWhisperModel.charAt(0).toUpperCase()}${store.defaultWhisperModel.slice(1)}`) || store.defaultWhisperModel) : ""}</p>
+      <p class="text-2xl font-bold text-white">{store.whisperModels.some((m) => m.id === store.defaultWhisperModel && m.downloaded) && store.defaultWhisperModel ? (t(`transcribe.model${store.defaultWhisperModel.charAt(0).toUpperCase()}${store.defaultWhisperModel.slice(1)}`) || store.defaultWhisperModel) : "—"}</p>
     </div>
     <div class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
       <p class="text-xs uppercase tracking-wide text-emerald-300/70 mb-1">{t("settings.ready")}</p>

@@ -14,7 +14,8 @@
   import IttSettingsPanel from "$lib/panels/IttSettingsPanel.svelte";
   import { whisperModelsStore } from "$lib/stores/whisperModelsStore.svelte";
   import { ocrModelsStore } from "$lib/stores/ocrModelsStore.svelte";
-  import { saveIttTiers } from "$lib/config/ittTiers";
+  import { ITT_TIERS_UPDATED_EVENT, loadIttTiers, saveIttTiers } from "$lib/config/ittTiers";
+  import { buildTiersPayload } from "$lib/config/llmTiers";
   import OverviewSettingsPanel from "$lib/panels/OverviewSettingsPanel.svelte";
   import DiagnosticsSettingsPanel from "$lib/panels/DiagnosticsSettingsPanel.svelte";
   import { cpuRamStore } from "$lib/stores/cpuRamStore.svelte";
@@ -86,6 +87,7 @@
   let t = $derived($locale);
   let apiKeys = $state<ApiKeyConfig[]>([]);
   let tiers = $state<Tier[]>([]);
+  let ittTiers = $state<Tier[]>(loadIttTiers());
   let activeSettingsSection = $state<SettingsSection>("overview");
   let lastRequestedSection = $state<SettingsSection>("overview");
   let defaultTargetLanguage = $state(loadStoredValue(DEFAULT_TARGET_LANGUAGE_KEY, "en"));
@@ -111,7 +113,7 @@
 
   // Keep reference to copy/status keys checked by check-i18n while settings panels share translations
   void (() => [
-    s("transcription"), s("setupWhisperDesc"), s("translation"), s("setupLlmDesc"),
+    s("transcription"), s("setupWhisperDesc"), s("setupIttDesc"), s("translation"), s("setupLlmDesc"),
     s("macroArea"), s("llmTitle"), s("llmDesc"), s("whisperTitle"), s("whisperDesc"),
     s("languageTitle"), s("languageDesc"), s("ankiTitle"), s("ankiDesc"),
     t("settings.providerStatus.available"), t("settings.providerStatus.checking"),
@@ -134,6 +136,9 @@
     defaultLlmSettings.provider === "custom" ? selectedDefaultCustomProvider?.apiKey || "" : "",
   );
   let isDefaultLlmReady = $derived(tiersHaveUsableEntries(tiers));
+  let isDefaultIttReady = $derived(
+    ocrModelsStore.downloadedOcrCount > 0 || buildTiersPayload(ittTiers, apiKeys, "itt") !== null,
+  );
 
   function openSettingsSection(section: SettingsSection) {
     activeSettingsSection = section;
@@ -304,6 +309,7 @@
   }
 
   const syncTiersFromStorage = () => { tiers = loadTiers(); };
+  const syncIttTiersFromStorage = () => { ittTiers = loadIttTiers(); };
 
   onMount(() => {
     void diagnosticsStore.refresh();
@@ -331,10 +337,12 @@
     };
 
     tiers = loadTiers();
+    ittTiers = loadIttTiers();
     window.addEventListener("keydown", handleKeydown);
     window.addEventListener("vesta-open-settings-section", handleOpenSettingsSectionEvent);
     window.addEventListener("vesta-open-add-key-modal", handleOpenAddKeyModalEvent);
     window.addEventListener(TIERS_UPDATED_EVENT, syncTiersFromStorage);
+    window.addEventListener(ITT_TIERS_UPDATED_EVENT, syncIttTiersFromStorage);
 
     let activeListener = true;
     let unlistenProg: (() => void) | null = null;
@@ -363,6 +371,7 @@
       window.removeEventListener("vesta-open-settings-section", handleOpenSettingsSectionEvent);
       window.removeEventListener("vesta-open-add-key-modal", handleOpenAddKeyModalEvent);
       window.removeEventListener(TIERS_UPDATED_EVENT, syncTiersFromStorage);
+      window.removeEventListener(ITT_TIERS_UPDATED_EVENT, syncIttTiersFromStorage);
       if (unlistenProg) unlistenProg();
       if (unlistenOcrProg) unlistenOcrProg();
     };
@@ -372,7 +381,12 @@
   $effect(() => {
     if (!highlightItemId) return;
     highlightedModelId = highlightItemId;
-    const targetId = highlightItemId === "notification-whisper" ? "whisper-models" : highlightItemId;
+    const targetId =
+      highlightItemId === "notification-whisper"
+        ? "whisper-models"
+        : highlightItemId === "notification-itt"
+          ? "ocr-models"
+          : highlightItemId;
     const scrollTimer = setTimeout(() => {
       const el = targetId ? document.getElementById(targetId) : null;
       if (el) {
@@ -389,6 +403,7 @@
     publishSettingsActionState(buildSettingsActionHash({
       needsWhisper: whisperModelsStore.downloadedWhisperCount === 0 && !aiStore.killSwitchActive,
       needsLlm: !isDefaultLlmReady && !aiStore.killSwitchActive,
+      needsItt: !isDefaultIttReady && !aiStore.killSwitchActive,
     }));
   });
 

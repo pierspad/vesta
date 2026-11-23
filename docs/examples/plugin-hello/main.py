@@ -35,6 +35,7 @@ def build_screen(name: str = "World", step: int = 1, show_tip: bool = True):
         Row([
             Button("btn_increment", label=f"Increment Counter (Current: {counter})", variant="primary"),
             Button("btn_reset", label="Reset to 0", variant="secondary"),
+            Button("btn_cli_check", label="Check Vesta CLI (vesta.cli)", variant="secondary"),
         ], gap=2),
         Checkbox("show_tip_box", label="Show Developer Tip", defaultValue=show_tip),
     ]
@@ -86,6 +87,18 @@ def handle_toggle_tip(screen, widget_id, event_type, values):
             }
         }
     }
+
+@plugin.on_event("btn_cli_check")
+def handle_cli_check(screen, widget_id, event_type, values):
+    res = plugin.run_cli("extract", ["--help"])
+    ok = bool(isinstance(res, dict) and res.get("success", False))
+    plugin.notify(
+        "Vesta CLI bridge OK (`vesta-cli extract --help`)" if ok else "Vesta CLI check executed",
+        level="success" if ok else "info",
+    )
+    name = values.get("user_name", "World") or "World"
+    show_tip = bool(values.get("show_tip_box", True))
+    return build_screen(name=name, step=1, show_tip=show_tip)
 
 if __name__ == "__main__":
     plugin.run()

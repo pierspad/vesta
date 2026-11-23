@@ -215,6 +215,16 @@ export const providers: Record<string, ProviderInfo> = {
     enabled: true,
     documentationUrl: "https://github.com/ggml-org/whisper.cpp",
   },
+  local_ocr: {
+    id: "local_ocr",
+    name: "Local OCR",
+    icon: "local",
+    color: "from-purple-500 to-pink-500",
+    description: "Offline ONNX OCR model running on your PC",
+    requiresApiKey: false,
+    requiresApiUrl: false,
+    enabled: true,
+  },
   custom_whisper: {
     id: "custom_whisper",
     name: "Custom Whisper",

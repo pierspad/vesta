@@ -8,7 +8,8 @@
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import TierList from "$lib/components/TierList.svelte";
   import { discoverModels } from "$lib/services/modelDiscovery";
-  import { loadAndValidateApiKeys, supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
+  import { isBuiltinEndpointId, loadAndValidateApiKeys, supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
+  import { ocrModelsStore, DEFAULT_OCR_MODEL_ID } from "$lib/stores/ocrModelsStore.svelte";
   import {
     loadTiers,
     saveTiers,
@@ -69,6 +70,10 @@
   // nuovi modelli compaiono senza dover aggiornare l'app. Cache in memoria + in
   // localStorage (TTL 24h) per non rifare la chiamata a ogni render.
 
+  function isLocalOcrEntry(entry: TierEntry): boolean {
+    return capability === "itt" && (entry.provider === "local_ocr" || entry.apiKeyId === "local_ocr");
+  }
+
   function discoveryKey(provider: string, apiKeyId: string): string {
     const key = apiKeys.find(key => key.id === apiKeyId) || (provider === "local" ? apiKeys.find(key => key.id === "local") : undefined);
     const apiUrl = key?.apiUrl?.trim() || providers[provider]?.defaultApiUrl || "";
@@ -76,6 +81,7 @@
   }
 
   async function ensureModels(provider: string, apiKeyId: string, force = false) {
+    if (provider === "local_ocr" || apiKeyId === "local_ocr") return;
     const key = apiKeys.find((k) => k.id === apiKeyId) || (provider === "local" ? apiKeys.find(k => k.id === "local") : undefined);
     const needsKey = provider !== "local" && provider !== "custom";
     if (needsKey && !key?.apiKey?.trim()) return;
@@ -111,7 +117,9 @@
               id: newTierEntryId(),
               provider: defaultEntryProvider,
               apiKeyId: defaultEntryApiKeyId,
-              model: "",
+              model: defaultEntryProvider === "local_ocr"
+                ? (ocrModelsStore.defaultOcrModel || DEFAULT_OCR_MODEL_ID)
+                : "",
             },
           ],
         },
@@ -178,6 +186,7 @@
   }
 
   function defaultModelFor(provider: string): string {
+    if (provider === "local_ocr") return ocrModelsStore.defaultOcrModel || DEFAULT_OCR_MODEL_ID;
     if (provider === "local" || provider === "custom") return "";
     const models = getModelsForProvider(provider);
     return models.find((m) => m.recommended)?.id || models[0]?.id || "";
@@ -185,14 +194,16 @@
 
   function addEntry(tierIndex: number) {
     const capableKeys = apiKeys.filter((k) => supportsCapability(k, capability));
-    const firstKey = capableKeys.find((k) => k.id === defaultEntryApiKeyId)
+    const firstKey = (defaultEntryApiKeyId && defaultEntryApiKeyId !== "local_ocr"
+      ? capableKeys.find((k) => k.id === defaultEntryApiKeyId)
+      : undefined)
       || capableKeys.find((k) => k.apiType !== "custom")
       || capableKeys[0];
     const provider = (firstKey?.apiType as TierEntry["provider"]) || defaultEntryProvider;
     const entry: TierEntry = {
       id: newTierEntryId(),
       provider,
-      apiKeyId: firstKey?.id || "",
+      apiKeyId: firstKey?.id || (provider === "local_ocr" ? "local_ocr" : ""),
       model: defaultModelFor(provider),
     };
     tiers = tiers.map((tier, i) =>
@@ -216,11 +227,31 @@
       window.dispatchEvent(new CustomEvent("vesta-open-add-key-modal", { detail: { providerId: "custom", context: capability } }));
       return;
     }
-    const key = apiKeys.find((k) => k.id === keyId);
-    const provider = (key?.apiType as TierEntry["provider"]) || "google";
-    // La scelta del modello custom non sopravvive al cambio provider.
     const targetEntry = tiers[tierIndex]?.entries[entryIndex];
     if (targetEntry) setCustomMode(targetEntry.id, false);
+    if (keyId === "local_ocr") {
+      tiers = tiers.map((tier, i) =>
+        i === tierIndex
+          ? {
+              ...tier,
+              entries: tier.entries.map((e, j) =>
+                j === entryIndex
+                  ? {
+                      ...e,
+                      apiKeyId: "local_ocr",
+                      provider: "local_ocr",
+                      model: ocrModelsStore.defaultOcrModel || DEFAULT_OCR_MODEL_ID,
+                    }
+                  : e,
+              ),
+            }
+          : tier,
+      );
+      persist();
+      return;
+    }
+    const key = apiKeys.find((k) => k.id === keyId);
+    const provider = (key?.apiType as TierEntry["provider"]) || "google";
     tiers = tiers.map((tier, i) => {
       if (i !== tierIndex) return tier;
       return {
@@ -241,6 +272,10 @@
   }
 
   function onModelChange(tierIndex: number, entryIndex: number, model: string) {
+    const targetEntry = tiers[tierIndex]?.entries[entryIndex];
+    if (targetEntry && isLocalOcrEntry(targetEntry)) {
+      ocrModelsStore.setDefaultModel(model, false);
+    }
     tiers = tiers.map((tier, i) =>
       i === tierIndex
         ? {
@@ -276,7 +311,7 @@
   }
 
   function keyLabel(key: ApiKeyConfig): string {
-    if (key.apiType === "local") return "Local LLM (Open API)";
+    if (isBuiltinEndpointId(key.id)) return key.name;
     const provName = providers[key.apiType]?.name || key.apiType;
     return key.name && key.name !== provName ? `${provName} · ${key.name}` : provName;
   }
@@ -365,21 +400,30 @@
               {/if}
 
               {#each tier.entries as entry, entryIndex (entry.id)}
+                {@const isLocalOcr = isLocalOcrEntry(entry)}
+                {@const selectedOcrModelId = entry.model || ocrModelsStore.defaultOcrModel || DEFAULT_OCR_MODEL_ID}
+                {@const localOcrDetail = isLocalOcr ? ocrModelsStore.ocrModels.find((m) => m.id === selectedOcrModelId) : undefined}
+                {@const isOcrDownloaded = isLocalOcr ? Boolean(localOcrDetail?.downloaded) : true}
                 <!-- Flat Endpoint Card -->
                 <div class="rounded-xl border p-4.5 space-y-3.5 shadow-sm transition-colors duration-200
-                  {entry.provider === 'local' && localOffline
+                  {(entry.provider === 'local' && localOffline) || (isLocalOcr && !isOcrDownloaded)
                     ? 'border-amber-500/40 bg-amber-500/[0.02] shadow-[0_0_12px_rgba(245,158,11,0.05)]'
                     : 'border-white/5 bg-white/[0.02]'}"
                 >
                   <!-- Header row: Provider + Remove button -->
                   <div class="flex items-center justify-between gap-2 border-b border-white/5 pb-2.5">
                     <div class="flex items-center gap-2">
-                      <ProviderIcon provider={entry.provider} size="w-5.5 h-5.5" glyph="w-3 h-3" rounded="rounded-md" />
-                      <span class="text-xs font-semibold text-gray-200">{entry.provider === "custom" ? (apiKeys.find((k) => k.id === entry.apiKeyId)?.name || providers[entry.provider]?.name || entry.provider) : (providers[entry.provider]?.name || entry.provider)}</span>
+                      <ProviderIcon provider={isLocalOcr ? "local_ocr" : isBuiltinEndpointId(entry.apiKeyId) ? "local" : entry.provider} size="w-5.5 h-5.5" glyph="w-3 h-3" rounded="rounded-md" />
+                      <span class="text-xs font-semibold text-gray-200">{isLocalOcr ? t("ocr.engineLocal") : entry.provider === "custom" ? (apiKeys.find((k) => k.id === entry.apiKeyId)?.name || providers[entry.provider]?.name || entry.provider) : (providers[entry.provider]?.name || entry.provider)}</span>
                       {#if entry.provider === "local" && localOffline}
                         <span class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-bold capitalize">
                           <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                           {t("settings.endpointStatus.offline")}
+                        </span>
+                      {:else if isLocalOcr && !isOcrDownloaded}
+                        <span class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-bold">
+                          <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                          {t("settings.notDownloaded")}
                         </span>
                       {/if}
                     </div>
@@ -392,70 +436,137 @@
                     </button>
                   </div>
 
-                  {#if apiKeys.find(key => key.id === entry.apiKeyId)?.apiUrl}
+                  {#if !isLocalOcr && apiKeys.find(key => key.id === entry.apiKeyId)?.apiUrl}
                     <div class="flex items-center justify-between gap-3 text-xs text-gray-400">
                       <span class="truncate font-mono">{apiKeys.find(key => key.id === entry.apiKeyId)?.apiUrl}</span>
                     </div>
                   {/if}
-                  <!-- Fields grid (API Key & Model) -->
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
-                    <!-- API key -->
-                    <div>
+                  <!-- Fields grid (Provider/API Key & Model) -->
+                  <div class="grid grid-cols-1 {isLocalOcr ? 'sm:grid-cols-12' : 'sm:grid-cols-2'} gap-3 items-end">
+                    <!-- Provider / API key -->
+                    <div class={isLocalOcr ? "sm:col-span-5" : ""}>
                       <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
-                        {entry.provider === "local" ? (t("translate.provider")) : (t("tiers.apiKey"))}
+                        {entry.provider === "local" || isLocalOcr || isBuiltinEndpointId(entry.apiKeyId) ? (t("translate.provider")) : (t("tiers.apiKey"))}
                       </span>
                       <SearchableSelect
-                        options={[...apiKeys.filter((k) => supportsCapability(k, capability)).map((key) => ({ value: key.id, label: keyLabel(key), provider: key.apiType })), { value: "__add_provider__", label: `＋ ${t("tiers.addProvider")}` }]}
-                        value={entry.apiKeyId || (entry.provider === "local" ? "local" : "")}
+                        options={[
+                          ...(capability === "itt"
+                            ? [{ value: "local_ocr", label: t("ocr.engineLocal"), provider: "local_ocr" }]
+                            : []),
+                          ...apiKeys.filter((k) => supportsCapability(k, capability)).map((key) => ({
+                            value: key.id,
+                            label: keyLabel(key),
+                            provider: isBuiltinEndpointId(key.id) ? "local" : key.apiType,
+                          })),
+                          { value: "__add_provider__", label: `＋ ${t("tiers.addProvider")}` },
+                        ]}
+                        value={isLocalOcr ? "local_ocr" : (entry.apiKeyId || (entry.provider === "local" ? "local" : ""))}
                         onchange={(val) => onKeyChange(tierIndex, entryIndex, val)}
                         placeholder={t("tiers.noKeysOption")}
                       />
                     </div>
 
                     <!-- Model -->
-                    <div>
-                      <div class="flex items-center justify-between mb-1">
-                        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t("tiers.model")}</span>
-                        <button
-                          type="button"
-                          onclick={() => refreshEntryModels(entry)}
-                          title={t("tiers.refreshModels")}
-                          aria-label={t("tiers.refreshModels")}
-                          class="p-0.5 text-gray-500 hover:text-indigo-300 transition cursor-pointer"
-                        >
-                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                        </button>
+                    {#if isLocalOcr}
+                      <div class="sm:col-span-7">
+                        <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">{t("tiers.model")}</span>
+                        <div class="flex items-center gap-2">
+                          <div class="flex-1 min-w-0">
+                            <SearchableSelect
+                              options={ocrModelsStore.ocrModels.map((m) => {
+                                const readyIcon = `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+                                const notDownloadedIcon = `<svg class="w-4 h-4 text-red-500/80" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v8m0 0l-3-3m3 3l3-3" /><path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18" /></svg>`;
+                                return {
+                                  value: m.id,
+                                  label: m.name,
+                                  icon: m.downloaded ? readyIcon : notDownloadedIcon,
+                                };
+                              })}
+                              value={selectedOcrModelId}
+                              onchange={(v) => onModelChange(tierIndex, entryIndex, v)}
+                              placeholder={t("tiers.model")}
+                            />
+                          </div>
+                          <div class="flex gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onclick={() => void ocrModelsStore.downloadModel(selectedOcrModelId, true)}
+                              disabled={isOcrDownloaded || ocrModelsStore.busy}
+                              class="px-3 py-2.5 rounded-lg text-xs font-bold transition-colors duration-200 cursor-pointer
+                                {isOcrDownloaded
+                                  ? 'bg-white/5 border border-white/10 text-gray-500 cursor-not-allowed'
+                                  : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'}"
+                            >
+                              {t("settings.download")}
+                            </button>
+                            <button
+                              type="button"
+                              onclick={() => void ocrModelsStore.uninstallModel(selectedOcrModelId)}
+                              disabled={!isOcrDownloaded || ocrModelsStore.busy}
+                              class="px-3 py-2.5 rounded-lg text-xs font-bold transition-colors duration-200 cursor-pointer
+                                {!isOcrDownloaded
+                                  ? 'bg-white/5 border border-white/10 text-gray-500 cursor-not-allowed'
+                                  : 'bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:border-red-500/30'}"
+                            >
+                              {t("settings.uninstall")}
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <SearchableSelect
-                        options={entry.provider === "local" && entryModels(entry).length === 0
-                          ? [{ value: "", label: localModelsPlaceholder() }, { value: "__custom__", label: t("tiers.customModel") }]
-                          : [
-                              ...entryModels(entry).map((m) => ({
-                                value: m.id,
-                                label: `${m.name}${m.recommended ? " ★" : ""}`
-                              })),
-                              { value: "__custom__", label: t("tiers.customModel") }
-                            ]}
-                        value={entry.provider === "local" && entryModels(entry).length === 0
-                          ? ""
-                          : (isCustomModel(entry) ? "__custom__" : entry.model)}
-                        disabled={false}
-                        onfocus={() => ensureModels(entry.provider, entry.apiKeyId, true)}
-                        onchange={(v) => {
-                          if (v === "__custom__") {
-                            setCustomMode(entry.id, true);
-                            onModelChange(tierIndex, entryIndex, "");
-                          } else {
-                            setCustomMode(entry.id, false);
-                            onModelChange(tierIndex, entryIndex, v);
-                          }
-                        }}
-                        placeholder={t("tiers.model")}
-                      />
-                    </div>
+                    {:else}
+                      <div>
+                        <div class="flex items-center justify-between mb-1">
+                          <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t("tiers.model")}</span>
+                          <button
+                            type="button"
+                            onclick={() => refreshEntryModels(entry)}
+                            title={t("tiers.refreshModels")}
+                            aria-label={t("tiers.refreshModels")}
+                            class="p-0.5 text-gray-500 hover:text-indigo-300 transition cursor-pointer"
+                          >
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                          </button>
+                        </div>
+                        <SearchableSelect
+                          options={entry.provider === "local" && entryModels(entry).length === 0
+                            ? [{ value: "", label: localModelsPlaceholder() }, { value: "__custom__", label: t("tiers.customModel") }]
+                            : [
+                                ...entryModels(entry).map((m) => ({
+                                  value: m.id,
+                                  label: `${m.name}${m.recommended ? " ★" : ""}`
+                                })),
+                                { value: "__custom__", label: t("tiers.customModel") }
+                              ]}
+                          value={entry.provider === "local" && entryModels(entry).length === 0
+                            ? ""
+                            : (isCustomModel(entry) ? "__custom__" : entry.model)}
+                          disabled={false}
+                          onfocus={() => ensureModels(entry.provider, entry.apiKeyId, true)}
+                          onchange={(v) => {
+                            if (v === "__custom__") {
+                              setCustomMode(entry.id, true);
+                              onModelChange(tierIndex, entryIndex, "");
+                            } else {
+                              setCustomMode(entry.id, false);
+                              onModelChange(tierIndex, entryIndex, v);
+                            }
+                          }}
+                          placeholder={t("tiers.model")}
+                        />
+                      </div>
+                    {/if}
                   </div>
 
-                  {#if customModeIds.has(entry.id) || (isCustomModel(entry) && (entry.provider === "custom" || Boolean(entry.model)) && (entry.provider !== "local" || entryModels(entry).length > 0))}
+                  {#if isLocalOcr && ocrModelsStore.isDownloading && ocrModelsStore.downloadingModelId === selectedOcrModelId}
+                    <div class="mt-2.5 flex items-center gap-3 p-2.5 rounded-lg border border-indigo-500/20 bg-indigo-500/5">
+                      <span class="text-xs text-indigo-300 font-medium whitespace-nowrap">{t("transcribe.downloadProgress", { progress: ocrModelsStore.progress })}</span>
+                      <div class="flex-1 bg-white/10 rounded-full h-1.5 overflow-hidden">
+                        <div class="bg-indigo-400 h-1.5 transition-colors duration-150" style="width: {ocrModelsStore.progress}%"></div>
+                      </div>
+                    </div>
+                  {/if}
+
+                  {#if !isLocalOcr && (customModeIds.has(entry.id) || (isCustomModel(entry) && (entry.provider === "custom" || Boolean(entry.model)) && (entry.provider !== "local" || entryModels(entry).length > 0)))}
                     <input
                       type="text"
                       value={entry.model}
@@ -465,31 +576,33 @@
                     />
                   {/if}
 
-                  <!-- RPM / Budget inline fields -->
-                  <div class="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1">
-                    <div class="flex items-center gap-2 shrink-0" title={t("tiers.rpmTooltip")}>
-                      <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t("tiers.rpm")}:</span>
-                      <input use:numberControl
-                        type="number"
-                        min="0"
-                        value={entry.rpm ?? ""}
-                        oninput={(e) => onNumberChange(tierIndex, entryIndex, "rpm", (e.currentTarget as HTMLInputElement).value)}
-                        placeholder={t("tiers.auto")}
-                        class="input-modern min-w-[115px] text-xs py-1.5 px-3 text-center"
-                      />
+                  {#if !isLocalOcr}
+                    <!-- RPM / Budget inline fields -->
+                    <div class="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1">
+                      <div class="flex items-center gap-2 shrink-0" title={t("tiers.rpmTooltip")}>
+                        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t("tiers.rpm")}:</span>
+                        <input use:numberControl
+                          type="number"
+                          min="0"
+                          value={entry.rpm ?? ""}
+                          oninput={(e) => onNumberChange(tierIndex, entryIndex, "rpm", (e.currentTarget as HTMLInputElement).value)}
+                          placeholder={t("tiers.auto")}
+                          class="input-modern min-w-[115px] text-xs py-1.5 px-3 text-center"
+                        />
+                      </div>
+                      <div class="flex items-center gap-2 shrink-0" title={t("tiers.budgetTooltip")}>
+                        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t("tiers.budget")}:</span>
+                        <input use:numberControl
+                          type="number"
+                          min="0"
+                          value={entry.maxRequests ?? ""}
+                          oninput={(e) => onNumberChange(tierIndex, entryIndex, "maxRequests", (e.currentTarget as HTMLInputElement).value)}
+                          placeholder={t("tiers.unlimited")}
+                          class="input-modern min-w-[115px] text-xs py-1.5 px-3 text-center"
+                        />
+                      </div>
                     </div>
-                    <div class="flex items-center gap-2 shrink-0" title={t("tiers.budgetTooltip")}>
-                      <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t("tiers.budget")}:</span>
-                      <input use:numberControl
-                        type="number"
-                        min="0"
-                        value={entry.maxRequests ?? ""}
-                        oninput={(e) => onNumberChange(tierIndex, entryIndex, "maxRequests", (e.currentTarget as HTMLInputElement).value)}
-                        placeholder={t("tiers.unlimited")}
-                        class="input-modern min-w-[115px] text-xs py-1.5 px-3 text-center"
-                      />
-                    </div>
-                  </div>
+                  {/if}
                 </div>
               {/each}
 

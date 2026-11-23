@@ -23,10 +23,17 @@
   let entries = $derived(availableSpeechEngines(tiers, models.whisperModels, keys, purpose === "sync"));
   let options = $derived([
     ...(purpose === "transcribe" ? [{ value: "chain", label: t("speech.priorityChain") }] : []),
-    ...entries.map(entry => ({ value: entry.id,
-      label: `${transcribeProviders[entry.provider]?.name || t("transcribe.engineLocal")} · ${entry.model}`,
-      provider: entry.provider === "local" ? "local_whisper" : entry.provider,
-    })),
+    ...entries.map(entry => {
+      const isLocal = entry.provider === "local" || entry.provider === "local_whisper";
+      const modelLabel = isLocal
+        ? (t(`transcribe.model${entry.model.charAt(0).toUpperCase()}${entry.model.slice(1)}`) || entry.model)
+        : entry.model;
+      return {
+        value: entry.id,
+        label: `${transcribeProviders[entry.provider]?.name || t("transcribe.engineLocal")} · ${modelLabel}`,
+        provider: isLocal ? "local_whisper" : entry.provider,
+      };
+    }),
   ]);
   $effect(() => onresolve(value === "chain" ? null : entries.find(entry => entry.id === value)));
   onMount(() => {

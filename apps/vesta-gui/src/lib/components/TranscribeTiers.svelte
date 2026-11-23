@@ -8,7 +8,7 @@
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import TierList from "$lib/components/TierList.svelte";
   import { transcribeProviders } from "$lib/config/transcribeProviders";
-  import { loadAndValidateApiKeys, supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
+  import { isBuiltinEndpointId, loadAndValidateApiKeys, supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
   import { newTierId, newTierEntryId } from "$lib/config/translationTiers";
   import {
     loadTranscribeTiers,
@@ -244,6 +244,7 @@
   // Label per il dropdown delle key
   function keyLabel(key: ApiKeyConfig): string {
     if (key.apiType === "local_whisper") return t("transcribe.engineLocal");
+    if (isBuiltinEndpointId(key.id)) return key.name;
     const provName = transcribeProviders[key.apiType]?.name || key.apiType;
     return key.name && key.name !== provName ? `${provName} · ${key.name}` : provName;
   }
@@ -318,14 +319,25 @@
               {/if}
 
               {#each tier.entries as entry, entryIndex (entry.id)}
-                {@const isDownloaded = (entry.provider === "local" || entry.provider === "local_whisper") ? (whisperModels.find(m => m.id === entry.model)?.downloaded ?? false) : true}
+                {@const isLocalWhisper = entry.provider === "local" || entry.provider === "local_whisper"}
+                {@const isDownloaded = isLocalWhisper ? (whisperModels.find(m => m.id === entry.model)?.downloaded ?? false) : true}
                 <!-- Flat Endpoint Card -->
-                <div class="rounded-xl border border-white/5 bg-white/[0.02] p-4.5 space-y-3.5 shadow-sm">
+                <div class="rounded-xl border p-4.5 space-y-3.5 shadow-sm transition-colors duration-200
+                  {isLocalWhisper && !isDownloaded
+                    ? 'border-amber-500/40 bg-amber-500/[0.02] shadow-[0_0_12px_rgba(245,158,11,0.05)]'
+                    : 'border-white/5 bg-white/[0.02]'}"
+                >
                   <!-- Header row: Provider selection + Remove button -->
                   <div class="flex items-center justify-between gap-2 border-b border-white/5 pb-2.5">
                     <div class="flex items-center gap-2">
-                      <ProviderIcon provider={entry.provider} size="w-5.5 h-5.5" glyph="w-3 h-3" rounded="rounded-md" />
-                      <span class="text-xs font-semibold text-gray-200">{entry.provider === "local" || entry.provider === "local_whisper" ? t("transcribe.engineLocal") : providers[entry.provider]?.name || entry.provider}</span>
+                      <ProviderIcon provider={isLocalWhisper || isBuiltinEndpointId(entry.apiKeyId) ? "local" : entry.provider} size="w-5.5 h-5.5" glyph="w-3 h-3" rounded="rounded-md" />
+                      <span class="text-xs font-semibold text-gray-200">{isLocalWhisper ? t("transcribe.engineLocal") : (entry.provider === "custom" || entry.provider === "custom_whisper") ? (apiKeys.find((k) => k.id === entry.apiKeyId)?.name || providers[entry.provider]?.name || entry.provider) : (providers[entry.provider]?.name || entry.provider)}</span>
+                      {#if isLocalWhisper && !isDownloaded}
+                        <span class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-bold">
+                          <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                          {t("settings.notDownloaded")}
+                        </span>
+                      {/if}
                     </div>
                     <button
                       type="button"
@@ -347,10 +359,10 @@
                     <!-- API key -->
                     <div class="sm:col-span-5">
                       <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
-                        {(entry.provider === "local" || entry.provider === "local_whisper") ? (t("translate.provider")) : (t("tiers.apiKey"))}
+                        {(isLocalWhisper || isBuiltinEndpointId(entry.apiKeyId)) ? (t("translate.provider")) : (t("tiers.apiKey"))}
                       </span>
                       <SearchableSelect
-                        options={[...apiKeys.filter(isWhisperKey).map((key) => ({ value: key.id, label: keyLabel(key), provider: key.apiType })), { value: "__add_provider__", label: `＋ ${t("tiers.addProvider")}` }]}
+                        options={[...apiKeys.filter(isWhisperKey).map((key) => ({ value: key.id, label: keyLabel(key), provider: isBuiltinEndpointId(key.id) ? "local" : key.apiType })), { value: "__add_provider__", label: `＋ ${t("tiers.addProvider")}` }]}
                         value={entry.apiKeyId}
                         onchange={(val) => onKeyChange(tierIndex, entryIndex, val)}
                         placeholder={t("tiers.noKeysOption")}

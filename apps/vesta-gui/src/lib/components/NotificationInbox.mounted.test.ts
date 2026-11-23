@@ -36,7 +36,7 @@ afterEach(async () => {
   }
 });
 
-async function renderInbox(hash = "whisper-model-missing:v1|llm-default-unready:v1") {
+async function renderInbox(hash = "whisper-model-missing:v1|llm-default-unready:v1|itt-model-missing:v1") {
   const target = document.createElement("div"); document.body.append(target);
   const onsettings = vi.fn(), onclose = vi.fn();
   components.push(mount(NotificationInbox, { target, props: { hash, releaseUrl: "https://github.com/pierspad/vesta/releases/tag/v1.0.0", onsettings, onclose } }));
@@ -48,11 +48,15 @@ it("opens a modal inbox with actionable configuration and update notices", async
   const { target, onsettings } = await renderInbox();
   expect(target.querySelector("dialog")?.hasAttribute("open")).toBe(true);
   const articles = target.querySelectorAll("article");
-  expect(articles).toHaveLength(4);
+  expect(articles).toHaveLength(5);
+  expect(articles[1].textContent).toContain("Missing configuration");
   expect(articles[2].textContent).toContain("Missing configuration");
-  expect(articles[2].querySelector(".bg-amber-400")).not.toBeNull();
+  expect(articles[3].textContent).toContain("Missing configuration");
+  expect(articles[3].querySelector(".bg-amber-400")).not.toBeNull();
   (articles[1].querySelector("button") as HTMLButtonElement).click();
   expect(onsettings).toHaveBeenCalledWith("whisper");
+  (articles[3].querySelector("button") as HTMLButtonElement).click();
+  expect(onsettings).toHaveBeenCalledWith("itt");
   (articles[0].querySelector("button") as HTMLButtonElement).click();
   expect(updates.installUpdate).toHaveBeenCalledOnce();
 });

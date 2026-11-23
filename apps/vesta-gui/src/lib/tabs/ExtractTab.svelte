@@ -245,7 +245,8 @@
     const keys = loadAndValidateApiKeys();
     const ittTiers = buildTiersPayload(loadIttTiers(), keys, "itt");
     const visionTiers = ittTiers ?? buildTiersPayload(loadTiers(), keys, "llm");
-    if (visionTiers && localEntry) return [...visionTiers, [localEntry]];
+    const alreadyHasLocal = visionTiers?.some((tier) => tier.some((entry) => entry.provider === "local_ocr")) ?? false;
+    if (visionTiers && localEntry && !alreadyHasLocal) return [...visionTiers, [localEntry]];
     if (visionTiers) return visionTiers;
     if (localEntry) return [[localEntry]];
     error = t("extract.ocrNoProvider");

@@ -14,6 +14,7 @@ vi.mock("$lib/config/translationTiers", () => ({
 vi.mock("$lib/config/apiKeys", () => ({
   loadAndValidateApiKeys: () => [{ id: "local", name: "Local", apiType: "local", apiKey: "", apiUrl: "http://localhost:1234" }],
   supportsCapability: () => true,
+  isBuiltinEndpointId: (id: string) => id === "local" || id === "local_stt" || id === "local_itt",
 }));
 vi.mock("$lib/config/llmProviders", () => ({ providers: { local: { name: "Local", defaultApiUrl: "http://localhost:1234" } }, getModelsForProvider: () => [] }));
 vi.mock("$lib/services/modelDiscovery", () => ({ discoverModels: setup.discover }));

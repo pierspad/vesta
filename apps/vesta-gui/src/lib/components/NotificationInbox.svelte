@@ -5,7 +5,7 @@
   let { hash, releaseUrl, onsettings, onclose }: {
     hash: string;
     releaseUrl: string;
-    onsettings: (section: "whisper" | "llm" | "overview") => void;
+    onsettings: (section: "whisper" | "llm" | "itt" | "overview") => void;
     onclose: () => void;
   } = $props();
   let t = $derived($locale);
@@ -74,21 +74,23 @@
         {/if}
       </article>
     {/if}
-    {#each ["whisper", "llm"] as section}
-      {#if hash.includes(section === "whisper" ? "whisper-model-missing:v1" : "llm-default-unready:v1")}
+    {#each [
+      { section: "whisper", token: "whisper-model-missing:v1", descKey: "settings.copy.setupWhisperDesc" },
+      { section: "llm", token: "llm-default-unready:v1", descKey: "settings.copy.setupLlmDesc" },
+      { section: "itt", token: "itt-model-missing:v1", descKey: "settings.copy.setupIttDesc" },
+    ] as item}
+      {#if hash.includes(item.token)}
         <article class="rounded-xl border border-white/10 bg-white/[0.03] p-4">
           <h3 class="notice-title">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 3v1"/></svg>
-            <span>{t(`settings.section.${section}`)}</span>
-            {#if section === "llm"}
-              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2">
-                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                <span>{t("settings.missingConfig")}</span>
-              </span>
-            {/if}
+            <span>{t(`settings.section.${item.section}`)}</span>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+              <span>{t("settings.missingConfig")}</span>
+            </span>
           </h3>
-          <p class="mt-2 text-xs leading-relaxed text-gray-400">{t(section === "whisper" ? "settings.copy.setupWhisperDesc" : "settings.copy.setupLlmDesc")}</p>
-          <button type="button" onclick={() => onsettings(section as "whisper" | "llm")} class="btn-secondary mt-3 px-3 py-2 text-xs">{t("nav.settings")}</button>
+          <p class="mt-2 text-xs leading-relaxed text-gray-400">{t(item.descKey)}</p>
+          <button type="button" onclick={() => onsettings(item.section as "whisper" | "llm" | "itt")} class="btn-secondary mt-3 px-3 py-2 text-xs">{t("nav.settings")}</button>
         </article>
       {/if}
     {/each}

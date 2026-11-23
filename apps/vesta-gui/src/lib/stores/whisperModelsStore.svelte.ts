@@ -82,6 +82,14 @@ export class WhisperModelsStore {
       const models = await transcribeListModels();
       if (!request.isCurrent()) return;
       this.whisperModels = models;
+      const currentDefault = models.find((m) => m.id === this.defaultWhisperModel);
+      if (currentDefault && !currentDefault.downloaded) {
+        const firstDownloaded = models.find((m) => m.downloaded);
+        if (firstDownloaded) {
+          this.defaultWhisperModel = firstDownloaded.id;
+          vestaConfig.setItem("vesta-default-whisper-model", firstDownloaded.id);
+        }
+      }
       window.dispatchEvent(new CustomEvent("vesta-whisper-models-updated", { detail: { models } }));
     } catch (e) {
       console.error("Could not list models:", e);

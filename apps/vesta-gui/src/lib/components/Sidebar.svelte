@@ -24,7 +24,7 @@
   interface Props {
     activeTab: string;
     onTabChange: (tab: string) => void;
-    onSettingsAction?: (section: "overview" | "llm" | "whisper", targetId: string) => void;
+    onSettingsAction?: (section: "overview" | "llm" | "whisper" | "itt", targetId: string) => void;
     onTabPreload?: (tab: string) => void;
     collapsed?: boolean;
     onToggleCollapse?: () => void;
@@ -69,6 +69,7 @@
   let inboxUnread = $derived((hasSettingsActionNotification && !settingsNotificationRead) || (hasUpdateNotification && seenUpdate !== updateCheckerStore.latestVersion));
   let needsWhisperDot = $derived(settingsHash.includes("whisper-model-missing:v1"));
   let needsLlmDot = $derived(settingsHash.includes("llm-default-unready:v1"));
+  let needsIttDot = $derived(settingsHash.includes("itt-model-missing:v1"));
   let experimentalUnlocked = $state(vestaConfig.getItem("vesta-experimental-unlocked") === "true");
   let logoClicks: number[] = [];
 
@@ -267,7 +268,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18a6 6 0 006-6V7a6 6 0 10-12 0v5a6 6 0 006 6zm0 0v3m-4 0h8" />
             </svg>
             {#if needsWhisperDot}
-              <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-indigo-400 ring-2 ring-gray-900"></span>
+              <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-gray-900"></span>
             {/if}
           </div>
           {#if !collapsed}
@@ -288,6 +289,9 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm4 10h10M7 11h6m-4-4h.01" />
             </svg>
+            {#if needsIttDot}
+              <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-gray-900"></span>
+            {/if}
           </div>
           {#if !collapsed}
             <div class="text-left flex-1 min-w-0 leading-tight">

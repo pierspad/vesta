@@ -4,9 +4,9 @@ This directory contains a minimal, working reference implementation of an extern
 
 ## Files
 
-- `vesta-plugin.json`: Plugin manifest declaring ID, version, entry command, permissions, tab title, and configuration settings.
-- `vesta_plugin.py`: Lightweight zero-dependency Python SDK helper managing JSON-RPC 2.0 communication over stdio.
-- `main.py`: Entry point implementing screen rendering, counter state, event dispatching, and notification toasts.
+- `vesta-plugin.json`: Plugin manifest declaring ID, version, entry command, permissions (`network`, `vesta:cli`), tab title, and configuration settings.
+- `vesta_plugin.py`: Lightweight zero-dependency Python SDK helper managing JSON-RPC 2.0 communication over stdio (including `plugin.run_cli(command, args, timeout_secs)` for invoking native `vesta-cli` subcommands via `vesta.cli`).
+- `main.py`: Entry point implementing screen rendering, counter state, event dispatching, `vesta.cli` execution, and notification toasts.
 
 ## Testing Locally in Vesta
 

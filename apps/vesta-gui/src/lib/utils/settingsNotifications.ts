@@ -16,10 +16,12 @@ export type SettingsActionNotificationDetail = {
 export function buildSettingsActionHash(actions: {
   needsWhisper: boolean;
   needsLlm: boolean;
+  needsItt?: boolean;
 }): string {
   const activeActions: string[] = [];
   if (actions.needsWhisper) activeActions.push("whisper-model-missing:v1");
   if (actions.needsLlm) activeActions.push("llm-default-unready:v1");
+  if (actions.needsItt) activeActions.push("itt-model-missing:v1");
   return activeActions.join("|");
 }
 

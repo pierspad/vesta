@@ -79,8 +79,8 @@
         saveTiersFn={saveIttTiers}
         updatedEvent={ITT_TIERS_UPDATED_EVENT}
         autoCreateDefault={true}
-        defaultEntryProvider="custom"
-        defaultEntryApiKeyId="local_itt_server"
+        defaultEntryProvider="local_ocr"
+        defaultEntryApiKeyId="local_ocr"
       />
     </div>
   </div>
@@ -106,7 +106,7 @@
     </div>
     <div class="p-4 rounded-xl bg-white/5 border border-white/10">
       <p class="text-xs uppercase tracking-wide text-gray-500 mb-1">{t("settings.default")}</p>
-      <p class="text-sm font-bold text-white truncate">{ocrStore.ocrModels.find((m) => m.id === ocrStore.defaultOcrModel)?.name ?? ocrStore.defaultOcrModel}</p>
+      <p class="text-sm font-bold text-white truncate">{ocrStore.ocrModels.find((m) => m.id === ocrStore.defaultOcrModel && m.downloaded)?.name ?? "—"}</p>
     </div>
     <div class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
       <p class="text-xs uppercase tracking-wide text-emerald-300/70 mb-1">{t("settings.ready")}</p>

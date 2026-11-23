@@ -16,6 +16,7 @@ export type ApiProviderId =
   | "deepgram"
   | "assemblyai"
   | "local_whisper"
+  | "local_ocr"
   | "custom_whisper"
   // legacy, mantenuti per retrocompatibilità nello storage
   | "openai"
@@ -57,6 +58,7 @@ export function loadAndValidateApiKeys(): ApiKeyConfig[] {
       "deepgram",
       "assemblyai",
       "local_whisper",
+      "local_ocr",
       "custom_whisper",
     ]);
 

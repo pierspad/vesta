@@ -395,7 +395,8 @@ test("Settings ITT has fixed Local ITT server and non-removable default tier pri
   await expect(removeBuiltinBtn).toBeDisabled();
 
   const tierCard = page.locator("#itt-tiers");
-  await expect(tierCard).toContainText("Local ITT server");
+  await expect(tierCard).toContainText("Local OCR");
+  await expect(tierCard).toContainText("Not downloaded");
   await expect(tierCard.getByRole("button", { name: "Remove tier", exact: true })).toBeDisabled();
 
   await page.getByRole("button", { name: "Add configuration", exact: true }).click();

@@ -14,6 +14,7 @@
 import { supportsCapability, type ApiKeyConfig } from "$lib/config/apiKeys";
 import { type Tier } from "$lib/config/translationTiers";
 import { providers } from "$lib/config/llmProviders";
+import { ocrModelsStore } from "$lib/stores/ocrModelsStore.svelte";
 import { fetchModelsFromEndpoint } from "$lib/services/modelDiscovery";
 import { t } from "$lib/i18n";
 
@@ -40,6 +41,22 @@ export function buildTiersPayload(
   for (const tier of tiers) {
     const entries: TierEntryPayload[] = [];
     for (const e of tier.entries) {
+      if (capability === "itt" && (e.provider === "local_ocr" || e.apiKeyId === "local_ocr")) {
+        const requestedId = e.model?.trim() || ocrModelsStore.defaultOcrModel;
+        const localModel =
+          ocrModelsStore.ocrModels.find((m) => m.id === requestedId && m.downloaded) ??
+          ocrModelsStore.ocrModels.find((m) => m.downloaded);
+        if (!localModel) continue;
+        entries.push({
+          provider: "local_ocr",
+          model: localModel.id,
+          api_key: null,
+          api_url: null,
+          rpm: null,
+          max_requests: null,
+        });
+        continue;
+      }
       if (!e.model || !e.model.trim()) continue;
       const key = apiKeys.find((k) => k.id === e.apiKeyId) || (e.provider === "local" ? apiKeys.find(k => k.id === "local") : undefined);
       if (key?.capabilities && !supportsCapability(key, capability)) continue;

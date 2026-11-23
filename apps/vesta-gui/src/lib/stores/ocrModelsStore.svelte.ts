@@ -47,6 +47,17 @@ export class OcrModelsStore {
       const models = await ocrListModels();
       if (!request.isCurrent() || !Array.isArray(models)) return;
       this.ocrModels = models;
+      const currentDefault = models.find((m) => m.id === this.defaultOcrModel);
+      if (currentDefault && !currentDefault.downloaded) {
+        const firstDownloaded = models.find((m) => m.downloaded);
+        if (firstDownloaded) {
+          this.defaultOcrModel = firstDownloaded.id;
+          vestaConfig.setItem(DEFAULT_OCR_MODEL_KEY, firstDownloaded.id);
+        }
+      }
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("vesta-ocr-models-updated", { detail: { models } }));
+      }
     } catch (e) {
       console.error("Could not list OCR models:", e);
     }
@@ -59,6 +70,9 @@ export class OcrModelsStore {
     if (notify) {
       const name = this.ocrModels.find((m) => m.id === modelId)?.name ?? modelId;
       showSnackbar(`${t("settings.defaultModel")}: ${name}`);
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("ocr-model-updated", { detail: modelId }));
     }
   }
 
