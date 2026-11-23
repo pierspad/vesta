@@ -174,7 +174,8 @@ jobs:
           else
             npx tauri build --bundles deb,rpm --config src-tauri/tauri.release-cli.conf.json -- --locked --features vulkan
           fi
-          dpkg-deb -c ../../target/release/bundle/deb/*.deb | grep -q 'usr/bin/vesta-cli'
+          DEB_CONTENTS=$(dpkg-deb -c ../../target/release/bundle/deb/*.deb)
+          grep -q 'usr/bin/vesta-cli' <<< "$DEB_CONTENTS"
 
       - name: Upload DEB
         uses: actions/upload-artifact@v6

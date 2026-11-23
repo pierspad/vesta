@@ -132,6 +132,10 @@ def main():
             and 'vesta-cli-${{ matrix.target }}.exe' in build
             and 'externalBin: ["binaries/vesta-cli"]' in build,
             'build.yml must bundle vesta-cli in Linux and Windows installers')
+    require('dpkg-deb -c ../../target/release/bundle/deb/*.deb | grep -q' not in build
+            and 'DEB_CONTENTS=$(dpkg-deb -c ../../target/release/bundle/deb/*.deb)' in build
+            and "grep -q 'usr/bin/vesta-cli' <<< \"$DEB_CONTENTS\"" in build,
+            'build.yml must buffer dpkg-deb -c output instead of piping into grep -q under pipefail')
     require('install -Dm755 flatpak-files/vesta-cli /app/bin/vesta-cli' in flatpak_manifest
             and 'cp "$CLI_BINARY" build-scripts/flatpak-files/vesta-cli' in build,
             'Flatpak packaging must include /app/bin/vesta-cli')
