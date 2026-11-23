@@ -741,4 +741,66 @@ mod tests {
         assert!(flds_a[0].matches('\x1f').count() == 8);
         assert!(flds_b[0].matches('\x1f').count() == 8);
     }
+
+    #[test]
+    fn exported_apkg_models_respect_dictionary_lookup_and_language_font_stacks() {
+        let tmp = tempfile::tempdir().unwrap();
+        let media = tmp.path().join("media");
+        std::fs::create_dir_all(&media).unwrap();
+        let lines = vec![line(0, "こんにちは", Some("Hello"))];
+
+        let read_models_json = |apkg: &Path| -> serde_json::Value {
+            let mut zip = zip::ZipArchive::new(std::fs::File::open(apkg).unwrap()).unwrap();
+            let db_path = tmp.path().join(format!(
+                "{}.sqlite",
+                apkg.file_stem().unwrap().to_string_lossy()
+            ));
+            std::io::copy(
+                &mut zip.by_name("collection.anki2").unwrap(),
+                &mut std::fs::File::create(&db_path).unwrap(),
+            )
+            .unwrap();
+            let conn = rusqlite::Connection::open(&db_path).unwrap();
+            let models: String = conn
+                .query_row("SELECT models FROM col WHERE id = 1", [], |r| r.get(0))
+                .unwrap();
+            serde_json::from_str(&models).unwrap()
+        };
+
+        let cases = [
+            ("ja", true, "Noto Sans CJK JP"),
+            ("zh-TW", true, "Noto Sans CJK TC"),
+            ("ar", true, "Noto Naskh Arabic"),
+            ("en", false, r#""Noto Sans", -apple-system"#),
+        ];
+
+        for (idx, (lang, dict_enabled, expected_font)) in cases.iter().enumerate() {
+            let apkg = tmp.path().join(format!("deck_{idx}.apkg"));
+            let config = FlashcardConfig {
+                target_language: Some((*lang).into()),
+                dictionary_lookup: *dict_enabled,
+                auto_card_font: true,
+                embed_card_font: false,
+                ..base_config("Deck", &format!("Lang_{idx}"), all_fields())
+            };
+            generate_apkg(&lines, &config, &media, &apkg).unwrap();
+
+            let models = read_models_json(&apkg);
+            let (_, model) = models.as_object().unwrap().iter().next().unwrap();
+            let css = model["css"].as_str().unwrap();
+            assert!(
+                css.contains(expected_font),
+                "expected font stack '{expected_font}' for {lang}, got: {css}"
+            );
+            for side in ["qfmt", "afmt"] {
+                let template = model["tmpls"][0][side].as_str().unwrap();
+                if *dict_enabled {
+                    assert!(template.contains("vestaDictionary"));
+                    assert!(template.contains(&format!("var language = \"{lang}\"")));
+                } else {
+                    assert!(!template.contains("vestaDictionary"));
+                }
+            }
+        }
+    }
 }

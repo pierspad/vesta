@@ -377,5 +377,54 @@ mod tests {
             maybe_prepend_font_vars(base_css, &config_disabled),
             base_css
         );
+
+        // Switching to Arabic replaces the font block, and missing language falls back to DEFAULT_FONT_STACK.
+        let config_ar = FlashcardConfig {
+            target_language: Some("ar".to_string()),
+            auto_card_font: true,
+            embed_card_font: false,
+            ..Default::default()
+        };
+        let reinjected_ar = maybe_prepend_font_vars(&reinjected, &config_ar);
+        assert!(reinjected_ar.contains("Noto Naskh Arabic"));
+        assert!(!reinjected_ar.contains("Noto Sans CJK SC"));
+        assert_eq!(reinjected_ar.matches("/* vesta:font-start */").count(), 1);
+
+        let config_empty_lang = FlashcardConfig {
+            target_language: None,
+            auto_card_font: true,
+            embed_card_font: false,
+            ..Default::default()
+        };
+        let reinjected_default = maybe_prepend_font_vars(&reinjected_ar, &config_empty_lang);
+        assert!(reinjected_default.contains(DEFAULT_FONT_STACK));
+        assert!(!reinjected_default.contains("Noto Naskh Arabic"));
+    }
+
+    #[test]
+    fn font_catalog_entries_are_valid_and_unknown_ids_fail_cleanly() {
+        let fonts = list_fonts().unwrap();
+        assert_eq!(fonts.len(), 8);
+        let mut ids = std::collections::HashSet::new();
+        for (entry, info) in FONT_CATALOG.iter().zip(fonts.iter()) {
+            assert!(!entry.id.is_empty());
+            assert!(ids.insert(entry.id));
+            assert!(entry.filename.ends_with(".ttf"));
+            assert!(entry.url.starts_with("https://"));
+            assert_eq!(entry.id, info.id);
+        }
+
+        assert!(font_file_path("nonexistent").is_err());
+        assert!(delete_font("nonexistent").is_err());
+    }
+
+    #[tokio::test]
+    async fn download_font_rejects_unknown_id_and_precancelled_token_without_network() {
+        assert!(download_font("nonexistent", |_| {}, None).await.is_err());
+
+        let token = CancellationToken::new();
+        token.cancel();
+        let cancelled = download_font("noto-sans-jp", |_| {}, Some(&token)).await;
+        assert!(cancelled.is_err());
     }
 }

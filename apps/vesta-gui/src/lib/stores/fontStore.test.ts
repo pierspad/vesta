@@ -50,3 +50,47 @@ it("cannot delete a font while a batch is using it", async () => {
  try { expect(await fontStore.deleteFont("first")).toBe(false); expect(invoke).not.toHaveBeenCalled(); }
  finally { fontStore.downloadingAll = false; }
 });
+
+describe("single font download, delete, and catalog load", () => {
+  beforeEach(() => {
+    vi.mocked(invoke).mockReset();
+    fontStore.fonts = [font("cached", true), font("noto-sans-jp", false)];
+    fontStore.downloadingFontId = null;
+    fontStore.downloadingAll = false;
+    fontStore.deletingFontId = null;
+  });
+
+  it("downloads a font, refreshes the list, and clears downloadingFontId", async () => {
+    const updated = [font("cached", true), font("noto-sans-jp", true)];
+    vi.mocked(invoke).mockImplementation(async (command) =>
+      command === "flashcard_list_fonts" ? updated : true,
+    );
+
+    expect(await fontStore.downloadFont("noto-sans-jp")).toBe(true);
+    expect(invoke).toHaveBeenCalledWith("flashcard_download_font", { fontId: "noto-sans-jp" });
+    expect(invoke).toHaveBeenCalledWith("flashcard_list_fonts");
+    expect(fontStore.fonts.find((f) => f.id === "noto-sans-jp")?.downloaded).toBe(true);
+    expect(fontStore.downloadingFontId).toBeNull();
+  });
+
+  it("deletes a font, refreshes the list, and handles delete failures cleanly", async () => {
+    const updated = [font("cached", false), font("noto-sans-jp", false)];
+    vi.mocked(invoke).mockImplementation(async (command) =>
+      command === "flashcard_list_fonts" ? updated : true,
+    );
+
+    expect(await fontStore.deleteFont("cached")).toBe(true);
+    expect(invoke).toHaveBeenCalledWith("flashcard_delete_font", { fontId: "cached" });
+    expect(fontStore.deletingFontId).toBeNull();
+    expect(fontStore.fonts[0].downloaded).toBe(false);
+
+    vi.mocked(invoke).mockRejectedValueOnce(new Error("permission denied"));
+    expect(await fontStore.deleteFont("cached")).toBe(false);
+    expect(fontStore.deletingFontId).toBeNull();
+  });
+
+  it("reports false when flashcard_list_fonts fails during loadFonts", async () => {
+    vi.mocked(invoke).mockRejectedValueOnce(new Error("backend unavailable"));
+    expect(await fontStore.loadFonts()).toBe(false);
+  });
+});

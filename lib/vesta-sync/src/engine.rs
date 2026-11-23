@@ -735,4 +735,125 @@ mod tests {
         assert!(!saved.contains_key(&2));
         assert!(saved.contains_key(&3));
     }
+
+    #[test]
+    fn session_save_and_load_roundtrip_preserves_video_anchors_checked_and_timings() {
+        let directory = tempfile::tempdir().unwrap();
+        let srt = directory.path().join("episode.srt");
+        let video = directory.path().join("episode.mkv");
+        let session = directory.path().join("session.json");
+        std::fs::write(
+            &srt,
+            "1\n00:00:01,000 --> 00:00:02,000\nOne\n\n2\n00:00:13,000 --> 00:00:14,000\nTwo\n\n3\n00:00:25,000 --> 00:00:26,000\nThree\n",
+        )
+        .unwrap();
+        std::fs::write(&video, b"video").unwrap();
+
+        let mut engine = SyncEngine::new(&srt).unwrap();
+        engine.set_video_path(&video);
+        engine.set_sampling_strategy(SamplerStrategy::UniformTime);
+        engine.add_anchor(1, 2_000, true).unwrap();
+        engine.add_anchor(3, 27_000, false).unwrap();
+        engine.save_session(&session).unwrap();
+
+        let restored = SyncEngine::load_session(&session).unwrap();
+        assert_eq!(restored.export_state().srt_path, srt.to_string_lossy());
+        assert_eq!(
+            restored.get_video_path(),
+            Some(video.to_string_lossy().as_ref())
+        );
+        assert_eq!(restored.anchor_count(), 2);
+        assert_eq!(restored.checked_count(), 2);
+        assert_eq!(
+            restored.export_state().sampler_strategy,
+            SamplerStrategy::UniformTime
+        );
+        assert_eq!(restored.get_synced_times(1), engine.get_synced_times(1));
+        assert_eq!(restored.get_synced_times(2), engine.get_synced_times(2));
+        assert_eq!(restored.get_synced_times(3), engine.get_synced_times(3));
+        assert_eq!(restored.get_synced_times(1).unwrap().0, 2_000);
+        assert_eq!(restored.get_synced_times(2).unwrap().0, 14_500);
+        assert_eq!(restored.get_synced_times(3).unwrap().0, 27_000);
+        assert_eq!(restored.find_subtitle_at_time(14_800), Some(2));
+    }
+
+    #[test]
+    fn load_session_rejects_missing_corrupt_and_missing_srt_files() {
+        let directory = tempfile::tempdir().unwrap();
+        assert!(SyncEngine::load_session(directory.path().join("missing.json")).is_err());
+
+        let corrupt = directory.path().join("corrupt.json");
+        std::fs::write(&corrupt, "{not valid json").unwrap();
+        assert!(SyncEngine::load_session(&corrupt).is_err());
+
+        let missing_srt_session = directory.path().join("missing_srt.json");
+        let missing_srt = directory.path().join("gone.srt");
+        let state = SyncState {
+            srt_path: missing_srt.to_string_lossy().into_owned(),
+            video_path: None,
+            time_mapper: TimeMapper::new(),
+            checked_indices: Vec::new(),
+            sampler_strategy: SamplerStrategy::BinarySearch,
+        };
+        std::fs::write(
+            &missing_srt_session,
+            serde_json::to_string(&state).unwrap(),
+        )
+        .unwrap();
+        assert!(SyncEngine::load_session(&missing_srt_session).is_err());
+    }
+
+    #[test]
+    fn save_synced_file_applies_multi_anchor_piecewise_retiming() {
+        let directory = tempfile::tempdir().unwrap();
+        let srt = directory.path().join("source.srt");
+        let output = directory.path().join("synced.srt");
+        std::fs::write(
+            &srt,
+            "1\n00:00:10,000 --> 00:00:12,000\nFirst\n\n2\n00:00:20,000 --> 00:00:22,000\nMiddle\n\n3\n00:00:30,000 --> 00:00:32,000\nLast\n",
+        )
+        .unwrap();
+
+        let mut engine = SyncEngine::new(&srt).unwrap();
+        // +1s at 10s -> 11s; +3s at 30s -> 33s; linear interpolation gives +2s at 20s -> 22s.
+        engine.add_anchor(1, 11_000, true).unwrap();
+        engine.add_anchor(3, 33_000, true).unwrap();
+        engine.save_synced_file(&output).unwrap();
+
+        let saved = SrtParser::parse_file(&output).unwrap();
+        assert_eq!(saved.len(), 3);
+        assert_eq!(saved[&1].start.milliseconds, 11_000);
+        assert_eq!(saved[&2].start.milliseconds, 22_000);
+        assert_eq!(saved[&3].start.milliseconds, 33_000);
+        assert!(saved[&2].end.milliseconds >= saved[&2].start.milliseconds);
+    }
+
+    #[test]
+    fn reset_clears_anchors_history_checked_and_restores_original_timings() {
+        let directory = tempfile::tempdir().unwrap();
+        let srt = directory.path().join("source.srt");
+        std::fs::write(
+            &srt,
+            "1\n00:00:01,000 --> 00:00:02,000\nFirst\n\n2\n00:00:04,000 --> 00:00:05,000\nSecond\n",
+        )
+        .unwrap();
+
+        let mut engine = SyncEngine::new(&srt).unwrap();
+        engine.add_anchor(1, 3_000, true).unwrap();
+        engine.add_anchor(2, 7_000, true).unwrap();
+        assert!(engine.undo());
+        assert!(engine.can_undo());
+        assert!(engine.can_redo());
+        assert!(engine.go_to_subtitle(2));
+
+        engine.reset();
+        assert_eq!(engine.total_subtitles(), 2);
+        assert_eq!(engine.anchor_count(), 0);
+        assert_eq!(engine.checked_count(), 0);
+        assert!(!engine.can_undo());
+        assert!(!engine.can_redo());
+        assert_eq!(engine.get_current_index(), 0);
+        assert_eq!(engine.get_synced_times(1), Some((1_000, 2_000)));
+        assert_eq!(engine.get_synced_times(2), Some((4_000, 5_000)));
+    }
 }

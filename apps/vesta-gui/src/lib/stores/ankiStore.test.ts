@@ -80,4 +80,22 @@ describe("ankiStore", () => {
     expect(ankiStore.autoCardFont).toBe(true);
     expect(ankiStore.embedCardFont).toBe(true);
   });
+
+  it("persists toggling dictionaryLookup, autoCardFont, and embedCardFont", () => {
+    ankiStore.setDictionaryLookup(false);
+    expect(ankiStore.dictionaryLookup).toBe(false);
+    expect(mocks.store.get("vesta-dictionary-lookup-enabled")).toBe("false");
+
+    ankiStore.setDictionaryLookup(true);
+    expect(ankiStore.dictionaryLookup).toBe(true);
+    expect(mocks.store.get("vesta-dictionary-lookup-enabled")).toBe("true");
+
+    ankiStore.setAutoCardFont(false);
+    expect(ankiStore.autoCardFont).toBe(false);
+    expect(mocks.store.get("vesta-auto-card-font")).toBe("false");
+
+    ankiStore.setEmbedCardFont(false);
+    expect(ankiStore.embedCardFont).toBe(false);
+    expect(mocks.store.get("vesta-embed-card-font")).toBe("false");
+  });
 });

@@ -6,6 +6,8 @@ import SyncTabActiveHarness from "$lib/test/fixtures/SyncTabActiveHarness.svelte
 import { whisperModelsStore } from "$lib/stores/whisperModelsStore.svelte";
 import { aiStore } from "$lib/stores/aiStore.svelte";
 import { invokeCommand } from "$lib/services/tauriClient";
+import { guardedOpen, guardedSave } from "$lib/utils/dialogGuard";
+import { snackbar } from "$lib/stores/snackbarStore.svelte";
 
 const mocks = vi.hoisted(() => ({
   onDrop: undefined as ((paths: string[]) => void) | undefined,
@@ -396,6 +398,151 @@ it("shows the pending media path, disables Browse, and overlays extracting statu
     expect(subBox).not.toBeNull();
     expect(subBox!.className).toContain("h-[136px]");
     expect(target.querySelectorAll("kbd")).toHaveLength(0);
+  } finally {
+    await unmount(component);
+  }
+});
+
+it("saves synced SRT files and handles sync_save_file errors gracefully", async () => {
+  let failSave = false;
+  const snackbarSpy = vi.spyOn(snackbar, "show");
+  setupSyncInvokeMock({
+    sync_save_file: () => {
+      if (failSave) throw new Error("Disk read-only");
+      return "/out/synced.srt";
+    },
+  });
+  vi.mocked(guardedSave).mockResolvedValue("/out/synced.srt");
+
+  const { target, component } = await mountActiveHarness();
+  try {
+    await dropSrt("film.srt");
+    const saveBtn = Array.from(target.querySelectorAll("button")).find((b) =>
+      b.textContent?.includes("Save File"),
+    )!;
+    expect(saveBtn).toBeDefined();
+    expect(saveBtn.disabled).toBe(false);
+
+    saveBtn.click();
+    await vi.waitFor(() => {
+      expect(vi.mocked(invokeCommand)).toHaveBeenCalledWith("sync_save_file", {
+        outputPath: "/out/synced.srt",
+      });
+    });
+
+    failSave = true;
+    saveBtn.click();
+    await vi.waitFor(() => {
+      expect(snackbarSpy.mock.calls.some(([msg, level]) => String(msg).includes("Disk read-only") && level === "error")).toBe(true);
+    });
+  } finally {
+    vi.mocked(guardedSave).mockReset();
+    await unmount(component);
+  }
+});
+
+it("persists and reloads sync sessions via Ctrl+Shift+S and Load Session without triggering audio autoplay", async () => {
+  setupSyncInvokeMock({
+    sync_save_session: () => "/out/session.json",
+    sync_load_session: () => makeStatus({ srt_path: "restored.srt", anchor_count: 1 }),
+    sync_get_anchors: () => [makeAnchor(1)],
+  });
+  vi.mocked(guardedSave).mockResolvedValue("/out/session.json");
+  vi.mocked(guardedOpen).mockResolvedValue("/out/session.json");
+
+  const { target, component } = await mountActiveHarness();
+  try {
+    const video = target.querySelector("video")!;
+    const playSpy = vi.spyOn(video, "play").mockResolvedValue(undefined);
+
+    await dropSrt("film.srt");
+    await dropAudio("film.mp3");
+    playSpy.mockClear();
+
+    // Save session via Ctrl+Shift+S (sync-save-session shortcut)
+    target.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "S",
+      ctrlKey: true,
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    }));
+    await vi.waitFor(() => {
+      expect(vi.mocked(invokeCommand)).toHaveBeenCalledWith("sync_save_session", {
+        sessionPath: "/out/session.json",
+      });
+    });
+
+    // Load session via Load Session button
+    vi.mocked(invokeCommand).mockClear();
+    const loadSessionBtn = Array.from(target.querySelectorAll("button")).find((b) =>
+      b.textContent?.includes("Load Session"),
+    )!;
+    expect(loadSessionBtn).toBeDefined();
+    loadSessionBtn.click();
+
+    await vi.waitFor(() => {
+      expect(vi.mocked(invokeCommand)).toHaveBeenCalledWith("sync_load_session", {
+        sessionPath: "/out/session.json",
+      });
+      expect(vi.mocked(invokeCommand)).toHaveBeenCalledWith("sync_get_subtitles_range", {
+        startId: 1,
+        count: 50,
+      });
+      expect(vi.mocked(invokeCommand)).toHaveBeenCalledWith("sync_get_anchors");
+      expect(vi.mocked(invokeCommand)).toHaveBeenCalledWith("sync_get_subtitle", { id: 2 });
+    });
+    await flushAsyncAndTimers(60);
+    expect(playSpy).not.toHaveBeenCalled();
+  } finally {
+    vi.mocked(guardedSave).mockReset();
+    vi.mocked(guardedOpen).mockReset();
+    await unmount(component);
+  }
+});
+
+it("resets loaded subtitles, audio, and status after confirming New Sync", async () => {
+  setupSyncInvokeMock({
+    sync_reset: () => makeStatus({
+      is_loaded: false,
+      srt_path: null,
+      video_path: null,
+      total_subtitles: 0,
+      anchor_count: 0,
+      checked_count: 0,
+      completion_percentage: 0,
+      suggested_next_id: null,
+      can_undo: false,
+      can_redo: false,
+    }),
+  });
+
+  const { target, component } = await mountActiveHarness();
+  try {
+    await dropSrt("film.srt");
+    await dropAudio("film.mp3");
+
+    const newSyncBtn = Array.from(target.querySelectorAll("button")).find((b) =>
+      b.textContent?.includes("New Sync"),
+    )!;
+    newSyncBtn.click();
+    await tick();
+
+    const dialog = target.querySelector('[role="dialog"]');
+    expect(dialog).not.toBeNull();
+    const confirmBtn = Array.from(dialog!.querySelectorAll("button")).at(-1)!;
+    confirmBtn.click();
+
+    await vi.waitFor(() => {
+      expect(vi.mocked(invokeCommand)).toHaveBeenCalledWith("sync_reset");
+    });
+    await flushAsyncAndTimers(40);
+
+    const saveBtn = Array.from(target.querySelectorAll("button")).find((b) =>
+      b.textContent?.includes("Save File"),
+    )!;
+    expect(saveBtn.disabled).toBe(true);
+    expect(target.querySelector("video")?.getAttribute("src")).toBeNull();
   } finally {
     await unmount(component);
   }
