@@ -1,14 +1,6 @@
 schema_version = 1
-last_updated = "2026-11-22"
+last_updated = "2026-11-23"
 audit_wave = "wave-3-complete"
-
-# Tracks all 98 non-performance verified Stage-1 findings (#8, #10, #12, #14, #15).
-# Together with the 8 entries in scorecard/performance.toml, all 106 findings are accounted for.
-# status: "open" | "in_progress" | "fixed" | "deferred"
-
-# ==============================================================================
-# CRITICAL & HIGH SECURITY / PANICS / BUGS
-# ==============================================================================
 
 [[item]]
 id = "AUDIT-001"
@@ -328,10 +320,6 @@ status = "fixed"
 target = "apps/vesta-gui/src/lib/panels/"
 summary = "15 of 19 panels in apps/vesta-gui/src/lib/panels/ lack unit or mounted tests."
 resolution = "Wave 3 added FlashcardsPanels.mounted.test.ts, WorkflowPanels.mounted.test.ts, and SettingsPanels.mounted.test.ts covering all 15 previously untested panels in apps/vesta-gui/src/lib/panels/, verified via Vitest."
-
-# ==============================================================================
-# MEDIUM SECURITY / PANICS / BUGS / GAPS
-# ==============================================================================
 
 [[item]]
 id = "AUDIT-030"
@@ -905,10 +893,6 @@ target = ".github/workflows/ci.yml"
 summary = "CI workflow never runs npm run test:browser / Playwright E2E suite."
 resolution = "Wave 3 added browser_ipc_contract.py --check, test_browser_ipc_contract.py, generate_scorecard.py --check, and test_scorecard.py to the tauri-versions job and added the dedicated browser Playwright E2E job (ubuntu-22.04, npm run test:browser) in .github/workflows/ci.yml; verified via test_release_workflows.py and test_ci_apt.py."
 
-# ==============================================================================
-# LOW BUGS, DOC DRIFT, TEST GAPS & DEFENSE-IN-DEPTH
-# ==============================================================================
-
 [[item]]
 id = "AUDIT-082"
 audit_ref = "#8.19"
@@ -948,10 +932,10 @@ audit_ref = "#8.22"
 area = "cli_mcp"
 severity = "low"
 category = "bug"
-status = "deferred"
+status = "fixed"
 target = "cli/{vesta-mcp/src/lib.rs:216,vesta-flashcards-cli/src/lib.rs:107-363}"
 summary = "Feature parity gaps: vesta-mcp lacks extract_embedded_subtitle/sync/autosync/refine/dueling/merge_apkg; vesta-flashcards-cli lacks note_type_name/dictionary_lookup/auto_card_font/embed_card_font/video_hw_accel/video_pad/merge_apkg."
-resolution = "Deferred beyond Wave 3 by scope decision: vesta-mcp tool expansion and vesta-flashcards-cli flag/subcommand parity remain intentionally deferred as feature-parity enhancements rather than defects."
+resolution = "Added 6 missing engine tools to vesta-mcp (18 total: extract_embedded_subtitle, sync_subtitles, autosync_subtitles, refine_flashcards, export_dueling_subtitles, merge_apkg) and added parity flags + merge subcommand to vesta-flashcards-cli, with integration tests and docs/contracts synced."
 
 [[item]]
 id = "AUDIT-086"

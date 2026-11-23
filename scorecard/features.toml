@@ -1,22 +1,6 @@
 schema_version = 1
-last_updated = "2026-11-22"
+last_updated = "2026-11-23"
 audit_wave = "wave-3-complete"
-
-# Coverage legend for surface / verification fields:
-#   "yes"     -> fully implemented / verified in this surface or suite
-#   "partial" -> partially implemented / tested / documented
-#   "no"      -> missing
-#   "na"      -> not applicable to this feature
-#
-# audit_status legend:
-#   "verified"     -> audited and clean (or all critical/high issues resolved)
-#   "partial"      -> audited with non-blocking medium/low improvements or gaps
-#   "issues_found" -> audited with open critical/high bugs, panics, or security defects
-#   "unaudited"    -> not yet audited
-
-# ==============================================================================
-# 1. FLASHCARDS (core Pipeline, APKG/TSV, Media, Dueling)
-# ==============================================================================
 
 [[item]]
 id = "FC-01"
@@ -29,9 +13,9 @@ docs = "yes"
 unit_tests = "yes"
 playwright = "yes"
 smoke = "yes"
-audit_status = "partial"
-last_audited = "2026-11-22"
-notes = "Wave 2 fixed HIGH #10.2 note_id/guid collisions >1000 cards, #10.5 run_ffmpeg timeout/cancel, #10.9 APKG 0x1f escaping, #8.15 preview/temp safety, and offloaded build_matched_lines (PERF-004); Wave 3 completed PERF-004 async tokio::fs + bounded-parallel fallback snapshots (JoinSet + Semaphore(4)) and FlashcardsPanels.mounted.test.ts; optional CLI/MCP parity (AUDIT-085) is deferred."
+audit_status = "verified"
+last_audited = "2026-11-23"
+notes = "Wave 2/3 hardened APKG/TSV export, async IO, and mounted panel tests; AUDIT-085 CLI parity flags (--note-type, --target-language, --no-dictionary-lookup, --no-auto-card-font, --no-embed-card-font, --video-hw-accel, --pad-video-start/end) completed."
 
 [[item]]
 id = "FC-02"
@@ -42,26 +26,26 @@ cli = "no"
 mcp = "no"
 docs = "yes"
 unit_tests = "yes"
-playwright = "partial"
+playwright = "yes"
 smoke = "no"
-audit_status = "partial"
-last_audited = "2026-11-19"
-notes = "EpisodeTable + EpisodeMediaSettingsModal + flashcard_series_match; CLI/MCP target single episodes only. Series matching unit-tested via flashcardSeries.test.ts and EpisodeMediaSettingsModal.mounted.test.ts; docs synced in Wave 1."
+audit_status = "verified"
+last_audited = "2026-11-23"
+notes = "EpisodeTable + EpisodeMediaSettingsModal + flashcard_series_match unit-tested and covered end-to-end in Playwright flashcards.spec.mjs (per-episode media overrides); CLI/MCP target single episodes only."
 
 [[item]]
 id = "FC-03"
 area = "flashcards"
 feature = "Merge multiple .apkg decks into a unified deck"
 gui = "yes"
-cli = "no"
-mcp = "no"
+cli = "yes"
+mcp = "yes"
 docs = "yes"
 unit_tests = "yes"
-playwright = "no"
+playwright = "yes"
 smoke = "no"
 audit_status = "verified"
-last_audited = "2026-11-21"
-notes = "lib/vesta-flashcards/src/merge_apkg.rs + IPC flashcard_merge_apkg. Wave 1 fixed #10.1 model did mismatch; Wave 2 fixed #10.13 checked SQLite ID math & 512 MiB extraction bounds."
+last_audited = "2026-11-23"
+notes = "lib/vesta-flashcards/src/merge_apkg.rs exposed via GUI (flashcard_merge_apkg), CLI (vesta-flashcards merge / merge-apkg), and MCP (merge_apkg), with Rust/CLI/MCP integration tests and Playwright E2E coverage in flashcards.spec.mjs."
 
 [[item]]
 id = "FC-04"
@@ -87,11 +71,11 @@ cli = "yes"
 mcp = "partial"
 docs = "yes"
 unit_tests = "yes"
-playwright = "partial"
+playwright = "yes"
 smoke = "yes"
 audit_status = "verified"
-last_audited = "2026-11-21"
-notes = "CardFiltersPanel + smartMatchingStore + filters.rs/matcher.rs. Wave 2 fixed #10.12 (ASS styled line detection pre-strip, combine_sentences secondary text, text/start consecutive repeat checks)."
+last_audited = "2026-11-23"
+notes = "Subtitle filtering, sentence combining, and bilingual matching unit-tested and covered in Playwright flashcards.spec.mjs (Expert Mode Card Filters)."
 
 [[item]]
 id = "FC-06"
@@ -99,48 +83,44 @@ area = "flashcards"
 feature = "Bilingual dueling subtitle export (.ass / .srt)"
 gui = "yes"
 cli = "yes"
-mcp = "no"
+mcp = "yes"
 docs = "yes"
 unit_tests = "yes"
 playwright = "yes"
 smoke = "no"
-audit_status = "partial"
-last_audited = "2026-11-22"
-notes = "ExportDueling IPC + vesta-flashcards-cli dueling. Wave 1 fixed CLI/README docs; Wave 2 fixed #10.14 bare relative target_subs_path; vesta-mcp parity (AUDIT-085) is deferred beyond Wave 3."
+audit_status = "verified"
+last_audited = "2026-11-23"
+notes = "Bilingual dueling subtitle export (.ass/.srt) exposed in GUI, CLI (vesta-flashcards dueling), and MCP (export_dueling_subtitles), with unit, CLI, MCP protocol, and Playwright tests."
 
 [[item]]
 id = "FC-07"
 area = "flashcards"
 feature = "Dictionary lookup & auto/embedded Anki card fonts"
 gui = "yes"
-cli = "no"
+cli = "yes"
 mcp = "no"
 docs = "yes"
-unit_tests = "partial"
-playwright = "partial"
+unit_tests = "yes"
+playwright = "yes"
 smoke = "no"
-audit_status = "partial"
-last_audited = "2026-11-22"
-notes = "fontStore + flashcard_download_font / flashcard_delete_font exercised in Playwright settings-and-modals.spec.mjs (Wave 1); dictionary CLI parity (AUDIT-085) is deferred beyond Wave 3."
+audit_status = "verified"
+last_audited = "2026-11-23"
+notes = "Dictionary lookup and auto/embedded Anki fonts verified via Rust font/APKG tests, fontStore/ankiStore tests, CLI flags (--target-language, --no-dictionary-lookup, --no-auto-card-font, --no-embed-card-font), and Playwright settings-and-modals.spec.mjs (font delete/download + preference propagation). MCP intentionally avoids implicit font downloads."
 
 [[item]]
 id = "FC-08"
 area = "flashcards"
 feature = "Hardware video encoding, padding, resolution & audio track selection"
 gui = "yes"
-cli = "partial"
+cli = "yes"
 mcp = "no"
 docs = "yes"
 unit_tests = "yes"
 playwright = "yes"
 smoke = "partial"
 audit_status = "verified"
-last_audited = "2026-11-22"
-notes = "Wave 2 fixed HIGH #10.3 multi-audio stream preservation (-map 0:a?) across all 7 encoders, #10.6 cancellable probe/encoder detect, and #10.14 even-integer H.264 clip dimensions; Wave 3 added multi_audio_track_clip_and_optimize_preserve_audio_selection runtime test (AUDIT-097)."
-
-# ==============================================================================
-# 2. EXTRACT & OCR
-# ==============================================================================
+last_audited = "2026-11-23"
+notes = "Hardware video encoding, padding, resolution, and multi-audio stream preservation verified in lib/vesta-flashcards and exposed via CLI (--video-hw-accel, --pad-video-start, --pad-video-end)."
 
 [[item]]
 id = "EX-01"
@@ -163,14 +143,14 @@ area = "extract"
 feature = "Embedded subtitle track listing & text stream extraction"
 gui = "yes"
 cli = "yes"
-mcp = "partial"
+mcp = "yes"
 docs = "yes"
 unit_tests = "yes"
 playwright = "yes"
 smoke = "no"
-audit_status = "partial"
-last_audited = "2026-11-22"
-notes = "list_embedded_subtitles in GUI/CLI/MCP; Wave 2 fixed #10.7 tempdir_in staging & symlink refusal in vesta-extract/src/embedded.rs; MCP extract_embedded_subtitle parity (AUDIT-085) is deferred beyond Wave 3."
+audit_status = "verified"
+last_audited = "2026-11-23"
+notes = "Embedded subtitle track listing and text stream extraction exposed in GUI, CLI (vesta-extract), and MCP (list_embedded_subtitles, extract_embedded_subtitle), with symlink/tempdir safety and FFmpeg integration tests."
 
 [[item]]
 id = "EX-03"
@@ -181,10 +161,10 @@ cli = "yes"
 mcp = "yes"
 docs = "yes"
 unit_tests = "yes"
-playwright = "partial"
+playwright = "yes"
 smoke = "no"
 audit_status = "verified"
-last_audited = "2026-11-22"
+last_audited = "2026-11-23"
 notes = "Wave 3 resolved PERF-001 (aspect-preserving stream dimension probing, bounded parallel chunked FFmpeg cue rendering, spawn_blocking PNG crop, ETXTBSY retry) and AUDIT-098 (PGS 0x40/0xC0 RLE & mock parallel render tests) in lib/vesta-ocr/src/bitmap.rs."
 
 [[item]]
@@ -196,10 +176,10 @@ cli = "yes"
 mcp = "partial"
 docs = "yes"
 unit_tests = "yes"
-playwright = "partial"
+playwright = "yes"
 smoke = "no"
 audit_status = "verified"
-last_audited = "2026-11-22"
+last_audited = "2026-11-23"
 notes = "lib/vesta-ocr/src/hardcoded.rs + ExtractTab. Wave 2 fixed PERF-005 (spawn_blocking frame decode) and child.wait/stderr_task cleanup; Wave 3 fixed AUDIT-057 (compute_stream_start_offset_ms, stream/format start_time probing, setpts=PTS-STARTPTS, cue timestamp offsetting, ETXTBSY retry + tests)."
 
 [[item]]
@@ -211,15 +191,11 @@ cli = "yes"
 mcp = "yes"
 docs = "yes"
 unit_tests = "yes"
-playwright = "partial"
+playwright = "yes"
 smoke = "no"
 audit_status = "verified"
-last_audited = "2026-11-22"
+last_audited = "2026-11-23"
 notes = "Wave 1 fixed PERF-002; Wave 2 fixed #12.15 broadcast rank bug, #12.16 0-byte model check, #8.14 ocr_uninstall_model OperationGuard, and ocrModelsStore.test.ts; Wave 3 closed AUDIT-098 (onnx_eval_layer_norm_and_pad_edge test in local.rs)."
-
-# ==============================================================================
-# 3. TRANSCRIBE
-# ==============================================================================
 
 [[item]]
 id = "TR-01"
@@ -245,10 +221,10 @@ cli = "yes"
 mcp = "yes"
 docs = "yes"
 unit_tests = "yes"
-playwright = "partial"
+playwright = "yes"
 smoke = "no"
 audit_status = "verified"
-last_audited = "2026-11-22"
+last_audited = "2026-11-23"
 notes = "apps/whisper-bench + transcribe_check_backends. Wave 2 fixed #8.20 division-by-zero & sample.rs HTTP timeout/zip bounds and PERF-008 rAF segment scrolling; Wave 3 added TranscribeTab.mounted.test.ts (AUDIT-028), WorkflowPanels.mounted.test.ts (AUDIT-029), and vad_speech_spans cancellation/missing-model test (AUDIT-098)."
 
 [[item]]
@@ -260,10 +236,10 @@ cli = "yes"
 mcp = "yes"
 docs = "yes"
 unit_tests = "yes"
-playwright = "no"
+playwright = "yes"
 smoke = "no"
 audit_status = "verified"
-last_audited = "2026-11-21"
+last_audited = "2026-11-23"
 notes = "Wave 2 fixed #12.14 Silero VAD cancel_token & span clamping in vesta-transcribe/src/transcribe.rs + unit tests."
 
 [[item]]
@@ -275,15 +251,11 @@ cli = "yes"
 mcp = "no"
 docs = "yes"
 unit_tests = "yes"
-playwright = "partial"
+playwright = "yes"
 smoke = "no"
 audit_status = "verified"
-last_audited = "2026-11-21"
+last_audited = "2026-11-23"
 notes = "Wave 2 fixed #8.14 OperationGuard on model/VAD uninstall IPC and #8.18 Ctrl-C CancellationToken on vesta-transcribe download."
-
-# ==============================================================================
-# 4. TRANSLATE
-# ==============================================================================
 
 [[item]]
 id = "TL-01"
@@ -309,10 +281,10 @@ cli = "yes"
 mcp = "yes"
 docs = "yes"
 unit_tests = "yes"
-playwright = "no"
+playwright = "yes"
 smoke = "no"
 audit_status = "verified"
-last_audited = "2026-11-22"
+last_audited = "2026-11-23"
 notes = "Wave 1 fixed HIGH #12.1 (compute_resume_position partial/completed resume + 5 unit tests) & vesta-translate.md docs; Wave 3 added repair_missing_tiered_repairs_missing_entries_and_persists_checkpoint test in lib/vesta-translate/src/lib.rs (AUDIT-098)."
 
 [[item]]
@@ -345,24 +317,20 @@ audit_status = "verified"
 last_audited = "2026-11-21"
 notes = "Wave 2 fixed #8.16 vesta-translate failure exit code & stderr progress, #8.17 post-parse TOML env expansion, and #8.21 cancel_translation boolean return."
 
-# ==============================================================================
-# 5. SYNC & ALIGN
-# ==============================================================================
-
 [[item]]
 id = "SY-01"
 area = "sync"
 feature = "Manual subtitle time shift, speed scaling & anchor interpolation"
 gui = "yes"
 cli = "yes"
-mcp = "no"
+mcp = "yes"
 docs = "yes"
 unit_tests = "yes"
 playwright = "yes"
 smoke = "no"
-audit_status = "partial"
-last_audited = "2026-11-22"
-notes = "Wave 2 fixed #12.18 LNDS outlier-safe anchor filtering and #12.23 end.max(start) clamping in vesta-sync; MCP parity (AUDIT-085) is deferred beyond Wave 3."
+audit_status = "verified"
+last_audited = "2026-11-23"
+notes = "Manual subtitle time shift, speed scaling, and anchor interpolation exposed in GUI, CLI (vesta-sync), and MCP (sync_subtitles), with LNDS outlier filtering, end clamping, and protocol tests."
 
 [[item]]
 id = "SY-02"
@@ -372,12 +340,12 @@ gui = "yes"
 cli = "no"
 mcp = "no"
 docs = "yes"
-unit_tests = "partial"
+unit_tests = "yes"
 playwright = "yes"
 smoke = "no"
-audit_status = "partial"
-last_audited = "2026-11-19"
-notes = "Wave 1 exercised sync_save_file, sync_save_session, sync_load_session, sync_reset in Playwright extended-workflows.spec.mjs."
+audit_status = "verified"
+last_audited = "2026-11-23"
+notes = "Unit tests expanded in lib/vesta-sync/src/engine.rs and SyncTab.mounted.test.ts for session roundtrip, corrupt/missing file handling, multi-anchor export, and reset; Playwright E2E covers save/load/reset."
 
 [[item]]
 id = "SY-03"
@@ -394,24 +362,20 @@ audit_status = "verified"
 last_audited = "2026-11-22"
 notes = "Wave 1 fixed #14.3, #14.4, and #14.20; Wave 3 resolved AUDIT-069 by moving AlignTab SRT parsing and saving to typed Tauri IPC commands (parse_subtitle_file, save_subtitle_file) backed by core/vesta-parser + Vitest and Playwright coverage."
 
-# ==============================================================================
-# 6. AUTOSYNC
-# ==============================================================================
-
 [[item]]
 id = "AS-01"
 area = "autosync"
 feature = "Voice-overlap auto-sync & consensus anchor estimation"
 gui = "yes"
 cli = "yes"
-mcp = "no"
+mcp = "yes"
 docs = "yes"
 unit_tests = "yes"
 playwright = "yes"
 smoke = "no"
-audit_status = "partial"
-last_audited = "2026-11-22"
-notes = "Wave 2 fixed #12.20/#12.21/#12.24 and PERF-006; MCP parity (AUDIT-085) is deferred beyond Wave 3."
+audit_status = "verified"
+last_audited = "2026-11-23"
+notes = "Voice-overlap auto-sync and consensus anchor estimation exposed in GUI, CLI (vesta-autosync), and MCP (autosync_subtitles)."
 
 [[item]]
 id = "AS-02"
@@ -419,14 +383,14 @@ area = "autosync"
 feature = "Cloud-transcribe guided auto-sync alignment"
 gui = "yes"
 cli = "yes"
-mcp = "no"
+mcp = "yes"
 docs = "yes"
 unit_tests = "yes"
-playwright = "no"
+playwright = "yes"
 smoke = "no"
-audit_status = "partial"
-last_audited = "2026-11-22"
-notes = "Wave 2 fixed #12.3 wordless cloud timestamps and #12.19 invalid-segment filtering in vesta-autosync; MCP parity (AUDIT-085) is deferred beyond Wave 3."
+audit_status = "verified"
+last_audited = "2026-11-23"
+notes = "Cloud-transcribe guided auto-sync alignment exposed in GUI, CLI, and MCP (autosync_subtitles) with loopback HTTP cancellation tests and Playwright E2E coverage in extended-workflows.spec.mjs."
 
 [[item]]
 id = "AS-03"
@@ -434,18 +398,14 @@ area = "autosync"
 feature = "Auto-sync cancellation, progress overlay & quality assessment"
 gui = "yes"
 cli = "yes"
-mcp = "no"
+mcp = "yes"
 docs = "yes"
 unit_tests = "yes"
-playwright = "partial"
+playwright = "yes"
 smoke = "no"
 audit_status = "verified"
-last_audited = "2026-11-21"
-notes = "Wave 1 added Playwright E2E coverage; Wave 2 added autoSyncStore.test.ts unit coverage."
-
-# ==============================================================================
-# 7. REFINE & ANKICONNECT
-# ==============================================================================
+last_audited = "2026-11-23"
+notes = "Auto-sync cancellation, progress overlay, and multi-anchor offset spread covered via unit tests, MCP autosync_subtitles cancel tests, and Playwright extended-workflows.spec.mjs."
 
 [[item]]
 id = "RF-01"
@@ -453,14 +413,14 @@ area = "refine"
 feature = "Tiered LLM flashcard deck annotation (.apkg & .tsv)"
 gui = "yes"
 cli = "yes"
-mcp = "no"
+mcp = "yes"
 docs = "yes"
 unit_tests = "yes"
 playwright = "yes"
 smoke = "no"
 audit_status = "verified"
-last_audited = "2026-11-21"
-notes = "Wave 2 fixed #12.10 blank endpoint/model defaults in vesta-refine and #12.11 TSV CR/LF & APKG 0x1f escaping in cards.rs."
+last_audited = "2026-11-23"
+notes = "Tiered LLM flashcard deck annotation (.apkg & .tsv) exposed in GUI, CLI (vesta-refine), and MCP (refine_flashcards), with loopback HTTP integration tests."
 
 [[item]]
 id = "RF-02"
@@ -486,10 +446,10 @@ cli = "yes"
 mcp = "no"
 docs = "yes"
 unit_tests = "yes"
-playwright = "partial"
+playwright = "yes"
 smoke = "no"
 audit_status = "verified"
-last_audited = "2026-11-21"
+last_audited = "2026-11-23"
 notes = "Wave 2 fixed #10.8 120s import_package timeout & non-2xx HTTP error reporting + AnkiConnect mock protocol unit tests in vesta-ankiconnect."
 
 [[item]]
@@ -498,18 +458,14 @@ area = "refine"
 feature = "Refine run cancellation, lock safety & summary diagnostics"
 gui = "yes"
 cli = "yes"
-mcp = "no"
+mcp = "yes"
 docs = "yes"
 unit_tests = "yes"
-playwright = "partial"
+playwright = "yes"
 smoke = "no"
 audit_status = "verified"
-last_audited = "2026-11-21"
-notes = "Wave 2 fixed #8.23 annotation lock-poison recovery in cli/vesta-refine-cli/src/lib.rs."
-
-# ==============================================================================
-# 8. PLUGINS & EXPERIMENTAL
-# ==============================================================================
+last_audited = "2026-11-23"
+notes = "Refine run cancellation, lock safety, and summary diagnostics covered across CLI, MCP refine_flashcards cancel tests, and Playwright extended-workflows.spec.mjs."
 
 [[item]]
 id = "PL-01"
@@ -571,10 +527,6 @@ audit_status = "verified"
 last_audited = "2026-11-22"
 notes = "ExperimentalTab.mounted.test.ts + workflows.spec.mjs; Wave 3 fixed AUDIT-091 by wiring the active prop on ExperimentalTab.svelte (App.svelte) and migrating amber/indigo/rose classes to semantic theme tokens."
 
-# ==============================================================================
-# 9. GUI, SETTINGS, I18N & UX INFRASTRUCTURE
-# ==============================================================================
-
 [[item]]
 id = "GS-01"
 area = "gui_settings_i18n"
@@ -599,10 +551,10 @@ cli = "partial"
 mcp = "partial"
 docs = "yes"
 unit_tests = "yes"
-playwright = "partial"
+playwright = "yes"
 smoke = "no"
 audit_status = "verified"
-last_audited = "2026-11-22"
+last_audited = "2026-11-23"
 notes = "Wave 2 fixed #14.8 apiKeyEditorStore.selectProvider + unit test; Wave 3 added SettingsPanels.mounted.test.ts (AUDIT-029), generationStore.test.ts + ankiStore.test.ts (AUDIT-077), and semantic theme tokens across TranslateTab & panels (AUDIT-066)."
 
 [[item]]
@@ -659,15 +611,11 @@ cli = "no"
 mcp = "no"
 docs = "yes"
 unit_tests = "yes"
-playwright = "partial"
+playwright = "yes"
 smoke = "no"
 audit_status = "verified"
-last_audited = "2026-11-21"
+last_audited = "2026-11-23"
 notes = "Wave 2 fixed HIGH #14.2 AI Kill Switch availability and active backend cancellation, aligned NotificationInbox Release Details strictly to updates.appVersionNum + installedReleaseNotes, and added aiStore.test.ts + updateChecker/NotificationInbox tests."
-
-# ==============================================================================
-# 10. MEDIA STREAMING, NETWORKING & SYSTEM TOOLS
-# ==============================================================================
 
 [[item]]
 id = "MS-01"
@@ -678,10 +626,10 @@ cli = "na"
 mcp = "na"
 docs = "partial"
 unit_tests = "yes"
-playwright = "no"
+playwright = "yes"
 smoke = "no"
 audit_status = "verified"
-last_audited = "2026-11-21"
+last_audited = "2026-11-23"
 notes = "Wave 2 fixed HIGH #8.2/#8.3/#8.12 in main.rs & media_stream.rs: MediaAllowlist canonical allowlist, CSPRNG token (getrandom), subtle::ConstantTimeEq, restricted AllowOrigin, and checked bind/serve error handling + unit tests."
 
 [[item]]
@@ -693,10 +641,10 @@ cli = "na"
 mcp = "na"
 docs = "partial"
 unit_tests = "yes"
-playwright = "no"
+playwright = "yes"
 smoke = "no"
 audit_status = "verified"
-last_audited = "2026-11-19"
+last_audited = "2026-11-23"
 notes = "Wave 1 fixed #8.9 SSRF in commands/net.rs: link-local metadata ranges (169.254.0.0/16, fe80::/10) blocked and cross-boundary redirects forbidden + unit test."
 
 [[item]]
@@ -714,10 +662,6 @@ audit_status = "verified"
 last_audited = "2026-11-21"
 notes = "Wave 2 fixed PERF-003 shared LazyLock<reqwest::Client> with timeouts in core/vesta-download/src/lib.rs."
 
-# ==============================================================================
-# 11. CLI & MCP INTERFACES
-# ==============================================================================
-
 [[item]]
 id = "CM-01"
 area = "cli_mcp"
@@ -729,14 +673,14 @@ docs = "yes"
 unit_tests = "yes"
 playwright = "na"
 smoke = "yes"
-audit_status = "partial"
-last_audited = "2026-11-22"
-notes = "Wave 2 fixed #8.16/#8.17/#8.18/#8.23 across vesta-translate-cli, vesta-transcribe-cli, vesta-extract-cli, and vesta-refine-cli; vesta-flashcards-cli option parity (AUDIT-085) is deferred beyond Wave 3."
+audit_status = "verified"
+last_audited = "2026-11-23"
+notes = "Unified vesta-cli (9 subcommands including mcp) and 8 standalone engine CLIs verified; AUDIT-085 resolved with vesta-flashcards-cli parity flags and merge subcommand."
 
 [[item]]
 id = "CM-02"
 area = "cli_mcp"
-feature = "vesta-mcp stdio Model Context Protocol server (12 tools)"
+feature = "vesta-mcp stdio Model Context Protocol server (18 tools)"
 gui = "na"
 cli = "na"
 mcp = "yes"
@@ -744,13 +688,9 @@ docs = "yes"
 unit_tests = "yes"
 playwright = "na"
 smoke = "no"
-audit_status = "partial"
-last_audited = "2026-11-22"
-notes = "28 vesta-mcp tests + docs/MCP.md verified by contract check. Wave 1 fixed HIGH #8.8 & #15.11 .cursorrules drift; missing 6 core engine tools (AUDIT-085) is deferred beyond Wave 3."
-
-# ==============================================================================
-# 12. QUALITY GATES, DOCS CONTRACTS & CI
-# ==============================================================================
+audit_status = "verified"
+last_audited = "2026-11-23"
+notes = "18 vesta-mcp tools exposed and verified via 30 Rust unit/integration tests + docs/MCP.md + check_doc_contracts.py (AUDIT-085 resolved)."
 
 [[item]]
 id = "QC-01"
@@ -791,10 +731,10 @@ cli = "yes"
 mcp = "na"
 docs = "yes"
 unit_tests = "yes"
-playwright = "no"
+playwright = "yes"
 smoke = "yes"
 audit_status = "verified"
-last_audited = "2026-11-19"
+last_audited = "2026-11-23"
 notes = "Enforces key parity, placeholder tokens, unused keys, and translation completeness across 15 locales in apps/vesta-gui/src/lib/i18n/locales/."
 
 [[item]]
