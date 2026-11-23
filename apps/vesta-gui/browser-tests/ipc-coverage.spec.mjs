@@ -209,3 +209,39 @@ test("All registered IPC commands accept documented payloads and pass browser co
   expect(results.pluginSettings).toEqual({ limit: 10 });
   expect(results.pluginRendered?.root).toBeTruthy();
 });
+
+test("media server token handling (MS-01) and http_fetch proxy SSRF error surface cleanly (MS-02)", async ({ page }) => {
+  const pageErrors = [];
+  page.on("pageerror", (err) => pageErrors.push(err.message));
+
+  const seenMediaRequests = [];
+  await page.route("http://127.0.0.1:12345/media**", async (route) => {
+    seenMediaRequests.push(route.request().url());
+    await route.fulfill({
+      status: 403,
+      contentType: "text/plain",
+      body: "Forbidden",
+      headers: { "access-control-allow-origin": "*" },
+    });
+  });
+
+  await page.goto("/browser-tests/harness.html");
+  await page.getByRole("button", { name: "Upload media" }).click();
+  await expect.poll(() => callsFor(page, "flashcard_preview_snapshot").then((c) => c.length)).toBeGreaterThan(0);
+
+  await page.getByRole("button", { name: /^Play$/ }).click();
+  await expect.poll(() => seenMediaRequests.some((url) => url.includes("token=fixture"))).toBe(true);
+  await expect(page.getByRole("alert").first()).toBeVisible();
+
+  await page.locator("aside > div button").first().click();
+  const checkNowBtn = page.getByRole("button", { name: "Check now", exact: true });
+  await expect(checkNowBtn).toBeVisible();
+  await checkNowBtn.click();
+  await expect.poll(() => callsFor(page, "http_fetch").then((c) => c.length)).toBeGreaterThan(0);
+  await expect(page.getByRole("status").filter({ hasText: /v0\.34\.0|up to date/i }).first()).toBeVisible();
+
+  await page.evaluate(() => window.browserFixture.failHttpFetch("Blocked SSRF target"));
+  await checkNowBtn.click();
+  await expect(page.getByRole("status").filter({ hasText: /Failed|error|Could not/i }).first()).toBeVisible();
+  expect(pageErrors).toEqual([]);
+});

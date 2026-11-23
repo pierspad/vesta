@@ -106,3 +106,46 @@ test("exports bilingual dueling subtitles from preview", async ({ page }) => {
   }]);
   await expect(page.getByText("Exported 1 bilingual lines to Episode01.dueling.ass")).toBeVisible();
 });
+
+test("supports per-episode media overrides, unified multi-episode APKG merge, and card filters", async ({ page }) => {
+  await page.evaluate(() => window.browserFixture.selectFile(["/fixtures/Episode02.ja.srt", "/fixtures/Episode02.mp4"]));
+  await page.getByRole("button", { name: "Upload media" }).click();
+  await expect(page.getByRole("cell", { name: "Episode02.ja.srt", exact: true })).toBeVisible();
+
+  const firstRow = page.locator("tbody tr").first();
+  await firstRow.getByRole("button", { name: "Settings", exact: true }).click();
+  const overrideDialog = page.getByRole("dialog", { name: "Per-movie settings" });
+  await expect(overrideDialog).toBeVisible();
+  await overrideDialog.getByRole("switch", { name: "Add Audio to Flashcards", exact: true }).click();
+  await overrideDialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(overrideDialog).toBeHidden();
+  await expect(firstRow.getByLabel("This movie has custom settings")).toBeVisible();
+
+  await page.getByRole("switch", { name: "Expert Mode" }).click();
+  await page.getByRole("button", { name: "Card Filters", exact: true }).click();
+  await page.getByRole("button", { name: "Minimum", exact: true }).first().click();
+  await page.getByRole("button", { name: "Combine multi-line sentences", exact: true }).click();
+
+  await previewButton(page).click();
+  await expect(page.getByRole("dialog", { name: "Preview Cards" })).toBeVisible();
+  const previewCalls = await callsFor(page, "flashcard_preview");
+  expect(previewCalls.at(-1)?.args?.config).toMatchObject({
+    filters: { min_chars: 8 },
+    combine_sentences: true,
+  });
+  await page.keyboard.press("Escape");
+
+  await page.getByRole("button", { name: "One APKG total", exact: true }).click();
+  await page.evaluate(() => window.browserFixture.setAutoCompleteExport(true));
+  await generateButton(page).click();
+
+  await expect.poll(() => callsFor(page, "flashcard_generate")).toHaveLength(2);
+  await expect.poll(() => callsFor(page, "flashcard_merge_apkg")).toMatchObject([{
+    args: {
+      apkgPaths: [
+        "/exports/episodes/episode-1/Episode1.apkg",
+        "/exports/episodes/episode-2/Episode2.apkg",
+      ],
+    },
+  }]);
+});

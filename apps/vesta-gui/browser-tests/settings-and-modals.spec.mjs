@@ -126,3 +126,103 @@ for (const { locale, width, height } of [
     expect(shortcutsOverflow, `shortcuts overflow in ${locale}`).toBeLessThanOrEqual(1);
   });
 }
+
+test("manages Whisper/VAD models (TR-04), Anki font & lookup preferences (FC-07), API keys (GS-02), and Support logs + Kill Switch (GS-06)", async ({ page }) => {
+  await page.goto("/browser-tests/harness.html");
+
+  // Enable Expert Mode so Anki Templates section is accessible
+  await page.getByRole("switch", { name: "Expert Mode" }).click();
+  await page.locator("aside > div button").first().click();
+
+  // TR-04: Settings -> STT model & Silero VAD download/uninstall lifecycle
+  await page.getByRole("button", { name: "STT" }).click();
+  await page.locator("#tiny button[title='Download']").click();
+  await expect.poll(async () => (await called(page, "transcribe_download_model")).length).toBeGreaterThan(0);
+  await expect(page.locator("#tiny")).toContainText(/Default|Ready/);
+  await page.locator("#tiny button").click({ force: true });
+  await expect.poll(async () => (await called(page, "transcribe_uninstall_model")).length).toBeGreaterThan(0);
+
+  const vadSection = page.locator("#silero-vad");
+  await vadSection.getByRole("button", { name: "Uninstall", exact: true }).click();
+  await expect.poll(async () => (await called(page, "transcribe_uninstall_vad")).length).toBe(1);
+  await vadSection.getByRole("button", { name: "Download", exact: true }).click();
+  await expect.poll(async () => (await called(page, "transcribe_download_vad")).length).toBe(1);
+
+  // GS-02: Settings -> LLM API keys add, edit, and delete
+  await page.getByRole("button", { name: "LLM" }).click();
+  await page.getByRole("button", { name: "Add configuration", exact: true }).click();
+  const keyDialog = page.getByRole("dialog");
+  await keyDialog.getByRole("button", { name: /^OpenAI\b/i }).click();
+  await keyDialog.locator("#key-name").fill("E2E OpenAI");
+  await keyDialog.locator("#api-key").fill("sk-e2e-test-key");
+  await keyDialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(keyDialog).toBeHidden();
+  await expect(page.getByText("E2E OpenAI", { exact: true })).toBeVisible();
+
+  await page.getByText("E2E OpenAI", { exact: true }).click();
+  await keyDialog.locator("#key-name").fill("E2E OpenAI Edited");
+  await keyDialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("E2E OpenAI Edited", { exact: true })).toBeVisible();
+
+  await page.getByText("E2E OpenAI Edited", { exact: true }).click();
+  await keyDialog.locator("button[data-provider-action='delete']").click();
+  const deleteConfirm = page.getByRole("dialog", { name: "Delete provider" });
+  await deleteConfirm.getByRole("button").last().click();
+  await expect(page.getByText("E2E OpenAI Edited", { exact: true })).toHaveCount(0);
+  const apiKeyWrites = (await called(page, "config_set")).filter((c) => c.args?.key === "vesta-api-keys");
+  expect(apiKeyWrites.length).toBeGreaterThanOrEqual(3);
+
+  // FC-07: Settings -> Anki Templates toggles propagate to flashcard_generate
+  await page.getByRole("button", { name: "Anki Templates" }).click();
+  const lookupSwitch = page.getByRole("switch", { name: "Word lookup" });
+  const autoFontSwitch = page.getByRole("switch", { name: "Automatic font" });
+  const embedFontSwitch = page.getByRole("switch", { name: "Include font in deck" });
+  await lookupSwitch.click();
+  await autoFontSwitch.click();
+  await expect(embedFontSwitch).toBeDisabled();
+  await autoFontSwitch.click();
+  await expect(embedFontSwitch).toBeEnabled();
+
+  await page.getByRole("button", { name: "Manage", exact: true }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).first().click();
+  await expect.poll(async () => (await called(page, "flashcard_delete_font")).length).toBe(1);
+  await page.getByRole("button", { name: "Download", exact: true }).click();
+  await expect.poll(async () => (await called(page, "flashcard_download_font")).length).toBe(1);
+
+  // GS-06 (part 1): Settings -> Diagnostics support log record, export, stop
+  await page.getByRole("button", { name: "Diagnostics" }).click();
+  await page.getByRole("button", { name: "Record", exact: true }).click();
+  await expect.poll(async () => (await called(page, "support_log_start")).length).toBe(1);
+  await page.evaluate(() => window.browserFixture.selectFile("/exports/e2e-support.jsonl"));
+  await page.getByRole("button", { name: "Export logs", exact: true }).click();
+  await expect.poll(async () => (await called(page, "support_log_export")).length).toBe(1);
+  const toastClose = page.getByRole("status").getByRole("button", { name: "Close", exact: true });
+  await toastClose.waitFor({ state: "visible", timeout: 2000 }).catch(() => {});
+  if (await toastClose.isVisible()) await toastClose.click();
+  await page.getByRole("button", { name: "Stop recording", exact: true }).click();
+  await expect.poll(async () => (await called(page, "support_log_stop")).length).toBe(1);
+
+  // Exit Settings -> Flashcards verify FC-07 preferences flow into flashcard_generate
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Upload media" }).click();
+  await expect(page.getByRole("cell", { name: "Episode01.ja.srt", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "No folder selected", exact: true }).click();
+  await page.evaluate(() => window.browserFixture.setAutoCompleteExport(true));
+  await page.getByRole("button", { name: "Generate Flashcards", exact: true }).click();
+  await expect.poll(async () => (await called(page, "flashcard_generate")).length).toBe(1);
+  const genCall = (await called(page, "flashcard_generate"))[0];
+  expect(genCall.args.config).toMatchObject({
+    dictionary_lookup: false,
+    auto_card_font: true,
+    embed_card_font: true,
+  });
+
+  // GS-06 (part 2): AI Kill Switch cancels an in-flight translation
+  await page.getByRole("button", { name: "Translate", exact: true }).click();
+  await page.evaluate(() => window.browserFixture.selectFile("/fixtures/Episode01.ja.srt"));
+  await page.getByRole("button", { name: "Select input SRT file" }).click();
+  await page.getByRole("button", { name: "Start Translation" }).click();
+  await expect.poll(async () => (await called(page, "start_translation")).length).toBe(1);
+  await page.getByRole("switch", { name: "AI Kill Switch", exact: true }).click();
+  await expect.poll(async () => (await called(page, "cancel_translation")).length).toBe(1);
+});

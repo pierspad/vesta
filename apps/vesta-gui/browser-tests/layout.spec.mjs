@@ -108,3 +108,26 @@ test("Revise and Extract pin empty-state labels and toolbars while scrolling con
   expect(Math.abs(extractLabelAfter.y - extractLabelBefore.y)).toBeLessThanOrEqual(1);
   expect(Math.abs(searchAfter.y - searchBefore.y)).toBeLessThanOrEqual(1);
 });
+
+const ALL_LOCALES = ["ar", "de", "en", "es", "fr", "hi", "it", "ja", "ko", "nl", "pl", "pt", "ru", "tr", "zh"];
+
+test("all 15 locales render sidebar navigation and document direction without raw translation keys (QC-03)", async ({ page }) => {
+  for (const locale of ALL_LOCALES) {
+    await test.step(locale, async () => {
+      const messages = JSON.parse(readFileSync(
+        new URL(`../src/lib/i18n/locales/${locale}.json`, import.meta.url), "utf8",
+      ));
+      await page.goto(`/browser-tests/harness.html?language=${locale}`);
+      await expect(page.locator("html")).toHaveAttribute("lang", locale);
+      await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
+      await expect(page.getByRole("navigation").getByRole("button", { name: messages["nav.flashcards"], exact: true })).toBeVisible();
+
+      const navButtons = page.getByRole("navigation").getByRole("button");
+      const texts = (await navButtons.allTextContents()).map((s) => s.trim()).filter(Boolean);
+      expect(texts.length).toBeGreaterThanOrEqual(7);
+      for (const label of texts) {
+        expect(label).not.toMatch(/^nav\./);
+      }
+    });
+  }
+});

@@ -26,14 +26,33 @@ const params = new URLSearchParams(location.search);
 const language = params.get("language") ?? "en";
 const forceSetup = params.get("setup") === "true";
 let finishExport;
+let autoCompleteExport = false;
 let previewError;
 let nextFile;
 let mediaError;
 let anchor;
 let undoneAnchor;
+let syncAnchorsList = null;
 let syncMedia = null;
 let finishTranscription;
 let finishTranslation;
+let latestTranslatedPairs = [];
+let autoSyncDeferred = false;
+let finishAutoSync = null;
+let ocrDeferred = false;
+let finishOcr = null;
+let refineDeferred = false;
+let finishRefine = null;
+let httpFetchError = null;
+let whisperModelsState = [
+  { id: "tiny", name: "Tiny", size: "~75 MB", downloaded: false },
+  { id: "base", name: "Base", size: "~140 MB", downloaded: true },
+  { id: "small", name: "Small", size: "~460 MB", downloaded: true },
+];
+let vadModelsState = [
+  { id: "v6.2.0", size: "~0.9 MB", downloaded: true },
+  { id: "webrtc", size: "", downloaded: true },
+];
 let subtitleTracks = [
   {
     index: 2,
@@ -96,10 +115,14 @@ function demoPluginView() {
 
 const syncStatus = () => ({
   is_loaded: true, srt_path: subtitle, video_path: syncMedia,
-  total_subtitles: 1, anchor_count: Number(Boolean(anchor)),
-  checked_count: Number(Boolean(anchor)), completion_percentage: anchor ? 100 : 0,
-  average_offset_ms: anchor?.offset_ms ?? 0, suggested_next_id: anchor ? null : 1,
-  can_undo: Boolean(anchor), can_redo: Boolean(undoneAnchor),
+  total_subtitles: 1, anchor_count: syncAnchorsList ? syncAnchorsList.length : Number(Boolean(anchor)),
+  checked_count: syncAnchorsList ? syncAnchorsList.length : Number(Boolean(anchor)),
+  completion_percentage: (syncAnchorsList ? syncAnchorsList.length > 0 : Boolean(anchor)) ? 100 : 0,
+  average_offset_ms: syncAnchorsList?.length
+    ? Math.round(syncAnchorsList.reduce((acc, a) => acc + a.offset_ms, 0) / syncAnchorsList.length)
+    : (anchor?.offset_ms ?? 0),
+  suggested_next_id: (syncAnchorsList?.length || anchor) ? null : 1,
+  can_undo: Boolean(anchor || syncAnchorsList?.length), can_redo: Boolean(undoneAnchor),
 });
 const syncLine = () => ({
   id: 1, start_ms: 1000, end_ms: 2000, text,
@@ -149,11 +172,18 @@ mockIPC((command, args) => {
     case "install_release_update":
       return null;
     case "http_fetch":
+      if (httpFetchError) throw new Error(httpFetchError);
       return {
         status: 200,
         url: args.req?.url || "https://example.invalid",
         headers: [["content-type", "application/json"]],
-        body: JSON.stringify({ tag_name: "v0.34.0", data: [], models: [] }),
+        body: JSON.stringify({
+          tag_name: "v0.34.0",
+          html_url: "https://github.com/pierspad/vesta/releases/tag/v0.34.0",
+          body: "Release notes fixture",
+          data: [],
+          models: [],
+        }),
       };
     case "read_subtitle_file":
       return `1\n00:00:01,000 --> 00:00:02,000\n${args.path.endsWith("reference.srt") ? "Reference subtitle" : text}\n`;
@@ -176,6 +206,7 @@ mockIPC((command, args) => {
     case "sync_get_subtitle":
       return syncLine();
     case "sync_get_anchors":
+      if (syncAnchorsList !== null) return syncAnchorsList;
       return anchor ? [anchor] : [];
     case "sync_prepare_media_for_playback":
       if (mediaError) throw new Error(mediaError);
@@ -186,6 +217,7 @@ mockIPC((command, args) => {
       syncMedia = args.path;
       return syncStatus();
     case "sync_add_anchor":
+      syncAnchorsList = null;
       anchor = {
         subtitle_id: args.subtitleId, original_time_ms: 1000,
         corrected_time_ms: args.correctedTimeMs, offset_ms: args.correctedTimeMs - 1000, is_manual: true,
@@ -193,17 +225,26 @@ mockIPC((command, args) => {
       undoneAnchor = null;
       return syncStatus();
     case "sync_remove_anchor":
+      syncAnchorsList = null;
       anchor = null;
       return syncStatus();
     case "sync_undo":
+      syncAnchorsList = null;
       undoneAnchor = anchor;
       anchor = null;
       return syncStatus();
     case "sync_redo":
+      syncAnchorsList = null;
       anchor = undoneAnchor;
       undoneAnchor = null;
       return syncStatus();
     case "sync_auto_sync":
+      if (autoSyncDeferred) {
+        return new Promise((resolve, reject) => {
+          finishAutoSync = { resolve, reject };
+        });
+      }
+      syncAnchorsList = null;
       anchor = {
         subtitle_id: 1,
         original_time_ms: 1000,
@@ -220,10 +261,19 @@ mockIPC((command, args) => {
         message: "Created 1 anchor",
       };
     case "sync_cancel_auto_sync":
+      finishAutoSync?.resolve({
+        success: false,
+        cancelled: true,
+        anchors_created: 0,
+        segments_analyzed: 1,
+        message: "Cancelled",
+      });
+      finishAutoSync = null;
       return null;
     case "sync_load_session":
       return syncStatus();
     case "sync_reset":
+      syncAnchorsList = null;
       anchor = null;
       undoneAnchor = null;
       syncMedia = null;
@@ -254,7 +304,7 @@ mockIPC((command, args) => {
     case "suggest_translation_context":
       return "Conversational drama dialogue context.";
     case "get_latest_translated_subtitles":
-      return [];
+      return latestTranslatedPairs;
     case "start_translation":
       return new Promise((resolve, reject) => { finishTranslation = { resolve, reject }; });
     case "cancel_translation":
@@ -274,15 +324,31 @@ mockIPC((command, args) => {
         any_whisper: true,
       };
     case "transcribe_check_file_exists":
+      return true;
     case "transcribe_path_exists":
-      return true;
+      return !String(args?.path ?? "").includes("missing");
     case "transcribe_list_models":
-      return [{ id: "base", name: "Base", downloaded: true }, { id: "small", name: "Small", downloaded: true }];
-    case "transcribe_download_model":
-    case "transcribe_uninstall_model":
-    case "transcribe_download_vad":
-    case "transcribe_uninstall_vad":
+      return whisperModelsState.map((m) => ({ ...m }));
+    case "transcribe_download_model": {
+      const target = whisperModelsState.find((m) => m.id === args.modelId);
+      if (target) target.downloaded = true;
       return true;
+    }
+    case "transcribe_uninstall_model": {
+      const target = whisperModelsState.find((m) => m.id === args.modelId);
+      if (target) target.downloaded = false;
+      return true;
+    }
+    case "transcribe_download_vad": {
+      const target = vadModelsState.find((m) => m.id === args.modelId);
+      if (target) target.downloaded = true;
+      return true;
+    }
+    case "transcribe_uninstall_vad": {
+      const target = vadModelsState.find((m) => m.id === args.modelId);
+      if (target) target.downloaded = false;
+      return true;
+    }
     case "plugin:path|resolve_directory":
       return "/downloads";
     case "plugin:path|join":
@@ -304,6 +370,17 @@ mockIPC((command, args) => {
       return "1\n00:00:01,000 --> 00:00:02,000\nSynthetic OCR preview\n";
     case "ocr_embedded_subtitle": {
       const filename = String(args.outputPath ?? "").split(/[\\/]/).pop();
+      if (ocrDeferred) {
+        return new Promise((resolve, reject) => {
+          finishOcr = {
+            resolve: () => {
+              if (filename) savedSubtitleOutputs.add(filename);
+              resolve(null);
+            },
+            reject,
+          };
+        });
+      }
       if (filename) savedSubtitleOutputs.add(filename);
       return emit("ocr-progress", {
         stage: "done",
@@ -345,6 +422,17 @@ mockIPC((command, args) => {
       }).then(() => "1\n00:00:01,000 --> 00:00:03,500\nHardcoded subtitle line 1\n\n2\n00:00:04,000 --> 00:00:06,500\nHardcoded subtitle line 2\n");
     case "ocr_hardcoded_subtitle": {
       const filename = String(args.outputPath ?? "").split(/[\\/]/).pop();
+      if (ocrDeferred) {
+        return new Promise((resolve, reject) => {
+          finishOcr = {
+            resolve: () => {
+              if (filename) savedSubtitleOutputs.add(filename);
+              resolve(null);
+            },
+            reject,
+          };
+        });
+      }
       if (filename) savedSubtitleOutputs.add(filename);
       return emit("ocr-progress", {
         stage: "done",
@@ -355,6 +443,8 @@ mockIPC((command, args) => {
       }).then(() => null);
     }
     case "ocr_cancel":
+      finishOcr?.reject(new Error("OCR cancelled"));
+      finishOcr = null;
       return true;
     case "get_system_diagnostics":
       return {
@@ -386,7 +476,7 @@ mockIPC((command, args) => {
     case "setup_media_status":
       return { ready: true, download_bytes: null };
     case "transcribe_addons_status":
-      return { vad_models: [{ id: "v6.2.0", size: "~0.9 MB", downloaded: true }, { id: "webrtc", size: "", downloaded: true }], gpu_supported: false };
+      return { vad_models: vadModelsState.map((m) => ({ ...m })), gpu_supported: false };
     case "plugin:dialog|open":
       if (args.options.directory) return output;
       if (nextFile) {
@@ -457,6 +547,11 @@ mockIPC((command, args) => {
     case "refine_card_llm_tiered":
       return "Grammar note from AI";
     case "refine_cards_llm_tiered": {
+      if (refineDeferred) {
+        return new Promise((resolve) => {
+          finishRefine = resolve;
+        });
+      }
       const cards = Array.isArray(args.cards) ? args.cards : refineCards;
       const runId = args.runId ?? args.run_id ?? 1;
       const total = cards.length;
@@ -482,6 +577,14 @@ mockIPC((command, args) => {
       }));
     }
     case "refine_cancel":
+      finishRefine?.({
+        done: 1,
+        failed: 1,
+        remaining: 0,
+        poolExhausted: true,
+        cancelled: true,
+      });
+      finishRefine = null;
       return true;
     case "refine_save_file":
       for (const upd of args.updates || []) {
@@ -560,6 +663,23 @@ mockIPC((command, args) => {
     case "save_temp_subtitles":
       return args.useNative ? "/fixtures/preview-native.srt" : "/fixtures/preview-target.srt";
     case "flashcard_generate":
+      if (autoCompleteExport) {
+        const cfg = args.config || {};
+        const outDir = cfg.output_dir || output;
+        const epNum = cfg.episode_number ?? 1;
+        const fmt = cfg.export_format || "apkg";
+        return Promise.resolve({
+          success: true,
+          message: "Generated 1 cards (1 audio, 1 snapshots, 0 video clips)",
+          cards_generated: 1,
+          audio_clips: 1,
+          snapshots: 1,
+          video_clips: 0,
+          tsv_path: fmt === "tsv" ? `${outDir}/Episode${epNum}.tsv` : null,
+          apkg_path: (fmt === "apkg" || fmt === "anki") ? `${outDir}/Episode${epNum}.apkg` : null,
+          output_size_bytes: 4096,
+        });
+      }
       return new Promise((resolve) => { finishExport = resolve; });
     case "flashcard_cancel":
       finishExport?.({
@@ -583,15 +703,54 @@ window.browserFixture = {
   calls,
   selectFile: (path) => { nextFile = path; },
   setSubtitleTracks: (tracks) => { subtitleTracks = tracks; },
+  setAutoCompleteExport: (enabled) => { autoCompleteExport = Boolean(enabled); },
   failMedia: (message) => { mediaError = message; },
+  failHttpFetch: (message) => { httpFetchError = message; },
   failTranscription: (message) => finishTranscription.reject(new Error(message)),
+  emitTranscribeProgress: (payload) => emit("transcribe-progress", payload),
+  emitTranscribeSegment: (payload) => emit("transcribe-segment", payload),
   completeTranscription: () => finishTranscription.resolve({
     success: true, message: "Transcription completed: 1 segment", subtitle_count: 1, output_path: "/exports/output.srt",
   }),
   failTranslation: (message) => finishTranslation.reject(new Error(message)),
+  emitTranslateProgress: (payload) => emit("translate-progress", payload),
+  setLatestTranslatedSubtitles: (pairs) => { latestTranslatedPairs = pairs; },
+  completeTranslationWith: (result) => finishTranslation.resolve(result),
   completeTranslation: () => finishTranslation.resolve({
     success: true, message: "Translation completed: 1 subtitle", output_path: "/exports/translated.srt", translated_count: 1,
   }),
+  deferAutoSync: (enabled) => { autoSyncDeferred = Boolean(enabled); },
+  emitAutoSyncProgress: (payload) => emit("sync-auto-progress", payload),
+  completeAutoSync: (result) => {
+    syncAnchorsList = null;
+    finishAutoSync?.resolve(result ?? {
+      success: true,
+      cancelled: false,
+      anchors_created: 1,
+      segments_analyzed: 4,
+      message: "Created 1 anchor",
+    });
+    finishAutoSync = null;
+  },
+  setSyncAnchors: (list) => { syncAnchorsList = list; },
+  deferOcr: (enabled) => { ocrDeferred = Boolean(enabled); },
+  emitOcrProgress: (payload) => emit("ocr-progress", payload),
+  completeOcr: () => {
+    finishOcr?.resolve();
+    finishOcr = null;
+  },
+  deferRefine: (enabled) => { refineDeferred = Boolean(enabled); },
+  emitRefineProgress: (payload) => emit("refine-progress", payload),
+  completeRefine: (summary) => {
+    finishRefine?.(summary ?? {
+      done: 2,
+      failed: 0,
+      remaining: 0,
+      poolExhausted: false,
+      cancelled: false,
+    });
+    finishRefine = null;
+  },
   failPreview: (message) => { previewError = message; },
   progress: () => emit("flashcard-progress", {
     percentage: 40,
