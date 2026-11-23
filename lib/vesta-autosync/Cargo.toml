@@ -1,6 +1,6 @@
 [package]
 name = "vesta-autosync"
-version = "1.1.1-dev.1"
+version = "1.1.1"
 edition.workspace = true
 rust-version.workspace = true
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
