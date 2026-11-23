@@ -69,9 +69,14 @@ def main():
     build = (ROOT / '.github/workflows/build.yml').read_text(encoding='utf-8')
     arm64 = (ROOT / '.github/workflows/build-arm64.yml').read_text(encoding='utf-8')
     aur = (ROOT / '.github/workflows/aur-publish.yml').read_text(encoding='utf-8')
+    ci = (ROOT / '.github/workflows/ci.yml').read_text(encoding='utf-8')
     flatpak_manifest = (ROOT / 'build-scripts/com.vesta.desktop.flatpak.yml').read_text(encoding='utf-8')
 
     config = json.loads((ROOT / '.releaserc').read_text(encoding='utf-8'))
+    frontend = ci.split('\n  frontend:\n', 1)[1].split('\n  browser:\n', 1)[0]
+    require('actions/setup-python@v6' in frontend and "python-version: '3.11'" in frontend
+            and frontend.index('actions/setup-python@v6') < frontend.index('build-scripts/test_git_hooks.py'),
+            'frontend hook tests must install Python 3.11 for the TOML scorecard parser')
     publish = next(plugin[1]['publishCmd'] for plugin in config['plugins']
                    if isinstance(plugin, list) and plugin[0] == '@semantic-release/exec')
     require("gh workflow run 'Build and Release' --ref '${branch.name}' -f release_tag='v${nextRelease.version}'"

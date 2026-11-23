@@ -6,7 +6,7 @@ This manual defines the automated verification gates, regression test scopes, pe
 
 ## 1. Automated Verification Gates
 
-Run the complete local verification gate from the repository root (after `npm ci` in `apps/vesta-gui`):
+Run the complete local verification gate from the repository root with Python 3.11 or newer (after `npm ci` in `apps/vesta-gui`). The scorecard parser used by the gates and Git hooks requires the standard-library `tomllib` module:
 
 ```bash
 python3 build-scripts/quality_check.py --desktop --smoke
