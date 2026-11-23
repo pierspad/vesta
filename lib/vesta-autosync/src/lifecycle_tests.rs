@@ -2,6 +2,9 @@ use super::*;
 use std::os::unix::fs::PermissionsExt;
 use std::time::Duration;
 
+// Serialize script file creation and subprocess fork() across lifecycle tests to prevent Linux ETXTBSY races.
+static LIFECYCLE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 fn executable(path: &std::path::Path, script: &str) {
     std::fs::write(path, script).unwrap();
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
@@ -9,6 +12,7 @@ fn executable(path: &std::path::Path, script: &str) {
 
 #[tokio::test]
 async fn invalid_probe_durations_and_failed_segment_preparation_are_errors() {
+    let _guard = LIFECYCLE_LOCK.lock().await;
     let directory = tempfile::tempdir().unwrap();
     let probe = directory.path().join("probe");
     for value in ["nan", "inf", "-1", "0", "not-a-number"] {
@@ -42,6 +46,7 @@ async fn invalid_probe_durations_and_failed_segment_preparation_are_errors() {
 
 #[tokio::test]
 async fn autosync_cancellation_stops_preparation_children_without_loading_whisper() {
+    let _guard = LIFECYCLE_LOCK.lock().await;
     let directory = tempfile::tempdir().unwrap();
     let ffmpeg = directory.path().join("ffmpeg");
     let ffprobe = directory.path().join("ffprobe");
@@ -115,6 +120,7 @@ async fn autosync_cancellation_stops_preparation_children_without_loading_whispe
 #[tokio::test]
 async fn external_sync_needs_no_whisper_and_cancels_pending_http() {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let _guard = LIFECYCLE_LOCK.lock().await;
     let directory = tempfile::tempdir().unwrap();
     let media = directory.path().join("speech.wav");
     let status = tokio::process::Command::new("ffmpeg")

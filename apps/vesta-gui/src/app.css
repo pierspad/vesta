@@ -45,14 +45,14 @@ body,
   --shadow-glow: 0 0 20px rgba(102, 126, 234, 0.3);
 }
 
-/* Glass morphism cards - optimized for performance */
+/* Glass morphism cards - optimized for smooth scroll and software-composited WebKitGTK */
 .glass-card {
-  background: var(--glass-bg);
+  background: rgb(26 33 48 / 0.94);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   contain: style;
 }
 
@@ -74,6 +74,16 @@ body,
   overscroll-behavior: contain;
   touch-action: pan-y;
   scrollbar-gutter: stable;
+}
+
+[data-workflow-scroll] {
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-gutter: stable;
+}
+
+[data-workflow-scroll] .glass-card {
+  box-shadow: none;
 }
 
 /* Long subtitle & card lists avoid GPU blur passes and skip off-screen layout/paint. */
@@ -213,7 +223,6 @@ body,
   background: rgba(17, 24, 39, 0.98);
   padding: 4px;
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.48);
-  backdrop-filter: blur(14px);
 }
 
 .vesta-context-menu-item {
@@ -714,7 +723,9 @@ kbd {
 .settings-scroll[data-dense="true"] {
   isolation: isolate;
 }
-.settings-scroll.is-scrolling * {
+.settings-scroll.is-scrolling *,
+[data-workflow-scroll].is-scrolling *,
+.is-scrolling * {
   animation-play-state: paused !important;
   transition-duration: 0s !important;
 }

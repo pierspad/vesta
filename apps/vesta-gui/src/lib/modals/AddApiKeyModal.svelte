@@ -61,7 +61,7 @@
     }}
   >
     <div
-      class="provider-dialog w-full max-h-[92dvh] overflow-hidden animate-fade-in shadow-2xl border border-white/20 bg-gray-900/98 backdrop-blur-xl rounded-xl flex flex-col"
+      class="provider-dialog w-full max-h-[92dvh] overflow-hidden animate-fade-in shadow-2xl border border-white/20 bg-gray-900/98 rounded-xl flex flex-col"
       class:editing={!!store.editKeyId}
       role="presentation"
       onmousedown={(e) => e.stopPropagation()}

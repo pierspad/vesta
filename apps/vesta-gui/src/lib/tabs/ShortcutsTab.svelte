@@ -18,6 +18,7 @@
     type ShortcutDefinition,
   } from "$lib/utils/shortcuts";
   import { filterAndSortShortcuts } from "$lib/utils/shortcutSearch";
+  import { settledScroll } from "$lib/utils/settledScroll";
 
   let { active = true }: { active?: boolean } = $props();
 
@@ -653,7 +654,7 @@
   </div>
 
   <!-- Scrollable grid area for shortcut cards -->
-  <div class="px-6 py-6 flex-1 overflow-y-auto min-h-0">
+  <div use:settledScroll class="px-6 py-6 flex-1 overflow-y-auto overscroll-contain min-h-0 [scrollbar-gutter:stable]">
     {#each ["global", ...categoryFilterItems.filter(category => category !== "global")] as category (category)}
       {@const items = filteredShortcuts.filter(shortcut => shortcut.category === category)}
       {#if items.length}

@@ -186,4 +186,12 @@ test("Extract hardcoded mode centers seek and area proportion controls without R
   const seekCenter = (seekBtnBox.x + seekPlusBox.x + seekPlusBox.width) / 2;
   const dimsCenter = (xInputBox.x + hInputBox.x + hInputBox.width) / 2;
   expect(Math.abs(seekCenter - dimsCenter)).toBeLessThanOrEqual(40);
+
+  // 16:9 video (1920x1080) inside the fixed 21:9 preview stage keeps 16:9 aspect with side pillarbox bars
+  const stageBox = await panel.getByTestId("video-preview-stage").boundingBox();
+  const frameBox = await panel.getByTestId("roi-frame-stage").boundingBox();
+  expect(stageBox && frameBox).not.toBeNull();
+  expect(Math.abs(stageBox.width / stageBox.height - 21 / 9)).toBeLessThan(0.05);
+  expect(Math.abs(frameBox.width / frameBox.height - 16 / 9)).toBeLessThan(0.05);
+  expect(frameBox.width).toBeLessThan(stageBox.width - 100);
 });

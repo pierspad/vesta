@@ -137,7 +137,6 @@
             {info.bundled ? t("settings.mcp.cliDetected") : t("settings.mcp.cliFallback")}
           </span>
         </div>
-        <p class="mt-1 text-xs leading-relaxed text-gray-400">{t("settings.mcp.description")}</p>
       </div>
     </div>
 

@@ -51,6 +51,7 @@ export function resolveHintAndLink(
 export function formatPermission(perm: string, t: (key: string) => string): string {
   if (perm === "network") return t("plugins.permNetwork");
   if (perm === "filesystem:downloads") return t("plugins.permDownloads");
+  if (perm === "vesta:cli") return t("plugins.permVestaCli");
   if (perm.startsWith("filesystem:")) return perm.replace("filesystem:", "Filesystem: ");
   return perm;
 }
@@ -135,6 +136,7 @@ Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Exper
 - \`ui.notify\`: Show native toast (\`level\`: \`"info" | "success" | "warn" | "error"\`, \`msg\`)
 - \`ui.progress\`: Update progress indicator (\`id\`, \`value\`, \`label\`)
 - \`vesta.openInFlashcards\`: Hand off \`videoPath\` and \`subtitlePath\` directly to the Flashcards tab
+- \`vesta.cli\`: Execute headless Vesta CLI workflows (\`flashcards\`, \`translate\`, \`transcribe\`, \`sync\`, \`autosync\`, \`refine\`, \`extract\`, \`ocr\`) when the plugin declares the \`"vesta:cli"\` permission scope
 
 ## 6. MCP Server Support (\`vesta-mcp\`)
 \`vesta-mcp\` exposes \`list_plugins\` (safe public metadata, zero secrets) and \`call_plugin\` (JSON-RPC render/event bridge) for AI agents.`;

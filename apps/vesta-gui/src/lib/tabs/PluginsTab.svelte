@@ -8,6 +8,7 @@
   import { locale } from "$lib/i18n";
   import ConfirmDialog from "$lib/modals/ConfirmDialog.svelte";
   import { guardedOpen } from "$lib/utils/dialogGuard";
+  import { settledScroll } from "$lib/utils/settledScroll";
   import PluginRenderer from "$lib/components/PluginRenderer.svelte";
   import SearchInput from "$lib/components/SearchInput.svelte";
   import type { InstalledPlugin, PluginInspectResult } from "$lib/services/pluginClient";
@@ -306,7 +307,7 @@
       </PluginRenderer>
     {/key}
   {:else}
-    <div class="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col gap-6 scrollbar-thin">
+    <div use:settledScroll class="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 flex flex-col gap-6 scrollbar-thin [scrollbar-gutter:stable]">
       <PluginInstallCard
         bind:installMode
         bind:urlInput

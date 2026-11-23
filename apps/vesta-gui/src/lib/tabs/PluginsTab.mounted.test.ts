@@ -76,7 +76,7 @@ beforeEach(() => {
         repository: "https://github.com/example/demo",
         readme: "# Demo Readme\nDetailed information about Demo Plugin.",
         entry: { command: ["python3", "main.py"] },
-        permissions: ["network", "filesystem:downloads"],
+        permissions: ["network", "filesystem:downloads", "vesta:cli"],
         tab: { title: "Demo Tab", icon: "film" },
         settings: [
           {
@@ -234,6 +234,7 @@ it("opens Info modal with metadata, README markdown, and requested permissions",
   expect(target.textContent).toContain("https://github.com/example/demo");
   expect(target.textContent).toContain("Network Access");
   expect(target.textContent).toContain("Downloads Folder Access");
+  expect(target.textContent).toContain("Vesta CLI Workflows");
   expect(target.textContent).not.toContain("tmdb_api_key");
   expect(target.textContent).toContain("Detailed information about Demo Plugin.");
 });

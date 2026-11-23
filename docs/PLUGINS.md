@@ -269,6 +269,43 @@ Instructs Vesta to switch to the **Flashcards** tab prefilled with media and sub
 {"jsonrpc": "2.0", "method": "vesta.openInFlashcards", "params": {"videoPath": "/path/to/media.mp4", "subtitlePath": "/path/to/media.srt"}}
 ```
 
+### `vesta.cli` (Request from Plugin → Vesta)
+Executes one of Vesta's headless CLI workflow commands (`flashcards`, `translate`, `transcribe`, `sync`, `autosync`, `refine`, `extract`, `ocr`) using the bundled `vesta-cli` / `vesta` executable.
+- **Required permission scope**: `"vesta:cli"` in `vesta-plugin.json` (`permissions`). Requests without this scope fail with JSON-RPC error `-32003`.
+- **Allowed `command` values**: `"flashcards"`, `"translate"`, `"transcribe"`, `"sync"`, `"autosync"`, `"refine"`, `"extract"`, `"ocr"` (`"mcp"` and unknown commands are rejected with `-32602`).
+- **Parameters**:
+  - `command`: string (required, one of the 8 workflow operations above)
+  - `args`: `string[]` (optional, default `[]`, max 256 items)
+  - `timeoutSecs`: integer (optional, default `120`, clamped to `1..=1800`)
+- **Output & Cancellation**: `stdout` and `stderr` are each bounded to 4 MiB (`truncated: true` if capped), and any in-flight CLI subprocess is terminated automatically if the plugin is stopped or disabled. Note: under `vesta-mcp`'s headless `call_plugin`, `vesta.cli` returns `-32601` because MCP clients call Vesta's native MCP tools directly.
+- **Request**:
+  ```json
+  {
+    "jsonrpc": "2.0",
+    "id": 11,
+    "method": "vesta.cli",
+    "params": {
+      "command": "flashcards",
+      "args": ["preview", "--srt", "/path/to/media.srt", "--json"],
+      "timeoutSecs": 60
+    }
+  }
+  ```
+- **Response from Vesta**:
+  ```json
+  {
+    "jsonrpc": "2.0",
+    "id": 11,
+    "result": {
+      "exitCode": 0,
+      "ok": true,
+      "stdout": "{\"cards\":[...]}",
+      "stderr": "",
+      "truncated": false
+    }
+  }
+  ```
+
 ---
 
 ## 7. Declarative Widget & Property Catalog
@@ -458,6 +495,7 @@ External plugins execute untrusted code on the user's host machine. Vesta enforc
 - **Permission Declarations**:
   - `network`: Allows outbound HTTP/API requests.
   - `filesystem:downloads`: Allows reading/writing to the user's Downloads folder.
+  - `vesta:cli`: Allows invoking Vesta's headless CLI workflows (`flashcards`, `translate`, `transcribe`, `sync`, `autosync`, `refine`, `extract`, `ocr`) via `vesta.cli`.
 - **Plugin credentials**. Each plugin stores its own credentials in its settings or data directory; Vesta does not provide or persist a shared credential vault (`sharedCredentials` is not supported). A local plugin process still runs with the user's OS permissions and may have access to other files or environment variables. Install plugins only from sources you trust.
 
 ---
@@ -478,6 +516,7 @@ Vesta includes a zero-dependency Python SDK helper (`vesta_plugin.py`) located u
   - `plugin.notify(msg, level="info")`, `plugin.progress(id, value, label="")`, `plugin.update_ui(screen="main", root=None, patch=None)`
   - `plugin.open_in_flashcards(video_path, subtitle_path)`
   - `plugin.get_values(screen="main") -> dict`
+  - `plugin.run_cli(command, args=None, timeout_secs=None, parse_json=False) -> dict` (requires `"vesta:cli"` permission scope; when `parse_json=True` and `ok` is true, parses JSON `stdout` into `result["json"]`)
   - Runtime properties updated automatically across RPC calls: `plugin.locale`, `plugin.expert_mode`, `plugin.data_dir`, `plugin.settings`.
 
 ```python

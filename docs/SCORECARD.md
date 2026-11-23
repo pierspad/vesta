@@ -8,8 +8,8 @@
 | Metric | Value | Source |
 |---|---|---|
 | Cargo workspace crates | 24 | `Cargo.toml` (`core/`, `lib/`, `cli/`, `apps/`) |
-| Rust production LOC (non-test) | 33,475 | `core/`, `lib/`, `cli/`, `apps/*/src-tauri/src/` |
-| Rust unit & integration `#[test]` cases | 635 | Workspace `*.rs` |
+| Rust production LOC (non-test) | 33,292 | `core/`, `lib/`, `cli/`, `apps/*/src-tauri/src/` |
+| Rust unit & integration `#[test]` cases | 637 | Workspace `*.rs` |
 | Rust prod `.unwrap()` / `.expect()` / `panic!()` / `unsafe` | 26 / 12 / 1 / 4 | Comment/test-stripped scan |
 | Registered Tauri IPC commands | 109 | `apps/vesta-gui/src-tauri/src/main.rs` |
 | Playwright mock handlers (`vesta-mock.mjs`) | 109/109 | `apps/vesta-gui/browser-tests/vesta-mock.mjs` |

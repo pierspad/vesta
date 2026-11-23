@@ -145,6 +145,58 @@ class TestDocContracts(unittest.TestCase):
             )
             self.assertEqual(res_test.returncode, 0, res_test.stderr)
 
+    def test_plugin_sdk_run_cli_request_and_json_parsing(self) -> None:
+        import importlib.util
+        import io
+        import json
+        from unittest import mock
+
+        sdk_path = cdc.ROOT / "docs/examples/plugin-hello/vesta_plugin.py"
+        spec = importlib.util.spec_from_file_location("vesta_plugin", sdk_path)
+        assert spec and spec.loader
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        plugin = mod.VestaPlugin()
+        fake_stdout = io.StringIO()
+        fake_stdin = io.StringIO(
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1001,
+                    "result": {
+                        "exitCode": 0,
+                        "ok": True,
+                        "stdout": '{"trackCount": 3}\n',
+                        "stderr": "",
+                        "truncated": False,
+                    },
+                }
+            )
+            + "\n"
+        )
+        with mock.patch("sys.stdout", fake_stdout), mock.patch("sys.stdin", fake_stdin):
+            res = plugin.run_cli(
+                "extract",
+                ["--input", "/tmp/video.mkv", "--list", "--json"],
+                timeout_secs=45,
+                parse_json=True,
+            )
+
+        sent = json.loads(fake_stdout.getvalue().strip())
+        self.assertEqual(sent["method"], "vesta.cli")
+        self.assertEqual(
+            sent["params"],
+            {
+                "command": "extract",
+                "args": ["--input", "/tmp/video.mkv", "--list", "--json"],
+                "timeoutSecs": 45,
+            },
+        )
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["exitCode"], 0)
+        self.assertEqual(res["json"], {"trackCount": 3})
+
 
 if __name__ == "__main__":
     unittest.main()

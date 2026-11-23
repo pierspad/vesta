@@ -19,6 +19,7 @@
   import { invokeCommand } from "$lib/services/tauriClient";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import { guardedOpen } from "$lib/utils/dialogGuard";
+  import { settledScroll } from "$lib/utils/settledScroll";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
@@ -1294,7 +1295,7 @@
 
 <div bind:this={renderer} class="w-full h-full flex flex-col">
   {@render header?.(actions, () => { void goBack(); }, loading || actionLoading !== null)}
-  <div class="plugin-renderer w-full flex-1 min-h-0 flex flex-col p-6 overflow-y-auto">
+  <div use:settledScroll class="plugin-renderer w-full flex-1 min-h-0 flex flex-col p-6 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
     {#if activeProgress.length > 0}
       <div class="mb-4 flex flex-col gap-2 shrink-0" data-testid="plugin-active-progress">
         {#each activeProgress as entry (entry.id)}

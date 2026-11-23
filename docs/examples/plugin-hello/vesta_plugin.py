@@ -520,6 +520,29 @@ class VestaPlugin:
             return res["values"]
         return {}
 
+    def run_cli(
+        self,
+        command: str,
+        args: Optional[List[str]] = None,
+        timeout_secs: Optional[int] = None,
+        parse_json: bool = False,
+    ) -> Dict[str, Any]:
+        """Execute a Vesta CLI workflow (`flashcards`, `translate`, `transcribe`, `sync`, `autosync`, `refine`, `extract`, `ocr`). Requires the `vesta:cli` permission scope."""
+        params: Dict[str, Any] = {
+            "command": command,
+            "args": list(args) if args is not None else [],
+        }
+        if timeout_secs is not None:
+            params["timeoutSecs"] = int(timeout_secs)
+        res = self._send_request("vesta.cli", params)
+        if not isinstance(res, dict):
+            return {"exitCode": -1, "ok": False, "stdout": "", "stderr": "", "truncated": False}
+        if parse_json and res.get("ok") and isinstance(res.get("stdout"), str):
+            raw_out = res["stdout"].strip()
+            if raw_out:
+                res["json"] = json.loads(raw_out)
+        return res
+
     def _send_notification(self, method: str, params: Dict[str, Any]):
         msg = {
             "jsonrpc": "2.0",

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { locale } from "$lib/i18n";
   import * as vestaConfig from "$lib/config/vestaConfig";
+  import { settledScroll } from "$lib/utils/settledScroll";
 
   import FirstRunSetupModal from "$lib/modals/FirstRunSetupModal.svelte";
   import ConfirmDialog from "$lib/modals/ConfirmDialog.svelte";
@@ -55,7 +56,7 @@
 </script>
 
 <div class="h-full flex flex-col bg-[var(--surface-2)] text-[var(--text)] overflow-hidden">
-  <div class="flex-1 overflow-y-auto p-6 scrollbar-thin space-y-5">
+  <div use:settledScroll class="flex-1 overflow-y-auto overscroll-contain p-6 scrollbar-thin space-y-5 [scrollbar-gutter:stable]">
     <!-- Card 1: Hide Experimental Tab (at the top) -> Amber/Orange accent -->
     <div class="glass-card p-5 border border-amber-500/25 bg-amber-500/[0.04] flex items-center justify-between gap-5 rounded-2xl">
       <div class="flex items-start gap-4">

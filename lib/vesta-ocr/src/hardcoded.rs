@@ -210,7 +210,7 @@ pub async fn extract_video_preview_frame(
             "-frames:v",
             "1",
             "-vf",
-            "scale='min(1280,iw)':-2",
+            "scale='min(1280,iw*sar)':trunc(ow/dar/2)*2,setsar=1",
             "-f",
             "image2pipe",
             "-vcodec",

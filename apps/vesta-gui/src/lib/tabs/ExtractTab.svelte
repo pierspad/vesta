@@ -169,13 +169,21 @@
       ? Math.max(0, Math.min(100, ((frameTimeMs ?? framePreview.time_ms) / framePreview.duration_ms) * 100))
       : 0,
   );
-  let frameAspectStyle = $derived(
+  const PREVIEW_STAGE_ASPECT = 21 / 9;
+  let frameAspectRatio = $derived(
     framePreview && framePreview.width > 0 && framePreview.height > 0
-      ? `${framePreview.width} / ${framePreview.height}`
-      : "16 / 9",
+      ? framePreview.width / framePreview.height
+      : 16 / 9,
   );
-  let isWiderThanStage = $derived(
-    Boolean(framePreview && framePreview.height > 0 && framePreview.width / framePreview.height > 21 / 9),
+  let frameStageWidthPct = $derived(
+    frameAspectRatio <= PREVIEW_STAGE_ASPECT
+      ? (frameAspectRatio / PREVIEW_STAGE_ASPECT) * 100
+      : 100,
+  );
+  let frameStageHeightPct = $derived(
+    frameAspectRatio > PREVIEW_STAGE_ASPECT
+      ? (PREVIEW_STAGE_ASPECT / frameAspectRatio) * 100
+      : 100,
   );
   let roiContainerEl = $state<HTMLDivElement | null>(null);
   let roiDragState = $state<{
@@ -985,7 +993,6 @@
                   </svg>
                   {t("extract.hardcodedTitle")}
                 </h3>
-                <p class="mt-0.5 text-xs text-gray-400">{t("extract.hardcodedDesc")}</p>
               </div>
               {#if framePreview}
                 <span class="rounded-lg border border-cyan-400/25 bg-cyan-500/10 px-2.5 py-1 font-mono text-[11px] text-cyan-200">
@@ -1056,12 +1063,17 @@
 
               <div class="min-h-0 flex-1 overflow-y-auto pr-1 custom-scrollbar">
                 <div class="mx-auto flex w-full max-w-4xl flex-col gap-3">
-                  <div class="relative w-full aspect-[21/9] max-h-[330px] mx-auto rounded-xl border border-white/15 bg-black flex items-center justify-center overflow-hidden">
+                  <div
+                    data-testid="video-preview-stage"
+                    class="relative w-full max-w-[770px] aspect-[21/9] mx-auto rounded-xl border border-white/15 bg-black flex items-center justify-center overflow-hidden"
+                  >
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div
                       bind:this={roiContainerEl}
-                      class="relative select-none touch-none cursor-crosshair overflow-hidden {framePreview?.data_url ? (isWiderThanStage ? 'w-full max-h-full' : 'h-full max-w-full') : 'w-full h-full'}"
-                      style:aspect-ratio={framePreview?.data_url ? frameAspectStyle : undefined}
+                      data-testid="roi-frame-stage"
+                      class="relative select-none touch-none cursor-crosshair overflow-hidden"
+                      style:width={`${frameStageWidthPct.toFixed(4)}%`}
+                      style:height={`${frameStageHeightPct.toFixed(4)}%`}
                       onpointerdown={handleRoiPointerDown}
                     >
                       {#if framePreview?.data_url}

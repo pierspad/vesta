@@ -83,7 +83,7 @@
     class="fixed bottom-4 right-4 z-[9999] w-[700px] max-w-[90vw] max-h-[85vh] overflow-y-auto bg-gray-900 border border-white/10 rounded-2xl shadow-2xl animate-fade-in"
   >
     <div
-      class="sticky top-0 bg-gray-900/95 backdrop-blur-sm border-b border-white/10 p-4 flex items-center justify-between gap-3 rounded-t-2xl"
+      class="sticky top-0 bg-gray-900/98 border-b border-white/10 p-4 flex items-center justify-between gap-3 rounded-t-2xl"
     >
       <div class="flex items-center gap-3 min-w-0">
         <div class="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-400/25 flex items-center justify-center text-indigo-300 shrink-0" aria-hidden="true">

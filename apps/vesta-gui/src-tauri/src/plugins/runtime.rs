@@ -13,6 +13,21 @@ use tokio::sync::{Mutex, Notify, mpsc, oneshot};
 pub(crate) const MAX_PLUGIN_RPC_LINE_BYTES: usize = 4 * 1024 * 1024;
 pub(crate) const MAX_PLUGIN_STDERR_LINE_BYTES: usize = 64 * 1024;
 const DEFAULT_INIT_TIMEOUT: Duration = Duration::from_secs(10);
+pub(crate) const ALLOWED_PLUGIN_CLI_COMMANDS: &[&str] = &[
+    "flashcards",
+    "translate",
+    "transcribe",
+    "sync",
+    "autosync",
+    "refine",
+    "extract",
+    "ocr",
+];
+const DEFAULT_PLUGIN_CLI_TIMEOUT_SECS: u64 = 120;
+const MIN_PLUGIN_CLI_TIMEOUT_SECS: u64 = 1;
+const MAX_PLUGIN_CLI_TIMEOUT_SECS: u64 = 1800;
+const MAX_PLUGIN_CLI_ARGS: usize = 256;
+const MAX_PLUGIN_CLI_OUTPUT_BYTES: usize = 4 * 1024 * 1024;
 
 const BASE_ENV_ALLOWLIST: &[&str] = &[
     "PATH", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL", "LC_CTYPE",
@@ -62,6 +77,7 @@ fn normalize_plugin_scopes(plugin_id: &str, raw_scopes: &[String]) -> Result<Vec
         let canonical = match trimmed.to_ascii_lowercase().as_str() {
             "network" => "network",
             "filesystem:downloads" => "filesystem:downloads",
+            "vesta:cli" => "vesta:cli",
             _ => {
                 return Err(format!(
                     "Plugin '{plugin_id}' declares unsupported permission scope '{trimmed}'"
@@ -139,6 +155,267 @@ where
         ));
     }
     env_pairs
+}
+
+pub(crate) fn resolve_plugin_cli_executable_from(
+    exe_path: Option<&Path>,
+    path_env: Option<&std::ffi::OsStr>,
+) -> Option<PathBuf> {
+    let cli_bin_name = if cfg!(windows) {
+        "vesta-cli.exe"
+    } else {
+        "vesta-cli"
+    };
+    let app_bin_name = if cfg!(windows) { "vesta.exe" } else { "vesta" };
+
+    if let Some(sibling) = exe_path
+        .and_then(|p| p.parent())
+        .map(|dir| dir.join(cli_bin_name))
+        .filter(|candidate| candidate.is_file())
+    {
+        return Some(sibling);
+    }
+
+    if let Some(exe) = exe_path.filter(|p| p.is_file())
+        && let Some(file_name) = exe.file_name().and_then(|n| n.to_str())
+    {
+        let is_exact_vesta = if cfg!(windows) {
+            file_name.eq_ignore_ascii_case(app_bin_name)
+        } else {
+            file_name == app_bin_name
+        };
+        if is_exact_vesta {
+            return Some(exe.to_path_buf());
+        }
+    }
+
+    if let Some(paths) = path_env {
+        for dir in std::env::split_paths(paths) {
+            let candidate = dir.join(cli_bin_name);
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+
+    None
+}
+
+pub(crate) fn validate_plugin_cli_request(
+    params: &serde_json::Value,
+) -> Result<(String, Vec<String>, Duration), String> {
+    let command = params
+        .get("command")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "Missing or empty 'command' parameter".to_string())?;
+
+    if !ALLOWED_PLUGIN_CLI_COMMANDS.contains(&command) {
+        return Err(format!(
+            "CLI command '{command}' is not permitted; allowed commands: {}",
+            ALLOWED_PLUGIN_CLI_COMMANDS.join(", ")
+        ));
+    }
+
+    let mut args = Vec::new();
+    if let Some(raw_args) = params.get("args")
+        && !raw_args.is_null()
+    {
+        let items = raw_args
+            .as_array()
+            .ok_or_else(|| "'args' must be an array of strings".to_string())?;
+        if items.len() > MAX_PLUGIN_CLI_ARGS {
+            return Err(format!(
+                "Too many CLI arguments ({}, max {MAX_PLUGIN_CLI_ARGS})",
+                items.len()
+            ));
+        }
+        for (idx, item) in items.iter().enumerate() {
+            let text = item
+                .as_str()
+                .ok_or_else(|| format!("CLI argument at index {idx} must be a string"))?;
+            if text.contains('\0') {
+                return Err(format!(
+                    "CLI argument at index {idx} contains an invalid NUL byte"
+                ));
+            }
+            args.push(text.to_string());
+        }
+    }
+
+    let timeout_secs = match params.get("timeoutSecs") {
+        None | Some(serde_json::Value::Null) => DEFAULT_PLUGIN_CLI_TIMEOUT_SECS,
+        Some(val) => val
+            .as_u64()
+            .ok_or_else(|| "'timeoutSecs' must be a non-negative integer".to_string())?
+            .clamp(MIN_PLUGIN_CLI_TIMEOUT_SECS, MAX_PLUGIN_CLI_TIMEOUT_SECS),
+    };
+
+    Ok((command.to_string(), args, Duration::from_secs(timeout_secs)))
+}
+
+async fn read_capped_stream<R: tokio::io::AsyncRead + Unpin>(
+    mut reader: R,
+    cap: usize,
+) -> std::io::Result<(Vec<u8>, bool)> {
+    use tokio::io::AsyncReadExt;
+
+    let mut collected = Vec::new();
+    let mut truncated = false;
+    let mut buf = [0u8; 8192];
+    loop {
+        let n = reader.read(&mut buf).await?;
+        if n == 0 {
+            break;
+        }
+        if collected.len() < cap {
+            let remaining = cap - collected.len();
+            let take = n.min(remaining);
+            collected.extend_from_slice(&buf[..take]);
+            if take < n {
+                truncated = true;
+            }
+        } else {
+            truncated = true;
+        }
+    }
+    Ok((collected, truncated))
+}
+
+async fn send_rpc_result(stdin_tx: &mpsc::Sender<String>, id: u64, result: serde_json::Value) {
+    let resp = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "result": result,
+    });
+    if let Ok(line) = serde_json::to_string(&resp) {
+        let _ = stdin_tx.send(line + "\n").await;
+    }
+}
+
+async fn send_rpc_error(
+    stdin_tx: &mpsc::Sender<String>,
+    id: u64,
+    code: i64,
+    message: impl Into<String>,
+) {
+    let resp = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "error": {
+            "code": code,
+            "message": message.into(),
+        },
+    });
+    if let Ok(line) = serde_json::to_string(&resp) {
+        let _ = stdin_tx.send(line + "\n").await;
+    }
+}
+
+async fn execute_plugin_cli_command(
+    cli_bin: &Path,
+    plugin_id: &str,
+    command: &str,
+    args: &[String],
+    timeout: Duration,
+    exited: &AtomicBool,
+    shutdown_notify: &Notify,
+) -> Result<serde_json::Value, String> {
+    // Runs Vesta's trusted bundled CLI executable with its normal user environment
+    // while keeping sensitive host credentials inaccessible to the plugin process.
+    let mut cmd = tokio::process::Command::new(cli_bin);
+    cmd.arg(command)
+        .args(args)
+        .kill_on_drop(true)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .env("VESTA_INVOKED_BY_PLUGIN", plugin_id);
+
+    let mut child = cmd.spawn().map_err(|e| {
+        format!(
+            "Failed to execute Vesta CLI '{command}' ({}): {e}",
+            cli_bin.display()
+        )
+    })?;
+
+    let stdout_task = child
+        .stdout
+        .take()
+        .map(|out| tokio::spawn(read_capped_stream(out, MAX_PLUGIN_CLI_OUTPUT_BYTES)));
+    let stderr_task = child
+        .stderr
+        .take()
+        .map(|err| tokio::spawn(read_capped_stream(err, MAX_PLUGIN_CLI_OUTPUT_BYTES)));
+
+    let shutdown_wait = async {
+        loop {
+            let notified = shutdown_notify.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            if exited.load(Ordering::SeqCst) {
+                break;
+            }
+            notified.as_mut().await;
+        }
+    };
+
+    let status = tokio::select! {
+        wait_res = child.wait() => {
+            wait_res.map_err(|e| format!("Failed waiting on Vesta CLI '{command}': {e}"))?
+        }
+        _ = tokio::time::sleep(timeout) => {
+            let _ = child.kill().await;
+            let _ = child.wait().await;
+            if let Some(task) = stdout_task {
+                task.abort();
+            }
+            if let Some(task) = stderr_task {
+                task.abort();
+            }
+            return Err(format!(
+                "Vesta CLI command '{command}' timed out after {}s",
+                timeout.as_secs()
+            ));
+        }
+        _ = shutdown_wait => {
+            let _ = child.kill().await;
+            let _ = child.wait().await;
+            if let Some(task) = stdout_task {
+                task.abort();
+            }
+            if let Some(task) = stderr_task {
+                task.abort();
+            }
+            return Err(format!(
+                "Vesta CLI command '{command}' cancelled because plugin '{plugin_id}' stopped"
+            ));
+        }
+    };
+
+    let (out_bytes, out_trunc) = match stdout_task {
+        Some(task) => task
+            .await
+            .map_err(|e| format!("Failed collecting Vesta CLI stdout: {e}"))?
+            .map_err(|e| format!("Failed reading Vesta CLI stdout: {e}"))?,
+        None => (Vec::new(), false),
+    };
+    let (err_bytes, err_trunc) = match stderr_task {
+        Some(task) => task
+            .await
+            .map_err(|e| format!("Failed collecting Vesta CLI stderr: {e}"))?
+            .map_err(|e| format!("Failed reading Vesta CLI stderr: {e}"))?,
+        None => (Vec::new(), false),
+    };
+
+    Ok(serde_json::json!({
+        "exitCode": status.code().unwrap_or(-1),
+        "ok": status.success(),
+        "stdout": String::from_utf8_lossy(&out_bytes),
+        "stderr": String::from_utf8_lossy(&err_bytes),
+        "truncated": out_trunc || err_trunc,
+    }))
 }
 
 pub(crate) async fn read_bounded_rpc_line<R: AsyncBufRead + Unpin>(
@@ -219,8 +496,10 @@ pub(crate) async fn read_bounded_stderr_line<R: AsyncBufRead + Unpin>(
 async fn kill_and_reap_child(
     child_handle: &std::sync::Mutex<Option<tokio::process::Child>>,
     exited: &AtomicBool,
+    shutdown_notify: &Notify,
 ) {
     exited.store(true, Ordering::SeqCst);
+    shutdown_notify.notify_waiters();
     let child = {
         let mut guard = child_handle.lock().unwrap_or_else(|e| e.into_inner());
         guard.take()
@@ -228,6 +507,106 @@ async fn kill_and_reap_child(
     if let Some(mut child) = child {
         let _ = child.kill().await;
         let _ = child.wait().await;
+    }
+}
+
+#[derive(Clone)]
+struct PluginHostRequestContext {
+    plugin_id: String,
+    has_cli_scope: bool,
+    cli_binary_override: Option<PathBuf>,
+    latest_values: Arc<Mutex<HashMap<String, serde_json::Value>>>,
+    stdin_tx: mpsc::Sender<String>,
+    exited: Arc<AtomicBool>,
+    shutdown_notify: Arc<Notify>,
+}
+
+impl PluginHostRequestContext {
+    fn resolve_cli_binary(&self) -> Option<PathBuf> {
+        if let Some(ref bin) = self.cli_binary_override {
+            return Some(bin.clone());
+        }
+        let exe_path = std::env::current_exe().ok();
+        let path_env = std::env::var_os("PATH");
+        resolve_plugin_cli_executable_from(exe_path.as_deref(), path_env.as_deref())
+    }
+
+    async fn handle_request(&self, id: u64, method: &str, params: Option<&serde_json::Value>) {
+        match method {
+            "ui.getValues" => {
+                let screen = params
+                    .and_then(|p| p.get("screen"))
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("main");
+                let vals = self.latest_values.lock().await;
+                let screen_vals = vals.get(screen).cloned().unwrap_or(serde_json::json!({}));
+                send_rpc_result(
+                    &self.stdin_tx,
+                    id,
+                    serde_json::json!({ "values": screen_vals }),
+                )
+                .await;
+            }
+            "vesta.cli" => {
+                if !self.has_cli_scope {
+                    send_rpc_error(
+                        &self.stdin_tx,
+                        id,
+                        -32003,
+                        format!(
+                            "Plugin '{}' does not declare the required 'vesta:cli' permission scope",
+                            self.plugin_id
+                        ),
+                    )
+                    .await;
+                    return;
+                }
+                let raw_params = params.cloned().unwrap_or(serde_json::Value::Null);
+                let (command, args, timeout) = match validate_plugin_cli_request(&raw_params) {
+                    Ok(valid) => valid,
+                    Err(err) => {
+                        send_rpc_error(&self.stdin_tx, id, -32602, err).await;
+                        return;
+                    }
+                };
+                let Some(cli_bin) = self.resolve_cli_binary() else {
+                    send_rpc_error(
+                        &self.stdin_tx,
+                        id,
+                        -32004,
+                        "Unable to locate Vesta CLI executable (vesta-cli or vesta)",
+                    )
+                    .await;
+                    return;
+                };
+                let ctx = self.clone();
+                tokio::spawn(async move {
+                    match execute_plugin_cli_command(
+                        &cli_bin,
+                        &ctx.plugin_id,
+                        &command,
+                        &args,
+                        timeout,
+                        &ctx.exited,
+                        &ctx.shutdown_notify,
+                    )
+                    .await
+                    {
+                        Ok(result) => send_rpc_result(&ctx.stdin_tx, id, result).await,
+                        Err(err) => send_rpc_error(&ctx.stdin_tx, id, -32000, err).await,
+                    }
+                });
+            }
+            _ => {
+                send_rpc_error(
+                    &self.stdin_tx,
+                    id,
+                    -32601,
+                    format!("Unsupported host RPC method: {method}"),
+                )
+                .await;
+            }
+        }
     }
 }
 
@@ -275,6 +654,7 @@ pub struct ActivePluginProcess {
     next_id: AtomicU64,
     initialized: AtomicBool,
     exited: Arc<AtomicBool>,
+    shutdown_notify: Arc<Notify>,
     child_handle: Arc<std::sync::Mutex<Option<tokio::process::Child>>>,
 }
 
@@ -308,6 +688,8 @@ struct PluginSlot {
 pub struct PluginRuntimeManager {
     processes: Arc<Mutex<HashMap<String, Arc<ActivePluginProcess>>>>,
     slots: Arc<Mutex<HashMap<String, Arc<PluginSlot>>>>,
+    #[cfg(test)]
+    cli_binary_override: Option<PathBuf>,
 }
 
 impl Default for PluginRuntimeManager {
@@ -315,6 +697,8 @@ impl Default for PluginRuntimeManager {
         Self {
             processes: Arc::new(Mutex::new(HashMap::new())),
             slots: Arc::new(Mutex::new(HashMap::new())),
+            #[cfg(test)]
+            cli_binary_override: None,
         }
     }
 }
@@ -322,6 +706,14 @@ impl Default for PluginRuntimeManager {
 impl PluginRuntimeManager {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn new_with_cli_binary(cli_binary: PathBuf) -> Self {
+        Self {
+            cli_binary_override: Some(cli_binary),
+            ..Self::default()
+        }
     }
 
     async fn slot_for(&self, plugin_id: &str) -> Arc<PluginSlot> {
@@ -358,7 +750,7 @@ impl PluginRuntimeManager {
             )
             .await;
 
-            kill_and_reap_child(&proc.child_handle, &proc.exited).await;
+            kill_and_reap_child(&proc.child_handle, &proc.exited, &proc.shutdown_notify).await;
             let mut pending = proc.pending_requests.lock().await;
             for (_, tx) in pending.drain() {
                 let _ = tx.send(Err("Plugin stopped".to_string()));
@@ -489,7 +881,19 @@ impl PluginRuntimeManager {
         >::new()));
         let latest_values = Arc::new(Mutex::new(HashMap::<String, serde_json::Value>::new()));
         let exited = Arc::new(AtomicBool::new(false));
+        let shutdown_notify = Arc::new(Notify::new());
         let child_handle = Arc::new(std::sync::Mutex::new(Some(child)));
+        let has_cli_scope = scopes.iter().any(|s| s == "vesta:cli");
+        let cli_binary_override = {
+            #[cfg(test)]
+            {
+                self.cli_binary_override.clone()
+            }
+            #[cfg(not(test))]
+            {
+                None
+            }
+        };
 
         // Stdin writer task
         tokio::spawn(async move {
@@ -508,10 +912,18 @@ impl PluginRuntimeManager {
         let pending_clone = pending.clone();
         let plugin_id = manifest.id.clone();
         let app_handle_clone = app_handle.clone();
-        let stdin_tx_clone = stdin_tx.clone();
-        let latest_values_clone = latest_values.clone();
         let exited_clone = exited.clone();
+        let shutdown_notify_clone = shutdown_notify.clone();
         let child_handle_clone = child_handle.clone();
+        let host_request_ctx = PluginHostRequestContext {
+            plugin_id: manifest.id.clone(),
+            has_cli_scope,
+            cli_binary_override,
+            latest_values: latest_values.clone(),
+            stdin_tx: stdin_tx.clone(),
+            exited: exited.clone(),
+            shutdown_notify: shutdown_notify.clone(),
+        };
 
         tokio::spawn(async move {
             let mut reader = BufReader::new(stdout);
@@ -526,27 +938,12 @@ impl PluginRuntimeManager {
 
                         if let Ok(msg) = serde_json::from_str::<JsonRpcResponse>(trimmed) {
                             // Check if message is a request from plugin to host (has id AND method)
-                            if let Some(method) = &msg.method
+                            if let Some(method) = msg.method.as_deref()
                                 && let Some(id) = msg.id
-                                && method == "ui.getValues"
                             {
-                                let screen = msg
-                                    .params
-                                    .as_ref()
-                                    .and_then(|p| p.get("screen"))
-                                    .and_then(|s| s.as_str())
-                                    .unwrap_or("main");
-                                let vals = latest_values_clone.lock().await;
-                                let screen_vals =
-                                    vals.get(screen).cloned().unwrap_or(serde_json::json!({}));
-                                let resp = serde_json::json!({
-                                    "jsonrpc": "2.0",
-                                    "id": id,
-                                    "result": { "values": screen_vals }
-                                });
-                                if let Ok(resp_line) = serde_json::to_string(&resp) {
-                                    let _ = stdin_tx_clone.send(resp_line + "\n").await;
-                                }
+                                host_request_ctx
+                                    .handle_request(id, method, msg.params.as_ref())
+                                    .await;
                                 continue;
                             }
 
@@ -584,12 +981,14 @@ impl PluginRuntimeManager {
                     }
                     Ok(None) => {
                         exited_clone.store(true, Ordering::SeqCst);
+                        shutdown_notify_clone.notify_waiters();
                         break;
                     }
                     Err(err) => {
                         eprintln!("[plugin:{plugin_id}] stdout reader error: {err}");
                         fatal_error = Some(err);
                         exited_clone.store(true, Ordering::SeqCst);
+                        shutdown_notify_clone.notify_waiters();
                         break;
                     }
                 }
@@ -605,7 +1004,8 @@ impl PluginRuntimeManager {
                 }
             }
             if fatal_error.is_some() {
-                kill_and_reap_child(&child_handle_clone, &exited_clone).await;
+                kill_and_reap_child(&child_handle_clone, &exited_clone, &shutdown_notify_clone)
+                    .await;
             }
         });
 
@@ -633,6 +1033,7 @@ impl PluginRuntimeManager {
             next_id: AtomicU64::new(1),
             initialized: AtomicBool::new(false),
             exited,
+            shutdown_notify,
             child_handle,
         });
 
@@ -674,7 +1075,12 @@ impl PluginRuntimeManager {
         };
 
         if let Err(e) = init_res {
-            kill_and_reap_child(&active.child_handle, &active.exited).await;
+            kill_and_reap_child(
+                &active.child_handle,
+                &active.exited,
+                &active.shutdown_notify,
+            )
+            .await;
             return Err(format!(
                 "Plugin '{}' failed to initialize: {e}",
                 manifest.id
@@ -684,7 +1090,12 @@ impl PluginRuntimeManager {
         let mut procs = self.processes.lock().await;
         if slot.generation.load(Ordering::SeqCst) != start_gen {
             drop(procs);
-            kill_and_reap_child(&active.child_handle, &active.exited).await;
+            kill_and_reap_child(
+                &active.child_handle,
+                &active.exited,
+                &active.shutdown_notify,
+            )
+            .await;
             return Err(format!(
                 "Plugin '{}' was stopped during initialization",
                 manifest.id
@@ -1714,5 +2125,301 @@ for line in sys.stdin:
             !Path::new(&format!("/proc/{pid2}")).exists(),
             "concurrently stopped plugin pid {pid2} must be killed and reaped"
         );
+    }
+
+    #[test]
+    fn vesta_cli_scope_validation_and_executable_resolution() {
+        let scopes = normalize_plugin_scopes(
+            "cli-plugin",
+            &[
+                "network".to_string(),
+                "VESTA:CLI".to_string(),
+                "vesta:cli".to_string(),
+            ],
+        )
+        .unwrap();
+        assert_eq!(scopes, vec!["network", "vesta:cli"]);
+
+        for &cmd in ALLOWED_PLUGIN_CLI_COMMANDS {
+            let (parsed_cmd, parsed_args, parsed_timeout) =
+                validate_plugin_cli_request(&serde_json::json!({
+                    "command": cmd,
+                    "args": ["--help"],
+                }))
+                .unwrap();
+            assert_eq!(parsed_cmd, cmd);
+            assert_eq!(parsed_args, vec!["--help"]);
+            assert_eq!(
+                parsed_timeout,
+                Duration::from_secs(DEFAULT_PLUGIN_CLI_TIMEOUT_SECS)
+            );
+        }
+
+        // Clamps timeoutSecs to [1, 1800]
+        let (_, _, t_low) = validate_plugin_cli_request(&serde_json::json!({
+            "command": "extract",
+            "timeoutSecs": 0,
+        }))
+        .unwrap();
+        assert_eq!(t_low, Duration::from_secs(MIN_PLUGIN_CLI_TIMEOUT_SECS));
+
+        let (_, _, t_high) = validate_plugin_cli_request(&serde_json::json!({
+            "command": "extract",
+            "timeoutSecs": 99999,
+        }))
+        .unwrap();
+        assert_eq!(t_high, Duration::from_secs(MAX_PLUGIN_CLI_TIMEOUT_SECS));
+
+        // Rejects mcp, unknown commands, non-string args, and NUL bytes
+        assert!(
+            validate_plugin_cli_request(&serde_json::json!({"command": "mcp"})).is_err(),
+            "mcp command must be rejected to prevent recursive MCP servers"
+        );
+        assert!(validate_plugin_cli_request(&serde_json::json!({"command": "shell"})).is_err());
+        assert!(validate_plugin_cli_request(&serde_json::json!({"command": ""})).is_err());
+        assert!(
+            validate_plugin_cli_request(&serde_json::json!({
+                "command": "extract",
+                "args": [123],
+            }))
+            .is_err()
+        );
+        assert!(
+            validate_plugin_cli_request(&serde_json::json!({
+                "command": "extract",
+                "args": ["bad\0arg"],
+            }))
+            .is_err()
+        );
+
+        // Executable resolution: sibling vesta-cli > exact vesta binary > PATH
+        let dir = tempfile::tempdir().unwrap();
+        let bin_dir = dir.path().join("bin");
+        let path_dir = dir.path().join("path");
+        std::fs::create_dir_all(&bin_dir).unwrap();
+        std::fs::create_dir_all(&path_dir).unwrap();
+
+        let cli_name = if cfg!(windows) {
+            "vesta-cli.exe"
+        } else {
+            "vesta-cli"
+        };
+        let app_name = if cfg!(windows) { "vesta.exe" } else { "vesta" };
+        let test_runner_bin = bin_dir.join("vesta-987654321");
+        let app_bin = bin_dir.join(app_name);
+        let sibling_cli = bin_dir.join(cli_name);
+        let path_cli = path_dir.join(cli_name);
+
+        std::fs::write(&test_runner_bin, "runner").unwrap();
+        std::fs::write(&path_cli, "path-cli").unwrap();
+
+        // Cargo test binary name (`vesta-<hash>`) is skipped in favor of PATH `vesta-cli`
+        let resolved_from_test =
+            resolve_plugin_cli_executable_from(Some(&test_runner_bin), Some(path_dir.as_os_str()));
+        assert_eq!(resolved_from_test.as_deref(), Some(path_cli.as_path()));
+
+        // Exact `vesta` binary is used when sibling `vesta-cli` is absent
+        std::fs::write(&app_bin, "app").unwrap();
+        let resolved_from_app =
+            resolve_plugin_cli_executable_from(Some(&app_bin), Some(path_dir.as_os_str()));
+        assert_eq!(resolved_from_app.as_deref(), Some(app_bin.as_path()));
+
+        // Sibling `vesta-cli` takes precedence over `vesta`
+        std::fs::write(&sibling_cli, "sibling-cli").unwrap();
+        let resolved_sibling =
+            resolve_plugin_cli_executable_from(Some(&app_bin), Some(path_dir.as_os_str()));
+        assert_eq!(resolved_sibling.as_deref(), Some(sibling_cli.as_path()));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn vesta_cli_rpc_enforces_permission_and_executes_command_non_blocking() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let mock_cli = dir.path().join("mock-vesta-cli");
+        let mock_cli_script = r#"#!/usr/bin/env python3
+import json, os, sys
+op = sys.argv[1] if len(sys.argv) > 1 else ""
+args = sys.argv[2:]
+if "--fail" in args:
+    sys.stderr.write("simulated cli failure\n")
+    sys.exit(2)
+print(json.dumps({
+    "op": op,
+    "args": args,
+    "invokedBy": os.environ.get("VESTA_INVOKED_BY_PLUGIN", ""),
+}))
+"#;
+        std::fs::write(&mock_cli, mock_cli_script).unwrap();
+        std::fs::set_permissions(&mock_cli, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let runtime = PluginRuntimeManager::new_with_cli_binary(mock_cli);
+
+        let plugin_script = r#"
+import json, sys
+
+req_seq = 500
+
+def call_host(method, params):
+    global req_seq
+    req_seq += 1
+    rid = req_seq
+    print(json.dumps({"jsonrpc": "2.0", "id": rid, "method": method, "params": params}), flush=True)
+    while True:
+        line = sys.stdin.readline()
+        if not line:
+            return {"eof": True}
+        msg = json.loads(line)
+        if msg.get("id") == rid and "method" not in msg:
+            return msg
+
+for line in sys.stdin:
+    req = json.loads(line)
+    m = req.get("method")
+    if m == "initialize":
+        print(json.dumps({"jsonrpc": "2.0", "id": req["id"], "result": {"ok": True}}), flush=True)
+    elif m == "render":
+        p = req.get("params", {}).get("params", {})
+        method = p.get("hostMethod", "vesta.cli")
+        resp = call_host(method, p.get("cliParams", {}))
+        print(json.dumps({"jsonrpc": "2.0", "id": req["id"], "result": resp}), flush=True)
+    elif m == "shutdown":
+        print(json.dumps({"jsonrpc": "2.0", "id": req["id"], "result": None}), flush=True)
+        break
+"#;
+
+        // 1. Plugin WITHOUT `vesta:cli` permission scope is denied with -32003
+        let unpriv_manifest = python_manifest("no-cli-scope", plugin_script, vec![]);
+        let unpriv_proc = runtime
+            .ensure_running(
+                &unpriv_manifest,
+                dir.path(),
+                None,
+                "en",
+                &HashMap::new(),
+                false,
+            )
+            .await
+            .unwrap();
+        let denied_res = runtime
+            .render(
+                &unpriv_proc,
+                "main",
+                serde_json::json!({
+                    "cliParams": {"command": "extract", "args": ["--help"]}
+                }),
+                "en",
+                false,
+            )
+            .await
+            .unwrap();
+        assert_eq!(denied_res["error"]["code"], -32003);
+        assert!(
+            denied_res["error"]["message"]
+                .as_str()
+                .unwrap_or("")
+                .contains("vesta:cli")
+        );
+        runtime.stop_plugin("no-cli-scope").await;
+
+        // 2. Plugin WITH `vesta:cli` scope executes allowed operations and rejects `mcp` / unknown methods
+        let priv_manifest = python_manifest("with-cli-scope", plugin_script, vec!["vesta:cli"]);
+        let priv_proc = runtime
+            .ensure_running(
+                &priv_manifest,
+                dir.path(),
+                None,
+                "en",
+                &HashMap::new(),
+                false,
+            )
+            .await
+            .unwrap();
+
+        let ok_res = runtime
+            .render(
+                &priv_proc,
+                "main",
+                serde_json::json!({
+                    "cliParams": {
+                        "command": "flashcards",
+                        "args": ["preview", "--srt", "/tmp/demo.srt", "--json"]
+                    }
+                }),
+                "en",
+                false,
+            )
+            .await
+            .unwrap();
+        assert_eq!(ok_res["result"]["ok"], true);
+        assert_eq!(ok_res["result"]["exitCode"], 0);
+        assert_eq!(ok_res["result"]["truncated"], false);
+        let parsed_stdout: serde_json::Value =
+            serde_json::from_str(ok_res["result"]["stdout"].as_str().unwrap()).unwrap();
+        assert_eq!(parsed_stdout["op"], "flashcards");
+        assert_eq!(
+            parsed_stdout["args"],
+            serde_json::json!(["preview", "--srt", "/tmp/demo.srt", "--json"])
+        );
+        assert_eq!(parsed_stdout["invokedBy"], "with-cli-scope");
+
+        // Non-zero exit code is returned cleanly in result
+        let fail_res = runtime
+            .render(
+                &priv_proc,
+                "main",
+                serde_json::json!({
+                    "cliParams": {
+                        "command": "refine",
+                        "args": ["--fail"]
+                    }
+                }),
+                "en",
+                false,
+            )
+            .await
+            .unwrap();
+        assert_eq!(fail_res["result"]["ok"], false);
+        assert_eq!(fail_res["result"]["exitCode"], 2);
+        assert!(
+            fail_res["result"]["stderr"]
+                .as_str()
+                .unwrap_or("")
+                .contains("simulated cli failure")
+        );
+
+        // Disallowed command `mcp` is rejected with -32602
+        let mcp_res = runtime
+            .render(
+                &priv_proc,
+                "main",
+                serde_json::json!({
+                    "cliParams": {"command": "mcp"}
+                }),
+                "en",
+                false,
+            )
+            .await
+            .unwrap();
+        assert_eq!(mcp_res["error"]["code"], -32602);
+
+        // Unknown host RPC method returns -32601 instead of hanging
+        let unknown_res = runtime
+            .render(
+                &priv_proc,
+                "main",
+                serde_json::json!({
+                    "hostMethod": "vesta.unknownMethod",
+                    "cliParams": {}
+                }),
+                "en",
+                false,
+            )
+            .await
+            .unwrap();
+        assert_eq!(unknown_res["error"]["code"], -32601);
+
+        runtime.stop_plugin("with-cli-scope").await;
     }
 }
