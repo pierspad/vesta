@@ -116,7 +116,10 @@ function translate(
 
   if (params) {
     return Object.entries(params).reduce(
-      (str, [k, v]) => str.replace(new RegExp(`{{${k}}}`, 'g'), String(v)),
+      (str, [k, v]) =>
+        str
+          .replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), String(v))
+          .replace(new RegExp(`\\{${k}\\}`, 'g'), String(v)),
       translation
     );
   }

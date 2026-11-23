@@ -632,6 +632,24 @@ it("dispatches action with action.id as widgetId and click as eventType when cli
     expect.any(String),
     expect.any(Boolean)
   );
+
+  // Double-clicking the list item row also triggers its default action and text is selectable
+  expect(target.querySelector(".plugin-renderer")?.classList.contains("select-text")).toBe(true);
+  mockDispatch.mockClear();
+  mockDispatch.mockResolvedValueOnce({});
+  const rowEl = target.querySelector(".plugin-renderer")?.querySelector(".rounded-xl.border") as HTMLElement;
+  expect(rowEl).not.toBeNull();
+  rowEl.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+  await tick();
+  expect(mockDispatch).toHaveBeenCalledWith(
+    "vibravid",
+    expect.objectContaining({
+      widgetId: "select_movie_123",
+      eventType: "click",
+    }),
+    expect.any(String),
+    expect.any(Boolean)
+  );
 });
 
 it("guides blocked searches to settings and enforces prerequisites on Enter", async () => {

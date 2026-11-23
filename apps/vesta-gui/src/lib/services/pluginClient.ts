@@ -251,7 +251,7 @@ export interface ButtonWidget extends BaseWidget {
   type: "button";
   id: string;
   label: string;
-  variant?: "primary" | "secondary" | "danger" | "settings" | "accent";
+  variant?: "primary" | "secondary" | "danger" | "settings" | "accent" | "success";
   disabled?: boolean;
   icon?: string;
   status?: "attention" | "ready";
@@ -264,7 +264,7 @@ export interface ButtonWidget extends BaseWidget {
 export interface ListItemAction {
   id: string;
   label: string;
-  variant?: "primary" | "secondary" | "danger";
+  variant?: "primary" | "secondary" | "danger" | "accent" | "success";
   tooltip?: string;
   icon?: string;
   iconOnly?: boolean;

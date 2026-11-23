@@ -207,6 +207,11 @@ describe("pluginsStore", () => {
       "success"
     );
 
+    pluginsStore.plugins = [{ ...samplePlugin, version: "2.0.0" }];
+    mocks.pluginUpdate.mockResolvedValueOnce({ ...samplePlugin, version: "2.0.0" });
+    await pluginsStore.update("sub-plugin");
+    expect(mocks.snackbarShow).toHaveBeenLastCalledWith("settings.updatesUpToDate", "info");
+
     mocks.pluginUpdate.mockRejectedValueOnce(new Error("boom update"));
     await pluginsStore.update("sub-plugin");
     expect(mocks.snackbarShow).toHaveBeenLastCalledWith(

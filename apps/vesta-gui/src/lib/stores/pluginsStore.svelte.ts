@@ -214,11 +214,19 @@ class PluginsStore {
   async update(id: string, releaseTag?: string): Promise<void> {
     this.loading = true;
     const t = get(locale);
+    const previousVersion = this.plugins.find((p) => p.id === id)?.version;
     try {
       const updated = await pluginUpdate(id, releaseTag);
       this.clearProgress(id);
       await this.refresh();
-      snackbar.show(t("plugins.updateSuccess", { name: updated.name, version: updated.version }), "success");
+      if (
+        previousVersion &&
+        previousVersion.replace(/^v/i, "") === updated.version.replace(/^v/i, "")
+      ) {
+        snackbar.show(t("settings.updatesUpToDate"), "info");
+      } else {
+        snackbar.show(t("plugins.updateSuccess", { name: updated.name, version: updated.version }), "success");
+      }
     } catch (e: any) {
       snackbar.show(t("plugins.updateFailed", { error: e?.message || String(e) }), "error");
     } finally {

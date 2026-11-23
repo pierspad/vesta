@@ -52,6 +52,7 @@
   let uiRoot = $state<WidgetNode | null>(null);
   let values = $state<Record<string, any>>({});
   let renderer: HTMLDivElement;
+  let scrollContainer = $state<HTMLDivElement | null>(null);
   let loading = $state(false);
   let actionLoading = $state<string | null>(null);
   let error = $state<string | null>(null);
@@ -347,6 +348,9 @@
           }
           uiRoot = res.root;
           collectDefaults(uiRoot);
+          if ((res as any).scrollTop || widgetId.startsWith("action_select_")) {
+            scrollContainer?.scrollTo?.({ top: 0, behavior: "smooth" });
+          }
         }
         if (res.patch) {
           applyPatch(res.root ? { values: res.patch.values } : res.patch);
@@ -1042,7 +1046,17 @@
       <div class="flex flex-col gap-2 w-full">
         {#each node.items as item (item.id)}
           {@const primary = item.actions?.find(action => action.id === item.primaryAction)}
-          <div class="relative flex items-center justify-between p-3.5 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.05] transition-colors gap-3">
+          {@const defaultAction = primary ?? item.actions?.[0]}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div
+            class="relative flex items-center justify-between p-3.5 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.05] transition-colors gap-3"
+            ondblclick={(e) => {
+              if (actionLoading !== null || !defaultAction) return;
+              if ((e.target as HTMLElement | null)?.closest("button, a, input")) return;
+              window.getSelection?.()?.removeAllRanges();
+              void handleAction(defaultAction.id, "click");
+            }}
+          >
             {#if primary}
               <button type="button" class="absolute inset-0 rounded-xl cursor-pointer focus-visible:outline-2"
                 aria-label={item.title} disabled={actionLoading !== null}
@@ -1101,7 +1115,7 @@
                     title={action.tooltip ?? (action.iconOnly ? action.label : undefined)}
                     aria-label={action.iconOnly ? action.label : undefined}
                     disabled={actionLoading !== null}
-                    class="relative text-xs font-semibold px-3 py-1.5 rounded-lg border border-white/10 transition-colors inline-flex items-center gap-1.5 cursor-pointer {action.variant === 'primary' ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : action.variant === 'danger' ? 'bg-rose-600 hover:bg-rose-500 text-white' : 'bg-white/5 hover:bg-white/10 text-gray-200'}"
+                    class="relative text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors inline-flex items-center gap-1.5 cursor-pointer select-none {action.variant === 'primary' ? 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-400/30 shadow-sm' : action.variant === 'accent' ? 'bg-cyan-600/85 hover:bg-cyan-500 text-white border-cyan-400/35 shadow-sm' : action.variant === 'success' ? 'bg-emerald-600/85 hover:bg-emerald-500 text-white border-emerald-400/35 shadow-sm' : action.variant === 'danger' ? 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400/30' : 'bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-200 border-indigo-400/25'}"
                     onclick={() => handleAction(action.id, "click")}
                   >
                     {#if action.icon}
@@ -1295,7 +1309,7 @@
 
 <div bind:this={renderer} class="w-full h-full flex flex-col">
   {@render header?.(actions, () => { void goBack(); }, loading || actionLoading !== null)}
-  <div use:settledScroll class="plugin-renderer w-full flex-1 min-h-0 flex flex-col p-6 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+  <div bind:this={scrollContainer} use:settledScroll class="plugin-renderer select-text w-full flex-1 min-h-0 flex flex-col p-6 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
     {#if activeProgress.length > 0}
       <div class="mb-4 flex flex-col gap-2 shrink-0" data-testid="plugin-active-progress">
         {#each activeProgress as entry (entry.id)}
