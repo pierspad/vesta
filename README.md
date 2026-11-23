@@ -86,7 +86,7 @@ Individual standalone commands (`cargo install --path cli/<crate>`) expose the s
 
 CLI subcommands use their own flags and config files rather than desktop Settings; see the [CLI guide](docs/CLI.md) and [`vesta-cli`](cli/vesta-cli/README.md).
 
-For MCP clients, run `vesta-cli mcp` (or standalone `vesta-mcp`) as a local stdio server with 18 tools for subtitle inspection, embedded track listing/extraction, dueling subtitles, card previews, APKG merging, manual/automatic sync, cancellable flashcard/refine/translation/transcription/OCR jobs, and installed plugins, or copy the ready-to-paste client snippet from **Settings → Overview**; see [MCP setup and schemas](docs/MCP.md).
+For MCP clients, run `vesta-cli mcp` (or standalone `vesta-mcp`) as a local stdio server with 24 tools for subtitle inspection, embedded track listing/extraction, video frame previews, dueling subtitles, card/batch previews & exports, APKG merging, deck inspection/editing, manual/automatic sync, AnkiConnect integration, local Whisper/VAD/OCR model management, cancellable flashcard/refine/translation/transcription/OCR jobs, and installed plugins, or copy the ready-to-paste client snippet from **Settings → Overview**; see [MCP setup and schemas](docs/MCP.md).
 
 ## Building from Source
 
@@ -105,12 +105,12 @@ Tests, linters, Playwright checks, and release gates live in [CONTRIBUTING.md](C
 
 | Guide | Covers |
 |---|---|
-| [Documentation index](docs/README.md) | Full list of manuals, module docs, and audit records |
+| [Documentation index](docs/README.md) | Full list of manuals, module docs, and feature scorecard |
 | [CLI guide](docs/CLI.md) · [MCP guide](docs/MCP.md) | Commands, flags, JSON streams, stdio MCP tools, and limits |
 | [Architecture](docs/ARCHITECTURE.md) · [Modules](docs/modules/README.md) | Workspace crates, pipelines, media lifecycle, and Rust APIs |
 | [Library integration](docs/library-integration.md) · [Providers](docs/API_COMPATIBILITY.md) | Downstream embedding, Whisper patch, and HTTP endpoints |
 | [Quality](docs/QUALITY.md) · [Maintenance](docs/MAINTENANCE.md) · [Setup](docs/SETUP_TESTING.md) | Pre-release gates, invariants, dependency notes, and installer checks |
-| [Scorecard](docs/SCORECARD.md) · [Audit log](docs/AUDIT_LOG.md) | Feature matrix, reliability controls, and wave history |
+| [Scorecard](docs/SCORECARD.md) | Feature matrix, live metrics, reliability controls, and active findings |
 | [Benchmarks](docs/BENCHMARK_REPORT.md) | Methodology, reproduction steps, and native A/B measurements |
 
 ## Plugins

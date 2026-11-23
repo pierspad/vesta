@@ -8,7 +8,7 @@ This index links to all actively maintained reference manuals and guides.
 | Guide | Description |
 | --- | --- |
 | [CLI and Coverage](CLI.md) | Commands, examples, safe usage, error handling, output formats, and differences from GUI/libraries. |
-| [MCP Server](MCP.md) | Local stdio server, 18 tools, allowed directory roots, provider profiles, and asynchronous job management. |
+| [MCP Server](MCP.md) | Local stdio server, 24 tools, allowed directory roots, provider profiles, and asynchronous job management. |
 | [Plugin Specification & SDK](PLUGINS.md) | Declarative JSON-RPC 2.0 plugin architecture, widget catalog, manifest schema, and Python SDK. |
 | [Setup and Installer Testing](SETUP_TESTING.md) | First-run setup checks, audio preparation, and installer update validation. |
 
@@ -33,7 +33,6 @@ This index links to all actively maintained reference manuals and guides.
 
 A passing build or green test suite does not certify installers, real GPUs, Anki connectivity, or remote providers. Automated checks and real-world verifications are distinguished in [QUALITY](QUALITY.md).
 
-## Feature Scorecard & Audit Tracking
+## Feature Scorecard
 
-- [Feature Scorecard & Audit Dashboard](SCORECARD.md) — Auto-generated coverage matrix across all 12 app areas, live metrics, reliability controls, and backlog (`python3 build-scripts/generate_scorecard.py`)
-- [Audit Log](AUDIT_LOG.md) — Chronological audit waves, swarm verification summary, and Wave 2 resume guide
+- [Feature Scorecard & Audit Dashboard](SCORECARD.md) — Auto-generated coverage matrix across all 12 app areas, live metrics, reliability controls, and active findings (`python3 build-scripts/generate_scorecard.py`)

@@ -14,7 +14,7 @@ async fn stdio_client_discovers_tools_previews_and_generates_a_deck() -> anyhow:
             .env_remove("DISPLAY").env_remove("WAYLAND_DISPLAY");
         let client = ().serve(TokioChildProcess::new(command)?).await?;
         let tools = client.list_all_tools().await?;
-        assert_eq!(tools.len(), 18);
+        assert_eq!(tools.len(), 24);
         for tool in &tools { assert!(tool.input_schema.contains_key("type")); }
         for expected in [
             "extract_embedded_subtitle",
@@ -23,6 +23,12 @@ async fn stdio_client_discovers_tools_previews_and_generates_a_deck() -> anyhow:
             "refine_flashcards",
             "export_dueling_subtitles",
             "merge_apkg",
+            "batch_generate_flashcards",
+            "preview_video_frame",
+            "inspect_deck",
+            "edit_deck_cards",
+            "ankiconnect",
+            "manage_local_models",
         ] {
             assert!(
                 tools.iter().any(|t| t.name == expected),

@@ -9,8 +9,8 @@ Vesta provides a local **server**, `vesta-mcp`, using the
 [official Rust SDK](https://github.com/modelcontextprotocol/rust-sdk). An MCP-capable
 application acts as the client and starts it as a subprocess. Communication uses
 JSON-RPC over stdin/stdout. No GUI or listening network port is required. The
-server directly invokes the shared Rust flashcard, translation, transcription, and plugin RPC
-engines.
+server directly invokes the shared Rust flashcard, extraction/OCR, sync/autosync,
+refine, AnkiConnect, translation, transcription, and plugin RPC engines.
 
 ## Why keep MCP alongside the CLI?
 
@@ -23,7 +23,7 @@ over a single structured stdio protocol.
 | Interface | Best fit | Current coverage |
 |---|---|---|
 | `vesta-cli` / `vesta <operation>` | Shell scripts and terminal users | Nine subcommands: eight processing workflows plus `vesta-cli mcp` (`vesta mcp`); see the [CLI coverage matrix](CLI.md). |
-| `vesta-cli mcp` / `vesta-mcp` | MCP clients discovering structured tools and tracking export jobs | Subtitle inspection, embedded text extraction & track listing, paged card previews, TSV/APKG exports, bilingual dueling subtitles, APKG merge, manual/automatic subtitle sync, LLM deck refinement, translation, transcription, bitmap/ROI OCR, and installed plugins (18 tools). |
+| `vesta-cli mcp` / `vesta-mcp` | MCP clients discovering structured tools and tracking export jobs | Subtitle inspection, embedded text extraction & track listing, video frame ROI previews, filtered card previews, single/batch TSV & APKG exports, bilingual dueling subtitles, APKG merge, manual/automatic subtitle sync, deck inspect/edit & LLM refinement, loopback AnkiConnect, local model management, translation, transcription, bitmap/ROI OCR, and installed plugins (24 tools). |
 | Rust libraries | Applications that need APIs/options not exposed by an adapter | All public engine APIs; caller owns orchestration, configuration and lifecycle. |
 
 The client starts a local subprocess for its connection. That process uses local
@@ -85,13 +85,19 @@ its directory arguments; a configured server then waits for an MCP client.
 | `inspect_subtitles` | Read format, line count, duration, actors and sample text | No |
 | `list_embedded_subtitles` | List embedded text and bitmap subtitle tracks in a media container | No |
 | `extract_embedded_subtitle` | Extract an embedded text subtitle stream from a media container to `subtitle.srt` | New directory (`subtitle.srt`) |
-| `preview_flashcards` | Match target/native subtitles and return a page of preview rows | No |
-| `generate_flashcards` | Start a TSV/APKG export and return a job ID immediately | New directory |
-| `export_dueling_subtitles` | Export bilingual dueling subtitles (`.ass` or `.srt`) from matched target and native tracks | New directory |
+| `preview_video_frame` | Extract a PNG preview frame from a video (`time_ms` optional) and compute pixel bounds (`roi_px`) for an optional normalized ROI | No |
+| `preview_flashcards` | Match and filter target/native subtitles and return a page of preview rows | No |
+| `generate_flashcards` | Start a TSV/APKG export with optional filters, fonts, and media settings; returns a job ID immediately | New directory |
+| `batch_generate_flashcards` | Start a 1–64 episode batch export in a fresh directory (`ep-NNN/`), optionally merging `.apkg` files into `merged.apkg` | New directory |
+| `export_dueling_subtitles` | Export filtered bilingual dueling subtitles (`.ass` or `.srt`) from matched target and native tracks | New directory |
 | `merge_apkg` | Merge 2 to 64 fresh `.apkg` packages (without review history) into `merged.apkg` | New directory (`merged.apkg`) |
 | `sync_subtitles` | Retime an SRT file via constant offset, speed factor (`0.5..=2.0`), or explicit manual anchors | New directory (`synced.srt`) |
 | `autosync_subtitles` | Start automatic speech-guided SRT synchronization using a named server transcription profile | New directory (`synced.srt`) |
+| `inspect_deck` | Search and paginate cards (`total`, `matched`, `offset`, `limit`, `cards`) in a `.tsv` or `.apkg` deck | No |
+| `edit_deck_cards` | Update notes for 1–200 card IDs in a `.tsv` or `.apkg` deck and write a new deck (`edited.<ext>`) without mutating the input | New directory (`edited.<ext>`) |
 | `refine_flashcards` | Start AI annotation of a `.tsv` or `.apkg` deck using a named server translation/LLM profile | New directory (`refined.<ext>`) |
+| `ankiconnect` | Run `ping`, `deck_names`, or `import_package` against a strictly loopback (`127.0.0.1`, `localhost`, or `[::1]`) AnkiConnect URL | No (imports into running Anki on `import_package`) |
+| `manage_local_models` | List (`list`), download (`download`), or uninstall (`remove`) cataloged local `whisper`, `vad`, and `ocr` models | Model cache (on `download`/`remove`) |
 | `translate_subtitles` | Start SRT translation using a named server profile | New directory; incremental checkpoints |
 | `transcribe_media` | Start local/cloud transcription using a named server profile | New directory; final SRT |
 | `ocr_subtitles` | Start bitmap track (`track_index`) or hardcoded video ROI (`roi`) OCR conversion to SRT using a named translation/OCR profile | New directory; final SRT |
@@ -104,9 +110,14 @@ Typical workflow:
 
 1. Discover the tools and call `get_configuration`.
 2. Inspect subtitle files and call `preview_flashcards` with a target path, an
-   optional native subtitle path, `offset` (default 0), and `limit` (default 20,
-   maximum 100).
-3. With a user-authorized export, call `generate_flashcards`:
+   optional native subtitle path, `offset` (default 0), `limit` (default 20,
+   maximum 100), and any optional subtitle filter options (`min_chars`, `max_chars`,
+   `min_duration_ms`, `max_duration_ms`, `include_words`, `exclude_words`,
+   `remove_duplicates`, `only_cjk`, `remove_no_match`, `combine_sentences`,
+   `continuation_chars`, `time_shift_target_ms`, `time_shift_native_ms`,
+   `span_start_ms`, `span_end_ms`).
+3. With a user-authorized export, call `generate_flashcards` (or `batch_generate_flashcards`
+   for multi-episode runs):
 
    ```json
    {
@@ -121,21 +132,18 @@ Typical workflow:
    }
    ```
 
-   `format` is `apkg` or `tsv`. `note_type` optionally sets the Anki note type.
+   `format` is `apkg` or `tsv`. `note_type` optionally sets the Anki note type (`1–128` characters).
    An optional `audio` input can supply separate audio. Media flags default to
    false: audio requires an audio/video input; snapshots and video clips require
    a video input. FFmpeg/FFprobe must be on PATH when processing media. Workers
    must be 1–64 and are also capped by the engine to available logical cores.
-   Font downloads are disabled in this adapter. The complete generation parameter
-   set is `target`, `native`, `video`, `audio`, `deck`, `format`, `note_type`,
-   `include_audio`, `include_snapshots`, `include_video`, and `workers`.
-   `target`, `deck` (1–256 characters) and `format` are required; the others are optional. `note_type`
-   is a name (1–128 characters), not a custom field/template definition. Other
-   engine settings use library defaults; codecs, filters, padding and GUI
-   note-type preferences are not `generate_flashcards` MCP parameters (use
-   `merge_apkg` to combine generated `.apkg` packages or `export_dueling_subtitles`
-   for bilingual `.ass`/`.srt` exports). Unknown fields are rejected, so use the
-   CLI/library for options outside this schema.
+
+   Optional generation parameters include:
+   - **Font & dictionary (`FC-07`)**: `target_language` (ASCII BCP-47/ISO-639 tag up to 35 chars), `dictionary_lookup` (defaults to `true` when omitted; set `false` to omit the lookup script from `.apkg` templates), `auto_card_font` (defaults to `false`), and `embed_card_font` (defaults to `false`; embeds only fonts already present in the local font cache and never triggers network font downloads).
+   - **Media & encoding (`FC-08`)**: `audio_format` (`mp3` or `opus`), `audio_bitrate` (`16..=512`), `audio_track` (`0..=64`), `normalize_audio`, `pad_audio_start_ms` / `pad_audio_end_ms` (`-60000..=60000`), `audio_gain` (`-30..=30` dB), `snapshot_format` (`webp`, `jpeg`, or `avif`), `snapshot_width` (`16..=3840`), `snapshot_height` (`16..=2160`), `snapshot_quality` (`0..=100`), `crop_bottom` (`0..=2160`), `video_codec` (`h264` or `mpeg4`), `video_bitrate` (`100..=50000`), `video_hw_accel` (`auto` or `off`), and `pad_video_start_ms` / `pad_video_end_ms` (`-60000..=60000`).
+   - **Subtitle filters (`FC-05`)**: the same 15 filter, shift, span, and sentence-combining fields accepted by `preview_flashcards` and `export_dueling_subtitles`.
+
+   `target`, `deck` (1–256 characters) and `format` are required for `generate_flashcards`; the others are optional. `batch_generate_flashcards` takes `episodes` (`1..=64` entries with `target` and optional `native`, `video`, `audio`, `deck`, `episode`, `audio_track`, `crop_bottom`, `shift_target_ms`, `shift_native_ms`), shared defaults (`deck`, `format`, font/media/filter options), and `merge_apkg` (merges generated `.apkg` files into `merged.apkg` when `true`, `format` is `apkg`, and at least 2 episodes are present). Unknown fields are rejected on all request schemas.
 
 4. Poll `get_job` with the returned `job_id`. Its `progress` is the latest engine
    event; `result` includes the card count and export paths after success.
@@ -159,13 +167,13 @@ approval policy when tools create files.
 
 ## Translation and transcription profiles
 
-These two tools are present in the schema but disabled until server profiles are
+Translation, transcription, OCR, autosync, and AI deck refinement tools are present in the schema but disabled until server profiles are
 configured. Start the server with `--provider-config /absolute/path/to/providers.json`.
 Profiles load once at startup; restart the MCP connection after changing them.
 The server does not read the GUI preferences/API keys or the CLI's config files.
 
 A local-only configuration (replace the LLM model with one installed in your
-local server, and install Whisper Base with `vesta-cli transcribe download base`):
+local server, and install Whisper Base via `manage_local_models` or `vesta-cli transcribe download base`):
 
 ```json
 {
@@ -242,8 +250,7 @@ native toolchain is installed. GPU backends are alternative build targets.
 `allow_model_download` defaults false: a local run requires an already installed
 Whisper model, or an administrator must explicitly enable downloads in that
 profile. This option is rejected for cloud profiles. `vad: true` uses the default
-installed Silero VAD model (`vesta-cli transcribe download vad`); there is no
-model-management or arbitrary model-path tool in MCP. FFmpeg must be on PATH.
+installed Silero VAD model (`manage_local_models` with `action: "download"`, `kind: "vad"`, `model_id: "v6.2.0"`, or `vesta-cli transcribe download vad`). Arbitrary model file paths are never accepted; `manage_local_models` only inspects, downloads, or removes validated catalog entries (`whisper`, `vad`, `ocr`), and `action: "list"` runs completely offline. FFmpeg must be on PATH.
 
 ### Start and inspect processing jobs
 
@@ -269,16 +276,21 @@ returns the engine's actual SRT path: local autodetection may add a language
 suffix. Transcription publishes only after success; a late cancellation after
 publication begins can still complete successfully.
 
-Both `transcribe_media`, `translate_subtitles`, `ocr_subtitles`, `autosync_subtitles`, and `refine_flashcards` return a job snapshot immediately. Use the same `get_job` and
-`cancel_job` as for flashcards. `operation` identifies `flashcards`, `translation`,
-`transcription`, `ocr`, `autosync`, or `refine`. `list_embedded_subtitles` returns embedded stream metadata synchronously so you can extract text tracks directly via `extract_embedded_subtitle` or pick `track_index` for embedded bitmap tracks before calling `ocr_subtitles` (or omit `track_index` and pass a normalized `roi` [`{x, y, width, height}` in `0.0..=1.0`] plus optional `sample_fps` [`0.5..=15.0`, default `2.5`] to OCR burned-in subtitles); `ocr_subtitles` writes `ocr.srt` using either offline `local_ocr`/`paddle` catalog models or Vision LLM tiers from the named `translation` profile (while `translate_subtitles` and `refine_flashcards` reject profiles that only define local OCR entries). Synchronous helpers `sync_subtitles` (constant `offset_ms`, linear `speed`, or explicit monotonic `anchors`), `export_dueling_subtitles`, and `merge_apkg` (which accepts 2–64 `.apkg` files from read or output roots so `generate_flashcards` / `refine_flashcards` outputs can be chained) write fresh output subdirectories without overwriting existing files. Exactly **one processing job** may run at a time per server,
+All asynchronous job tools (`generate_flashcards`, `batch_generate_flashcards`, `transcribe_media`, `translate_subtitles`, `ocr_subtitles`, `autosync_subtitles`, and `refine_flashcards`) return a job snapshot immediately. Use the same `get_job` and
+`cancel_job` for all of them. `operation` identifies `flashcards`, `batch_flashcards`, `translation`,
+`transcription`, `ocr`, `autosync`, or `refine`. `list_embedded_subtitles` returns embedded stream metadata synchronously so you can extract text tracks directly via `extract_embedded_subtitle` or pick `track_index` for embedded bitmap tracks before calling `ocr_subtitles` (or call `preview_video_frame` to capture a preview PNG frame and inspect pixel `roi_px` bounds, then omit `track_index` and pass a normalized `roi` [`{x, y, width, height}` in `0.0..=1.0`] plus optional `sample_fps` [`0.5..=15.0`, default `2.5`] to `ocr_subtitles` for burned-in subtitles); `ocr_subtitles` writes `ocr.srt` using either offline `local_ocr`/`paddle` catalog models or Vision LLM tiers from the named `translation` profile (while `translate_subtitles` and `refine_flashcards` reject profiles that only define local OCR entries).
+
+Synchronous helpers `sync_subtitles` (constant `offset_ms`, linear `speed`, or explicit monotonic `anchors`), `export_dueling_subtitles`, `merge_apkg` (which accepts 2–64 `.apkg` files from read or output roots so `generate_flashcards` / `batch_generate_flashcards` / `refine_flashcards` outputs can be chained), `inspect_deck` (case-insensitive query + pagination over `.tsv`/`.apkg`), and `edit_deck_cards` (atomic non-mutating write of `edited.<ext>` in a new output directory for 1–200 card note edits) write fresh output subdirectories without overwriting existing files.
+
+`ankiconnect` connects only to loopback HTTP/HTTPS AnkiConnect URLs (`127.0.0.1`, `localhost`, or `[::1]`, defaulting to `http://127.0.0.1:8765`, rejecting embedded credentials, queries, fragments, and non-loopback hosts to prevent SSRF) for `ping`, `deck_names`, and `import_package` (requiring a valid `.apkg` path inside read or output roots).
+
+Exactly **one processing job** may run at a time per server,
 across all background job types (`max_active_jobs = 1`). Job history is bounded to 64 session-local records.
 No existing user output is overwritten. Cancel, then poll for a terminal state;
 shutdown/disconnect cancels active work and waits for cleanup.
 
 Invoking a configured cloud profile can send subtitle text/audio to its provider
-and incur account charges. Use these tools only for user-authorized work. GUI control
-and direct AnkiConnect import are not exposed as MCP tools (desktop GUI preferences and keys stay isolated). The [CLI/library coverage guide](CLI.md) describes the remaining adapters,
+and incur account charges, and `manage_local_models` (`download`) fetches cataloged model weights over HTTPS. Use these tools only for user-authorized work. GUI control and desktop settings/API keys stay isolated and are never exposed. The [CLI/library coverage guide](CLI.md) describes the remaining adapters,
 and [`PLUGINS.md`](PLUGINS.md) documents the `list_plugins` and `call_plugin` protocol (`call_plugin` accepts required `plugin_id`, plus optional `screen` [default `"main"`], `widget_id` [dispatches `"event"` when set or `"render"` when omitted], `event_type` [default `"click"`], `values`, and `expert_mode` [default `false`]).
 
 ## Validation
@@ -288,8 +300,9 @@ cargo test --locked -p vesta-mcp
 cargo clippy --locked -p vesta-mcp --all-targets -- -D warnings
 ```
 
-Tests connect an MCP SDK client to the standalone server over stdio, discover
-all 18 tool schemas, inspect/preview/sync subtitles, list and extract embedded tracks, export dueling subtitles, generate and merge TSV/APKG exports,
+Tests connect an MCP SDK client to the standalone server over stdio, verify
+all 24 tool schemas, inspect/preview/sync/filter subtitles, list and extract embedded tracks, validate video frame ROI previews, export dueling subtitles, generate/batch-generate/merge TSV/APKG exports,
+inspect and edit deck cards non-destructively, test loopback AnkiConnect SSRF protection and mock protocol actions, list local Whisper/VAD/OCR models offline,
 translate, refine, autosync cancellation, and OCR via loopback HTTP, transcribe an FFmpeg audio fixture through a
 stub provider, query the plugin registry, and verify cancellation, incomplete translation, disabled profiles,
 credential handling, shutdown and path boundaries. Client-specific

@@ -97,6 +97,126 @@ impl Jobs {
         )
     }
 
+    pub fn start_batch(
+        &self,
+        configs: Vec<FlashcardConfig>,
+        merge_apkg: bool,
+        paths: &Paths,
+    ) -> Result<JobSnapshot, String> {
+        self.start_work(
+            paths,
+            "batch_flashcards",
+            move |output, cancel, progress| async move {
+                let total_episodes = configs.len();
+                let mut episode_results = Vec::with_capacity(total_episodes);
+                let mut apkg_paths = Vec::new();
+                let mut total_cards = 0usize;
+
+                for (idx, mut config) in configs.into_iter().enumerate() {
+                    if cancel.is_cancelled() {
+                        return Err("Batch flashcard generation cancelled".into());
+                    }
+                    let ep_dir = output.join(format!("ep-{:03}", idx + 1));
+                    let ep_dir_str = ep_dir.to_string_lossy().into_owned();
+                    std::fs::create_dir_all(&ep_dir).map_err(|e| {
+                        format!(
+                            "Cannot create episode output directory '{}': {e}",
+                            ep_dir.display()
+                        )
+                    })?;
+                    config.output_dir = ep_dir_str.clone();
+                    let deck_name = config.deck_name.clone();
+                    let deck_name_progress = deck_name.clone();
+                    let episode_number = config.episode_number;
+                    let progress_ep = progress.clone();
+                    let result = vesta_flashcards::generate(
+                        config,
+                        MediaTools::default(),
+                        cancel.clone(),
+                        &move |event| {
+                            if let Ok(event_value) = serde_json::to_value(event) {
+                                progress_ep(serde_json::json!({
+                                    "stage": "batch",
+                                    "episode_index": idx,
+                                    "episode_number": episode_number,
+                                    "total_episodes": total_episodes,
+                                    "deck": &deck_name_progress,
+                                    "episode_progress": event_value,
+                                }));
+                            }
+                        },
+                    )
+                    .await;
+                    let result = match result {
+                        Ok(res) if res.success => res,
+                        Ok(res) => {
+                            clean_empty_output_dir(&ep_dir_str);
+                            return Err(format!(
+                                "Episode {} ({}) failed: {}",
+                                idx + 1,
+                                deck_name,
+                                res.message
+                            ));
+                        }
+                        Err(err) => {
+                            clean_empty_output_dir(&ep_dir_str);
+                            return Err(format!(
+                                "Episode {} ({}) failed: {err}",
+                                idx + 1,
+                                deck_name
+                            ));
+                        }
+                    };
+                    total_cards = total_cards.saturating_add(result.cards_generated);
+                    if let Some(ref apkg) = result.apkg_path {
+                        apkg_paths.push(std::path::PathBuf::from(apkg));
+                    }
+                    episode_results.push(serde_json::json!({
+                        "index": idx,
+                        "episode_number": episode_number,
+                        "deck": deck_name,
+                        "cards_generated": result.cards_generated,
+                        "audio_clips": result.audio_clips,
+                        "snapshots": result.snapshots,
+                        "video_clips": result.video_clips,
+                        "tsv_path": result.tsv_path,
+                        "apkg_path": result.apkg_path,
+                        "output_size_bytes": result.output_size_bytes,
+                    }));
+                }
+
+                let merged_apkg_path = if merge_apkg && apkg_paths.len() >= 2 {
+                    if cancel.is_cancelled() {
+                        return Err("Batch flashcard generation cancelled".into());
+                    }
+                    progress(serde_json::json!({
+                        "stage": "merge",
+                        "total_episodes": total_episodes,
+                    }));
+                    let merged_path = output.join("merged.apkg");
+                    let merged_clone = merged_path.clone();
+                    tokio::task::spawn_blocking(move || {
+                        vesta_flashcards::merge_apkg(&apkg_paths, &merged_clone)
+                    })
+                    .await
+                    .map_err(|e| format!("Batch merge task failed: {e}"))?
+                    .map_err(|e| format!("Failed to merge batch APKG outputs: {e}"))?;
+                    Some(merged_path)
+                } else {
+                    None
+                };
+
+                Ok(serde_json::json!({
+                    "total_episodes": total_episodes,
+                    "succeeded_episodes": episode_results.len(),
+                    "cards_generated": total_cards,
+                    "episodes": episode_results,
+                    "merged_apkg_path": merged_apkg_path,
+                }))
+            },
+        )
+    }
+
     pub fn start_translation(
         &self,
         input: String,
