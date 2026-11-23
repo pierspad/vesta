@@ -201,8 +201,14 @@ def extract_mcp_contracts() -> Dict[str, Any]:
 
 # ── 3. CLI Crates (cli/*) ──────────────────────────────────────────────────
 
-def _extract_flags_from_block(block: str) -> List[str]:
+def _extract_flags_from_block(
+    block: str,
+    struct_blocks: Dict[str, str] | None = None,
+    enum_blocks: Dict[str, str] | None = None,
+    visited: Set[str] | None = None,
+) -> List[str]:
     arg_fields: List[str] = []
+    seen = visited if visited is not None else set()
     for m in re.finditer(
         r"#\[arg\((.*?)\)\]\s*(?:pub\s+)?([a-zA-Z0-9_]+)\s*:",
         block,
@@ -220,6 +226,26 @@ def _extract_flags_from_block(block: str) -> List[str]:
             arg_fields.append(f"--{flag_name}")
         else:
             arg_fields.append(f"<{field_name}>")
+    if struct_blocks:
+        for fm in re.finditer(
+            r"#\[(?:command|clap)\([^\]]*flatten[^\]]*\)\]\s*(?:pub\s+)?[a-zA-Z0-9_]+\s*:\s*([A-Z][a-zA-Z0-9_]*)",
+            block,
+            re.DOTALL,
+        ):
+            ty = fm.group(1)
+            if ty in struct_blocks and ty not in seen:
+                seen.add(ty)
+                arg_fields.extend(_extract_flags_from_block(struct_blocks[ty], struct_blocks, enum_blocks, seen))
+    if enum_blocks:
+        for sm in re.finditer(
+            r"#\[(?:command|clap)\([^\]]*subcommand[^\]]*\)\]\s*(?:pub\s+)?[a-zA-Z0-9_]+\s*:\s*([A-Z][a-zA-Z0-9_]*)",
+            block,
+            re.DOTALL,
+        ):
+            ty = sm.group(1)
+            if ty in enum_blocks and ty not in seen:
+                seen.add(ty)
+                arg_fields.extend(_extract_flags_from_block(enum_blocks[ty], struct_blocks, enum_blocks, seen))
     return sorted(set(arg_fields))
 
 
@@ -247,6 +273,9 @@ def extract_cli_contracts() -> Dict[str, Any]:
             struct_blocks: Dict[str, str] = {}
             for sm in re.finditer(r"struct\s+([A-Z][a-zA-Z0-9_]*)\s*\{(.*?)\n\}", content, re.DOTALL):
                 struct_blocks[sm.group(1)] = sm.group(2)
+            enum_blocks: Dict[str, str] = {}
+            for em in re.finditer(r"enum\s+([A-Z][a-zA-Z0-9_]*)\s*\{(.*?)\n\}", content, re.DOTALL):
+                enum_blocks[em.group(1)] = em.group(2)
 
             subcommands = []
             cmd_enum = re.search(r"enum\s+Command\s*\{(.*?)\n\}", content, re.DOTALL)
@@ -261,13 +290,13 @@ def extract_cli_contracts() -> Dict[str, Any]:
                     vname = vm.group(1).lower()
                     subcommands.append(vname)
                     if vm.group(2) and vm.group(2) in struct_blocks:
-                        subcommand_flags[vname] = _extract_flags_from_block(struct_blocks[vm.group(2)])
+                        subcommand_flags[vname] = _extract_flags_from_block(struct_blocks[vm.group(2)], struct_blocks, enum_blocks)
                     elif vm.group(3):
-                        subcommand_flags[vname] = _extract_flags_from_block(vm.group(3))
+                        subcommand_flags[vname] = _extract_flags_from_block(vm.group(3), struct_blocks, enum_blocks)
                     else:
                         subcommand_flags[vname] = []
 
-            flags = _extract_flags_from_block(content)
+            flags = _extract_flags_from_block(content, struct_blocks, enum_blocks)
 
         module_name = crate.removesuffix("-cli")
         docs = ["docs/CLI.md", f"cli/{crate}/README.md"]

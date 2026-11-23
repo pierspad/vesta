@@ -29,41 +29,56 @@
       ]
     },
     "mcp_server": {
-      "hash": "71b0b1afd26c8602",
-      "tool_count": 18,
+      "hash": "5500b813794733c1",
+      "tool_count": 24,
       "tools": {
+        "ankiconnect": "d070c68fd1d7b3c3",
         "autosync_subtitles": "1fdd7e7151ce875b",
+        "batch_generate_flashcards": "1bc1b0763928a120",
         "call_plugin": "aefeb191ab2dd457",
         "cancel_job": "55b0f0f34b0d35d1",
+        "edit_deck_cards": "ee81a4d7fc34bb89",
         "export_dueling_subtitles": "a0affef4cfca658c",
         "extract_embedded_subtitle": "ca65edc90463afdc",
         "generate_flashcards": "5ce6fc9001b9e59c",
         "get_configuration": "8652107635db1501",
         "get_job": "bfb606b616f84e48",
+        "inspect_deck": "d21de2c26060ad56",
         "inspect_subtitles": "3c87fb1b34678ed1",
         "list_embedded_subtitles": "f507b98887110ea7",
         "list_plugins": "bb1b4d90058caf07",
+        "manage_local_models": "f0e38da46ebb3236",
         "merge_apkg": "d8a46c73f58d859d",
         "ocr_subtitles": "3d0ba9337ae38016",
         "preview_flashcards": "59610fa461f61c02",
+        "preview_video_frame": "ecdf556c4e17f487",
         "refine_flashcards": "277111427304cfc4",
         "sync_subtitles": "f421be1d9ee8b1fa",
         "transcribe_media": "1674ebe64dcbfd99",
         "translate_subtitles": "429f188dca35d539"
       },
       "schemas": {
+        "AnkiConnectRequest": "e93f25394e4e4022",
         "AutosyncSubtitlesRequest": "33dda6ffd66883b0",
+        "BatchEpisodeRequest": "022ede2eaf0c9c58",
+        "BatchGenerateRequest": "1d843a1c983cb276",
+        "DeckCardUpdate": "750ef5d8f60e76d5",
+        "EditDeckCardsRequest": "a7f0d94912b9c139",
         "EmbeddedSubtitlesRequest": "efb44c87d5a9d5e3",
-        "ExportDuelingRequest": "86067b2343ea406e",
+        "ExportDuelingRequest": "73db2e0eaa68576c",
         "ExtractEmbeddedSubtitleRequest": "17f0dd68fbebcdfb",
-        "GenerateRequest": "a071da9be00d82e8",
+        "GenerateRequest": "9f9cc93bbeadc542",
+        "InspectDeckRequest": "6a8841db71958c0e",
         "JobRequest": "c69f275fd4c865a3",
+        "ManageLocalModelsRequest": "34c3d0642de9643b",
         "MergeApkgRequest": "d914ea6dc8ebcbdd",
         "OcrRoiRequest": "e2f8d2dffd88e9eb",
         "OcrSubtitlesRequest": "6928039c78557174",
         "PluginCallRequest": "10d425505cb8b6d7",
-        "PreviewRequest": "ada298a5316eacc4",
+        "PreviewRequest": "ca7b0c154ada3089",
+        "PreviewVideoFrameRequest": "3525b752ec97c8dc",
         "RefineFlashcardsRequest": "dd58a6e05d242b2e",
+        "SubtitleFilterOptions": "ea58cc89566df663",
         "SubtitleRequest": "9d5ebc7ee13ef847",
         "SyncAnchorRequest": "053c4ee133483505",
         "SyncSubtitlesRequest": "1b1a786e18384270",
@@ -85,18 +100,22 @@
       ]
     },
     "cli_adapters": {
-      "hash": "f50e986ec499e47d",
+      "hash": "c559de6f2709951b",
       "crates": {
         "vesta-autosync-cli": {
-          "hash": "1d2908a1939ffe04",
+          "hash": "54f011496e43a927",
           "subcommands": [],
           "subcommand_flags": {},
           "flags": [
+            "--api-key",
+            "--api-url",
             "--ffmpeg",
             "--ffprobe",
             "--language",
+            "--max-offset-secs",
             "--model",
             "--output",
+            "--provider",
             "--quick",
             "--quiet"
           ],
@@ -149,8 +168,9 @@
           ]
         },
         "vesta-flashcards-cli": {
-          "hash": "bd06d7490cb751c5",
+          "hash": "442eb449505f7842",
           "subcommands": [
+            "batch",
             "dueling",
             "generate",
             "info",
@@ -242,6 +262,8 @@
               "--h264-preset",
               "--include-words",
               "--jobs",
+              "--json",
+              "--limit",
               "--max-chars",
               "--max-duration",
               "--max-gap",
@@ -257,6 +279,7 @@
               "--no-video",
               "--normalize-audio",
               "--note-type",
+              "--offset",
               "--only-cjk",
               "--output",
               "--pad-audio-end",
@@ -300,6 +323,12 @@
             "merge": [
               "--output",
               "<inputs>"
+            ],
+            "batch": [
+              "--ffmpeg",
+              "--ffprobe",
+              "--manifest",
+              "--quiet"
             ]
           },
           "flags": [
@@ -325,6 +354,9 @@
             "--h264-preset",
             "--include-words",
             "--jobs",
+            "--json",
+            "--limit",
+            "--manifest",
             "--max-chars",
             "--max-duration",
             "--max-gap",
@@ -341,6 +373,7 @@
             "--no-video",
             "--normalize-audio",
             "--note-type",
+            "--offset",
             "--only-cjk",
             "--output",
             "--pad-audio-end",
@@ -424,9 +457,11 @@
           ]
         },
         "vesta-refine-cli": {
-          "hash": "9d48ec73b9c20ad1",
+          "hash": "1b623a44aa24abc4",
           "subcommands": [
+            "ankiconnect",
             "each",
+            "edit",
             "enrich",
             "for",
             "inspect",
@@ -435,7 +470,16 @@
           ],
           "subcommand_flags": {
             "inspect": [
-              "--input"
+              "--input",
+              "--limit",
+              "--offset",
+              "--query"
+            ],
+            "edit": [
+              "--id",
+              "--input",
+              "--notes",
+              "--output"
             ],
             "the": [],
             "each": [],
@@ -446,13 +490,24 @@
               "--config",
               "--input",
               "--output"
+            ],
+            "ankiconnect": [
+              "--apkg",
+              "--url"
             ]
           },
           "flags": [
             "--allow-partial",
+            "--apkg",
             "--config",
+            "--id",
             "--input",
-            "--output"
+            "--limit",
+            "--notes",
+            "--offset",
+            "--output",
+            "--query",
+            "--url"
           ],
           "docs": [
             "docs/CLI.md",
