@@ -106,7 +106,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: '. -> target'
-          shared-key: v2-windows-arm64
+          shared-key: v3-windows-arm64
 
       - name: Cache Tauri tools (NSIS)
         uses: actions/cache@v5
@@ -115,7 +115,7 @@ jobs:
             ~/AppData/Local/tauri
           key: tauri-tools-windows-${{ runner.os }}-arm64-v1
 
-      - name: Ensure Ninja and clang-cl for ARM64
+      - name: Ensure Ninja and Clang >= 22 (clang-cl) for ARM64
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -132,30 +132,50 @@ jobs:
             }
           }
 
-          $clangCl = Get-Command clang-cl.exe -ErrorAction SilentlyContinue
-          if (-not $clangCl) {
-            $candidates = @()
-            $vsLlvm = Get-ChildItem 'C:\Program Files\Microsoft Visual Studio\*\*\VC\Tools\Llvm' -ErrorAction SilentlyContinue |
-              Sort-Object FullName -Descending
-            foreach ($dir in $vsLlvm) {
-              $candidates += Join-Path $dir.FullName 'x64\bin\clang-cl.exe'
-              $candidates += Join-Path $dir.FullName 'bin\clang-cl.exe'
+          # MSVC 14.52+ STL headers on windows-latest reject Clang < 22 (error STL1000).
+          $minClangMajor = 22
+          function Get-ClangClMajor([string]$exePath) {
+            if (-not $exePath -or -not (Test-Path $exePath)) { return 0 }
+            $firstLine = (& $exePath --version 2>$null | Select-Object -First 1)
+            if ($firstLine -match 'version\s+(\d+)\.') {
+              return [int]$Matches[1]
             }
-            $candidates += 'C:\Program Files\LLVM\bin\clang-cl.exe'
-            $found = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-            if ($found) {
-              $dir = Split-Path -Parent $found
-              $dir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-              $env:PATH = "$dir;$env:PATH"
-            } else {
-              choco install llvm -y --no-progress
-              'C:\Program Files\LLVM\bin' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-              $env:PATH = "C:\Program Files\LLVM\bin;$env:PATH"
-            }
+            return 0
           }
 
+          $candidates = New-Object System.Collections.Generic.List[string]
+          $pathClang = Get-Command clang-cl.exe -ErrorAction SilentlyContinue
+          if ($pathClang) { $candidates.Add($pathClang.Source) }
+          $vsLlvm = Get-ChildItem 'C:\Program Files\Microsoft Visual Studio\*\*\VC\Tools\Llvm' -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending
+          foreach ($dir in $vsLlvm) {
+            $candidates.Add((Join-Path $dir.FullName 'x64\bin\clang-cl.exe'))
+            $candidates.Add((Join-Path $dir.FullName 'bin\clang-cl.exe'))
+          }
+          $candidates.Add('C:\Program Files\LLVM\bin\clang-cl.exe')
+
+          $selectedClang = $candidates |
+            Where-Object { (Get-ClangClMajor $_) -ge $minClangMajor } |
+            Select-Object -First 1
+
+          if (-not $selectedClang) {
+            Write-Host "No clang-cl >= $minClangMajor found; upgrading LLVM via Chocolatey..."
+            choco upgrade llvm -y --no-progress
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $selectedClang = 'C:\Program Files\LLVM\bin\clang-cl.exe'
+          }
+
+          $selectedMajor = Get-ClangClMajor $selectedClang
+          if ($selectedMajor -lt $minClangMajor) {
+            throw "Expected clang-cl >= $minClangMajor for MSVC STL compatibility, found major $selectedMajor at $selectedClang"
+          }
+
+          $clangDir = Split-Path -Parent $selectedClang
+          $clangDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $env:PATH = "$clangDir;$env:PATH"
+
           ninja --version
-          clang-cl --version
+          & $selectedClang --version
 
       - name: Install frontend dependencies
         working-directory: ${{ env.TAURI_APP_DIR }}
