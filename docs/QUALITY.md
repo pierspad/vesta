@@ -163,14 +163,14 @@ cargo audit
 
 ## 5. Performance and Hardware Smoke Checks
 
-### Synthetic Flashcard Smoke Benchmark
+### Synthetic CLI & MCP Smoke Benchmark
 
 ```bash
-cargo build --release -p vesta-flashcards-cli   # builds target/release/vesta-flashcards
+cargo build --release -p vesta-flashcards-cli -p vesta-cli
 python3 build-scripts/quality_smoke.py --profile release --samples 5
 ```
 
-Generates a 20-second synthetic video with 10 subtitle lines, runs `preview` and `generate --format apkg` with 2 workers, and verifies ZIP integrity, the numbered media manifest, nonempty media files, SQLite integrity, and card counts. For full-film comparative benchmarks and native snapshot batching equivalence checks (`480` A/B runs), see [`BENCHMARK_STEPS.md`](BENCHMARK_STEPS.md), [`BENCHMARK_NATIVE.md`](BENCHMARK_NATIVE.md), and [`BENCHMARK_REPORT.md`](BENCHMARK_REPORT.md).
+Generates a 20-second synthetic video (`fixture.mp4`), muxed MKV container with embedded SRT (`with_subs.mkv`), and test subtitle tracks, then runs timed `preview` and `generate --format apkg` passes alongside end-to-end checks across `vesta-flashcards` (`tsv`, `dueling` `.ass`/`.srt`, `merge`), `vesta-cli extract` (`--list-tracks`/`--track`), `vesta-cli sync --anchor`, `vesta-cli refine inspect`, and a live `vesta-cli mcp` stdio JSON-RPC session (`initialize`, `tools/list` for all 18 tools, and tool calls), validating ZIP integrity, numbered media manifests, non-empty media files, and SQLite collection row counts. For full-film comparative benchmarks and native snapshot batching equivalence checks (`480` A/B runs), see [`BENCHMARK_STEPS.md`](BENCHMARK_STEPS.md), [`BENCHMARK_NATIVE.md`](BENCHMARK_NATIVE.md), and [`BENCHMARK_REPORT.md`](BENCHMARK_REPORT.md).
 
 ### Opt-In Vulkan GPU Inference Smoke
 

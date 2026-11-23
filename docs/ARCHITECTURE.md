@@ -185,17 +185,29 @@ failures for retry; mounted tab state remains owned by App's persistent containe
 ## Runtime Boundaries
 
 The desktop UI never executes FFmpeg, Whisper or SQLite directly. Provider
-discovery, readiness checks and update metadata can use the frontend HTTP adapter
-(`tauriHttp.ts`); translation/transcription/annotation execution uses Rust engines.
-The metadata HTTP adapter limits response bodies to 8 MiB while streaming,
-including responses without a declared length.
+discovery, readiness checks and update metadata use the sandboxed backend proxy
+command `http_fetch` (`apps/vesta-gui/src-tauri/src/commands/net.rs`) rather
+than ambient browser requests: it enforces HTTPS/allowlisted endpoints unless a
+custom provider URL is explicitly configured, blocks private/link-local metadata
+IP ranges (`169.254.0.0/16`, `fe80::/10`, loopback/private SSRF guards), forbids
+cross-origin or cross-boundary redirects (`Policy::custom`), and caps streamed
+responses to 8 MiB even when Content-Length is absent. Translation,
+transcription, OCR, and deck annotation execution always runs in the Rust
+domain engines (`lib/`).
 Svelte invokes typed Tauri commands; those commands translate persisted/UI
 configuration into library structs, hold cancellation state, and forward
 progress events. Domain behavior stays in `lib/`, so the same pipeline is used
 by the CLI and benchmark harness.
 
-Media preview is the one process-level service owned by the desktop adapter:
-an ephemeral loopback HTTP server supports byte-range requests for WebKitGTK.
+Media preview is the one process-level service owned by the desktop adapter
+(`apps/vesta-gui/src-tauri/src/media_stream.rs` and `stream://` custom URI
+protocol): an ephemeral loopback HTTP server (`127.0.0.1:0` via
+`bind_media_listener`) serves byte-range requests (`serve_media` /
+`stream_file`) for WebKitGTK. Access is gated by a per-process CSPRNG bearer
+token (`generate_media_token` verified in constant time via
+`subtle::ConstantTimeEq`), restricted CORS `AllowOrigin`, bounded initial/range
+reads, and `MediaAllowlist` canonical path checks that reject empty paths,
+relative paths, symlinks, and unapproved files.
 On Linux, WebKitGTK decodes preview media through GStreamer. This is separate
 from the FFmpeg-based generation/transcription pipelines.
 

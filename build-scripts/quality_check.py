@@ -148,7 +148,7 @@ def main():
     if args.browser:
         commands.append((ROOT / 'apps/vesta-gui', ['npm', 'run', 'test:browser']))
     if args.smoke:
-        commands += [(ROOT, ['cargo', 'build', '--locked', '-p', 'vesta-flashcards-cli']),
+        commands += [(ROOT, ['cargo', 'build', '--locked', '-p', 'vesta-flashcards-cli', '-p', 'vesta-cli']),
                      (ROOT, ['python3', 'build-scripts/quality_smoke.py'])]
     timings = []
     for cwd, command in commands:

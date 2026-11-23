@@ -15,7 +15,7 @@
 | Playwright mock handlers (`vesta-mock.mjs`) | 109/109 | `apps/vesta-gui/browser-tests/vesta-mock.mjs` |
 | IPC names referenced in Playwright specs | 109/109 | `apps/vesta-gui/browser-tests/*.spec.mjs` |
 | Vitest files / cases | 148 / 674 | `apps/vesta-gui/src/**/*.test.*` |
-| Playwright spec files / `test()` decls | 6 / 38 | `apps/vesta-gui/browser-tests/*.spec.mjs` |
+| Playwright spec files / `test()` decls | 6 / 40 | `apps/vesta-gui/browser-tests/*.spec.mjs` |
 | MCP tools (`vesta-mcp`) | 18 | `cli/vesta-mcp/src/lib.rs` |
 | Unified `vesta-cli` workflows | 9 | `cli/vesta-cli/src/lib.rs` |
 | Plugin SDK widget primitives | 23 | `PluginRenderer.svelte` |
@@ -25,19 +25,19 @@
 
 | Area | Features | GUI | CLI | MCP | Docs | Unit Tests | Playwright | Smoke | Verified | Open Findings |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Flashcards & APKG/TSV | 8 | 8/8 | 6/8 | 4/8 | 8/8 | 8/8 | 8/8 | 2/8 | 7/8 | 0 |
-| Extract & OCR | 5 | 5/5 | 5/5 | 4/5 | 5/5 | 5/5 | 5/5 | 1/5 | 5/5 | 0 |
+| Flashcards & APKG/TSV | 8 | 8/8 | 6/8 | 4/8 | 8/8 | 8/8 | 8/8 | 5/8 | 8/8 | 0 |
+| Extract & OCR | 5 | 5/5 | 5/5 | 4/5 | 5/5 | 5/5 | 5/5 | 2/5 | 5/5 | 0 |
 | Transcribe & VAD | 4 | 4/4 | 4/4 | 3/4 | 4/4 | 4/4 | 4/4 | 0/4 | 4/4 | 0 |
 | Translate (LLM) | 4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 0/4 | 4/4 | 0 |
-| Sync & Align | 3 | 3/3 | 1/3 | 1/3 | 3/3 | 3/3 | 3/3 | 0/3 | 3/3 | 0 |
+| Sync & Align | 3 | 3/3 | 1/3 | 1/3 | 3/3 | 3/3 | 3/3 | 1/3 | 3/3 | 0 |
 | Auto-Sync | 3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 0/3 | 3/3 | 0 |
 | Refine & AnkiConnect | 4 | 4/4 | 3/4 | 2/4 | 4/4 | 4/4 | 4/4 | 0/4 | 4/4 | 0 |
 | Plugins & Experimental | 4 | 4/4 | 1/4 | 1/4 | 4/4 | 4/4 | 4/4 | 3/4 | 4/4 | 0 |
 | GUI, Settings & i18n | 6 | 6/6 | 0/6 | 1/6 | 6/6 | 6/6 | 6/6 | 0/6 | 6/6 | 0 |
-| Media Server, Net & Tools | 3 | 3/3 | 1/1 | 1/1 | 1/3 | 3/3 | 3/3 | 1/3 | 3/3 | 0 |
-| CLI & MCP | 2 | 0/0 | 1/1 | 1/1 | 2/2 | 2/2 | 0/0 | 1/2 | 2/2 | 0 |
+| Media Server, Net & Tools | 3 | 3/3 | 1/1 | 1/1 | 3/3 | 3/3 | 3/3 | 1/3 | 3/3 | 0 |
+| CLI & MCP | 2 | 0/0 | 1/1 | 1/1 | 2/2 | 2/2 | 0/0 | 2/2 | 2/2 | 0 |
 | Quality Gates, Docs & CI | 4 | 2/2 | 4/4 | 0/0 | 4/4 | 4/4 | 2/2 | 4/4 | 4/4 | 0 |
-| **Total** | **50** | **46/46** | **33/47** | **25/43** | **48/50** | **50/50** | **46/46** | **12/50** | **49/50** | **0** |
+| **Total** | **50** | **46/46** | **33/47** | **25/43** | **50/50** | **50/50** | **46/46** | **18/50** | **50/50** | **0** |
 
 ## Audit Findings Summary (106 Verified Stage-1 Findings)
 
@@ -86,14 +86,14 @@
 |---|---|---|---|---|---|---|---|---|---|---|
 | `FC-01` | Flashcards & APKG/TSV | Single-episode flashcard generation (TSV & APKG) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `FC-02` | Flashcards & APKG/TSV | Batch / series flashcard processing & per-episode media overrides | Yes | No | No | Yes | Yes | Yes | No | Verified |
-| `FC-03` | Flashcards & APKG/TSV | Merge multiple .apkg decks into a unified deck | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
-| `FC-04` | Flashcards & APKG/TSV | Live card preview & on-demand audio/snapshot preview | Yes | Partial | Yes | Yes | Yes | Yes | No | Partial |
+| `FC-03` | Flashcards & APKG/TSV | Merge multiple .apkg decks into a unified deck | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `FC-04` | Flashcards & APKG/TSV | Live card preview & on-demand audio/snapshot preview | Yes | Partial | Yes | Yes | Yes | Yes | Yes | Verified |
 | `FC-05` | Flashcards & APKG/TSV | Subtitle filtering, sentence combining & smart bilingual matching | Yes | Yes | Partial | Yes | Yes | Yes | Yes | Verified |
-| `FC-06` | Flashcards & APKG/TSV | Bilingual dueling subtitle export (.ass / .srt) | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
+| `FC-06` | Flashcards & APKG/TSV | Bilingual dueling subtitle export (.ass / .srt) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `FC-07` | Flashcards & APKG/TSV | Dictionary lookup & auto/embedded Anki card fonts | Yes | Yes | No | Yes | Yes | Yes | No | Verified |
 | `FC-08` | Flashcards & APKG/TSV | Hardware video encoding, padding, resolution & audio track selection | Yes | Yes | No | Yes | Yes | Yes | Partial | Verified |
 | `EX-01` | Extract & OCR | Subtitle parsing & inspection (SRT, ASS/SSA, VTT, LRC) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
-| `EX-02` | Extract & OCR | Embedded subtitle track listing & text stream extraction | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
+| `EX-02` | Extract & OCR | Embedded subtitle track listing & text stream extraction | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `EX-03` | Extract & OCR | Bitmap subtitle extraction & OCR (PGS, VobSub, DVB, XSUB) | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
 | `EX-04` | Extract & OCR | Hardcoded video subtitle ROI detection & crop preview | Yes | Yes | Partial | Yes | Yes | Yes | No | Verified |
 | `EX-05` | Extract & OCR | Hybrid local ONNX / Cloud Vision OCR & model management | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
@@ -105,7 +105,7 @@
 | `TL-02` | Translate (LLM) | Translation checkpoint resume & missing-cue repair | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
 | `TL-03` | Translate (LLM) | Translation context suggestion & language prompt specialization | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
 | `TL-04` | Translate (LLM) | Translation cancellation, path preview & CLI failure exit codes | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
-| `SY-01` | Sync & Align | Manual subtitle time shift, speed scaling & anchor interpolation | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
+| `SY-01` | Sync & Align | Manual subtitle time shift, speed scaling & anchor interpolation | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `SY-02` | Sync & Align | Sync session persistence, autosave, file export & reset | Yes | No | No | Yes | Yes | Yes | No | Verified |
 | `SY-03` | Sync & Align | Dual-subtitle Align tab & companion subtitle suggestion | Yes | No | No | Yes | Yes | Yes | No | Verified |
 | `AS-01` | Auto-Sync | Voice-overlap auto-sync & consensus anchor estimation | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
@@ -125,11 +125,11 @@
 | `GS-04` | GUI, Settings & i18n | Keyboard shortcuts customization, overlay & modal accessibility | Yes | No | No | Yes | Yes | Yes | No | Verified |
 | `GS-05` | GUI, Settings & i18n | First-run setup wizard, auto-updater & CPU/RAM monitor | Yes | No | No | Yes | Yes | Yes | No | Verified |
 | `GS-06` | GUI, Settings & i18n | AI kill switch, support log redaction & notification inbox | Yes | No | No | Yes | Yes | Yes | No | Verified |
-| `MS-01` | Media Server, Net & Tools | Local media HTTP server & stream:// custom URI protocol | Yes | N/A | N/A | Partial | Yes | Yes | No | Verified |
-| `MS-02` | Media Server, Net & Tools | Sandboxed HTTP proxy fetch & redirect/SSRF guard (http_fetch) | Yes | N/A | N/A | Partial | Yes | Yes | No | Verified |
+| `MS-01` | Media Server, Net & Tools | Local media HTTP server & stream:// custom URI protocol | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
+| `MS-02` | Media Server, Net & Tools | Sandboxed HTTP proxy fetch & redirect/SSRF guard (http_fetch) | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
 | `MS-03` | Media Server, Net & Tools | FFmpeg / ffprobe discovery, bundling & auto-download | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `CM-01` | CLI & MCP | Unified vesta-cli (8 workflows) & 8 standalone engine CLIs | N/A | Yes | N/A | Yes | Yes | N/A | Yes | Verified |
-| `CM-02` | CLI & MCP | vesta-mcp stdio Model Context Protocol server (18 tools) | N/A | N/A | Yes | Yes | Yes | N/A | No | Verified |
+| `CM-02` | CLI & MCP | vesta-mcp stdio Model Context Protocol server (18 tools) | N/A | N/A | Yes | Yes | Yes | N/A | Yes | Verified |
 | `QC-01` | Quality Gates, Docs & CI | Contract & manifest drift verification (check_doc_contracts.py) | N/A | Yes | N/A | Yes | Yes | N/A | Yes | Verified |
 | `QC-02` | Quality Gates, Docs & CI | Workspace dependency boundaries (check_library_integration.py) | N/A | Yes | N/A | Yes | Yes | N/A | Yes | Verified |
 | `QC-03` | Quality Gates, Docs & CI | 15-locale i18n parity & template hygiene gate (check-i18n.sh) | Yes | Yes | N/A | Yes | Yes | Yes | Yes | Verified |
