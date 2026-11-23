@@ -5819,7 +5819,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vesta"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -5864,7 +5864,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-ankiconnect"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "reqwest",
  "serde",
@@ -5874,7 +5874,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-apkg"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "serde_json",
  "tempfile",
@@ -5883,7 +5883,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-autosync"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -5896,7 +5896,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-autosync-cli"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -5910,7 +5910,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-cli"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "clap",
  "tempfile",
@@ -5927,7 +5927,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-download"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "futures",
@@ -5939,7 +5939,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-extract"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -5951,7 +5951,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-extract-cli"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -5964,7 +5964,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-flashcards"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "dirs 6.0.0",
@@ -5982,7 +5982,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-flashcards-cli"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -5996,7 +5996,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-mcp"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -6023,7 +6023,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-ocr"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -6043,7 +6043,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-ocr-cli"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -6058,7 +6058,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-parser"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "chardetng",
@@ -6070,7 +6070,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-refine"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "rusqlite",
  "serde",
@@ -6084,7 +6084,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-refine-cli"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -6100,7 +6100,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-sync"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -6111,7 +6111,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-sync-cli"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -6122,7 +6122,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-transcribe"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "dirs 6.0.0",
@@ -6142,7 +6142,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-transcribe-cli"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -6155,7 +6155,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-translate"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "futures",
@@ -6172,7 +6172,7 @@ dependencies = [
 
 [[package]]
 name = "vesta-translate-cli"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "clap",
