@@ -1,6 +1,6 @@
 [package]
 name = "vesta-ankiconnect"
-version = "1.0.0-dev.6"
+version = "1.0.0-dev.7"
 edition.workspace = true
 rust-version.workspace = true
 authors = ["Pierpaolo Spadafora <pierpaolospadafora@proton.me>"]
