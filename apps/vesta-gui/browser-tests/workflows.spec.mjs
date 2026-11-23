@@ -224,14 +224,14 @@ test("Extract previews and runs hardcoded ROI OCR on video frames", async ({ pag
   await page.getByRole("combobox", { name: "Language" }).fill("Japanese");
   await page.getByRole("option", { name: /日本語/ }).click();
 
-  await footer.getByRole("button", { name: "Preview ROI OCR", exact: true }).click();
+  await footer.getByRole("button", { name: "Preview area OCR", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: /Hardcoded subtitles/ });
   await expect(dialog).toBeVisible();
   await expect(dialog.locator("textarea")).toHaveValue(/Hardcoded subtitle line 1/);
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(dialog).toBeHidden();
 
-  await footer.getByRole("button", { name: "Extract ROI to SRT", exact: true }).click();
+  await footer.getByRole("button", { name: "Extract area to SRT", exact: true }).click();
   await expect.poll(() => callsFor(page, "ocr_hardcoded_subtitle")).toMatchObject([{
     path: "/fixtures/movie.mkv",
     outputPath: "/downloads/movie_hardcoded.srt",

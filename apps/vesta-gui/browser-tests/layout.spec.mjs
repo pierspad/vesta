@@ -131,3 +131,59 @@ test("all 15 locales render sidebar navigation and document direction without ra
     });
   }
 });
+
+test("Italian Sync keeps Auto-Sync controls on one row and stretches both panels vertically at 1280x800", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/browser-tests/harness.html?language=it");
+  await page.getByRole("navigation").getByRole("button", { name: "Sincronizza", exact: true }).click();
+
+  const footer = page.locator("[data-footer-actions]:visible");
+  const autoSyncBtn = footer.getByRole("button", { name: "Sincronizzazione automatica", exact: true });
+  const fastBtn = footer.getByRole("button", { name: /Veloce/i });
+  const preciseBtn = footer.getByRole("button", { name: /Accurato/i });
+  await expect(autoSyncBtn).toBeVisible();
+  await expect(fastBtn).toBeVisible();
+
+  const autoBox = await autoSyncBtn.boundingBox();
+  const fastBox = await fastBtn.boundingBox();
+  const preciseBox = await preciseBtn.boundingBox();
+  expect(autoBox).not.toBeNull();
+  expect(fastBox).not.toBeNull();
+  expect(preciseBox).not.toBeNull();
+  // Action button and mode switcher share the same horizontal band on desktop
+  expect(Math.abs((autoBox.y + autoBox.height / 2) - (fastBox.y + fastBox.height / 2))).toBeLessThanOrEqual(6);
+  expect(fastBox.x).toBeGreaterThan(autoBox.x + autoBox.width - 1);
+  expect(preciseBox.x).toBeGreaterThan(fastBox.x + fastBox.width - 2);
+
+  // Subtitle panel stretches near the footer rather than stopping prematurely
+  const footerBox = await footer.boundingBox();
+  const listHeading = page.getByRole("heading", { name: /Sottotitoli/ });
+  const listCardBox = await listHeading.locator("xpath=ancestor::div[contains(@class,'glass-card')][1]").boundingBox();
+  expect(footerBox).not.toBeNull();
+  expect(listCardBox).not.toBeNull();
+  expect(footerBox.y - (listCardBox.y + listCardBox.height)).toBeLessThanOrEqual(48);
+});
+
+test("Extract hardcoded mode centers seek and area proportion controls without ROI jargon", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/browser-tests/harness.html?language=en");
+  await page.getByRole("navigation").getByRole("button", { name: "Extract subtitles", exact: true }).click();
+  await page.evaluate(() => window.browserFixture.selectFile("/fixtures/movie.mkv"));
+  await page.getByRole("button", { name: "Browse", exact: true }).first().click();
+  await page.getByRole("tab", { name: "Hardcoded", exact: true }).click();
+
+  const panel = page.locator("#hardcoded-roi-panel");
+  await expect(panel.getByRole("heading", { name: "Hardcoded subtitles", exact: true })).toBeVisible();
+  await expect(panel).not.toContainText(/\bROI\b/);
+
+  const xInputBox = await panel.getByLabel("X (%)").boundingBox();
+  const hInputBox = await panel.getByLabel("H (%)").boundingBox();
+  const seekBtnBox = await panel.getByRole("button", { name: "−30s", exact: true }).boundingBox();
+  const seekPlusBox = await panel.getByRole("button", { name: "+30s", exact: true }).boundingBox();
+  expect(xInputBox && hInputBox && seekBtnBox && seekPlusBox).not.toBeNull();
+  // Dimensions bar sits cleanly in its own row below the centered seek row
+  expect(xInputBox.y).toBeGreaterThan(seekBtnBox.y + seekBtnBox.height);
+  const seekCenter = (seekBtnBox.x + seekPlusBox.x + seekPlusBox.width) / 2;
+  const dimsCenter = (xInputBox.x + hInputBox.x + hInputBox.width) / 2;
+  expect(Math.abs(seekCenter - dimsCenter)).toBeLessThanOrEqual(40);
+});

@@ -412,7 +412,7 @@ it("loads preview frame, previews ROI OCR, and runs hardcoded ROI extraction", a
     path: "/film.mp4",
     timeMs: null,
   });
-  const img = target.querySelector<HTMLImageElement>('img[alt="Hardcoded subtitles (ROI OCR)"]');
+  const img = target.querySelector<HTMLImageElement>('img[alt="Hardcoded subtitles"]');
   expect(img).not.toBeNull();
   expect(img!.getAttribute("src")).toBe("data:image/jpeg;base64,AA==");
   expect(target.querySelector('[data-testid="roi-overlay"]')).not.toBeNull();
@@ -430,7 +430,7 @@ it("loads preview frame, previews ROI OCR, and runs hardcoded ROI extraction", a
   await settle();
 
   const previewRoiButton = [...target.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
-    b.textContent?.includes("Preview ROI OCR"),
+    b.textContent?.includes("Preview area OCR"),
   );
   expect(previewRoiButton).toBeDefined();
   previewRoiButton!.click();
@@ -452,7 +452,7 @@ it("loads preview frame, previews ROI OCR, and runs hardcoded ROI extraction", a
   await settle();
 
   const extractRoiButton = [...target.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
-    b.textContent?.includes("Extract ROI to SRT"),
+    b.textContent?.includes("Extract area to SRT"),
   );
   expect(extractRoiButton).toBeDefined();
   extractRoiButton!.click();

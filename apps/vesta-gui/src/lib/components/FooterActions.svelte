@@ -34,13 +34,13 @@
     {@render background()}
   {/if}
   {#if center}
-    <div class="footer-group flex items-center gap-4 justify-start flex-1">
+    <div class="footer-group flex items-center gap-3 justify-start flex-1 min-w-0">
       {#if left}{@render left()}{/if}
     </div>
-    <div class="footer-group flex items-center justify-center flex-1">
+    <div class="footer-group flex items-center justify-center shrink-0 max-w-full">
       {@render center()}
     </div>
-    <div class="footer-group flex items-center gap-4 justify-end flex-1">
+    <div class="footer-group flex items-center gap-3 justify-end flex-1 min-w-0">
       {#if right}{@render right()}{/if}
     </div>
   {:else}

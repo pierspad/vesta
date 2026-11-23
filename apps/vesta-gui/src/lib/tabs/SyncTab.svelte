@@ -982,15 +982,15 @@
   {/snippet}
 
   <div class="flex flex-1 flex-col overflow-hidden p-6 min-h-0">
-    <WorkflowWorkspace>
+    <WorkflowWorkspace fillViewport>
       {#snippet files()}{@render panelContent("files")}{/snippet}
-      <div class="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
-        <div class="flex min-w-0 flex-col gap-3">
+      <div class="grid grid-cols-1 gap-6 xl:flex-1 xl:min-h-0 xl:grid-cols-2 xl:items-stretch">
+        <div class="flex min-h-0 min-w-0 flex-col gap-3">
           {@render panelContent("status")}
           {@render panelContent("wizard")}
         </div>
         <div class="flex min-h-0 min-w-0 flex-col xl:relative xl:self-stretch" role="region">
-          <div class="flex max-h-[42rem] min-h-0 flex-col xl:absolute xl:inset-0 xl:max-h-none">
+          <div class="flex max-h-[42rem] min-h-0 flex-1 flex-col xl:absolute xl:inset-0 xl:max-h-none">
             {@render panelContent("subtitleList")}
           </div>
         </div>

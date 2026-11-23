@@ -343,7 +343,7 @@ test("Extract cancels bitmap & hardcoded ROI OCR and Settings -> ITT manages off
   await page.getByRole("tab", { name: "Hardcoded" }).click();
   await expect.poll(async () => (await called(page, "ocr_video_preview_frame")).length).toBeGreaterThan(0);
   await page.evaluate(() => window.browserFixture.deferOcr(true));
-  await page.getByRole("button", { name: "Extract ROI to SRT", exact: true }).click();
+  await page.getByRole("button", { name: "Extract area to SRT", exact: true }).click();
   await page.evaluate(() => {
     window.browserFixture.emitOcrProgress({ stage: "ocr", message: "ROI 1/2", percentage: 50, current: 1, total: 2 });
   });

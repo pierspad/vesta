@@ -985,6 +985,7 @@
                   </svg>
                   {t("extract.hardcodedTitle")}
                 </h3>
+                <p class="mt-0.5 text-xs text-gray-400">{t("extract.hardcodedDesc")}</p>
               </div>
               {#if framePreview}
                 <span class="rounded-lg border border-cyan-400/25 bg-cyan-500/10 px-2.5 py-1 font-mono text-[11px] text-cyan-200">
@@ -1054,8 +1055,8 @@
               </div>
 
               <div class="min-h-0 flex-1 overflow-y-auto pr-1 custom-scrollbar">
-                <div class="mx-auto flex w-full max-w-4xl flex-col gap-3.5">
-                  <div class="relative w-full aspect-[21/9] max-h-[360px] mx-auto rounded-xl border border-white/15 bg-black flex items-center justify-center overflow-hidden">
+                <div class="mx-auto flex w-full max-w-4xl flex-col gap-3">
+                  <div class="relative w-full aspect-[21/9] max-h-[330px] mx-auto rounded-xl border border-white/15 bg-black flex items-center justify-center overflow-hidden">
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div
                       bind:this={roiContainerEl}
@@ -1117,33 +1118,37 @@
                     <span class="w-16 font-mono text-sm text-gray-400 text-right">{formatTimestamp(framePreview?.duration_ms ?? 0)}</span>
                   </div>
 
-                  <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div class="flex flex-wrap items-center justify-center gap-2.5">
-                      <div class="flex items-center gap-1 rounded-xl bg-white/5 px-2 py-1.5">
-                        <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(-30000)} title="-30s" class="w-11 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">−30s</button>
-                        <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(-5000)} title="-5s" class="w-11 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">−5s</button>
-                        <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(-1000)} title="-1s" class="w-10 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">−1s</button>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={loadingFrame || !path}
-                        onclick={() => void loadPreviewFrame(frameTimeMs ?? framePreview?.time_ms ?? null)}
-                        title={t("extract.hardcodedPreviewFrame")}
-                        aria-label={t("extract.hardcodedPreviewFrame")}
-                        class="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                      >
-                        <svg aria-hidden="true" class="w-5 h-5 text-cyan-400 {loadingFrame ? 'animate-spin' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                      </button>
-                      <div class="flex items-center gap-1 rounded-xl bg-white/5 px-2 py-1.5">
-                        <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(1000)} title="+1s" class="w-10 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">+1s</button>
-                        <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(5000)} title="+5s" class="w-11 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">+5s</button>
-                        <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(30000)} title="+30s" class="w-11 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">+30s</button>
-                      </div>
+                  <div class="flex flex-wrap items-center justify-center gap-2.5">
+                    <div class="flex items-center gap-1 rounded-xl bg-white/5 px-2 py-1.5">
+                      <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(-30000)} title="-30s" class="w-11 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">−30s</button>
+                      <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(-5000)} title="-5s" class="w-11 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">−5s</button>
+                      <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(-1000)} title="-1s" class="w-10 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">−1s</button>
                     </div>
+                    <button
+                      type="button"
+                      disabled={loadingFrame || !path}
+                      onclick={() => void loadPreviewFrame(frameTimeMs ?? framePreview?.time_ms ?? null)}
+                      title={t("extract.hardcodedPreviewFrame")}
+                      aria-label={t("extract.hardcodedPreviewFrame")}
+                      class="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      <svg aria-hidden="true" class="w-5 h-5 text-cyan-400 {loadingFrame ? 'animate-spin' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
+                    <div class="flex items-center gap-1 rounded-xl bg-white/5 px-2 py-1.5">
+                      <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(1000)} title="+1s" class="w-10 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">+1s</button>
+                      <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(5000)} title="+5s" class="w-11 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">+5s</button>
+                      <button type="button" disabled={loadingFrame || !framePreview} onclick={() => seekPreviewFrame(30000)} title="+30s" class="w-11 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">+30s</button>
+                    </div>
+                  </div>
 
-                    <div class="dimensions-row flex flex-wrap items-end gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2" class:dimensions-linked={lockedRoiRatio !== null}>
+                  <div class="flex justify-center">
+                    <div
+                      class="dimensions-row flex flex-wrap items-end justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2"
+                      class:dimensions-linked={lockedRoiRatio !== null}
+                      title={t("extract.hardcodedAreaHint")}
+                    >
                       <label class="flex flex-col gap-1 text-[11px] text-gray-400 font-medium w-24">
                         <span>X (%)</span>
                         <input use:numberControl type="number" min="0" max="98" step="1" aria-label="X (%)" value={Math.round(roi.x * 100)} oninput={(e) => updateRoiPercent("x", Number(e.currentTarget.value))} class="input-modern w-full text-xs" />
@@ -1228,6 +1233,7 @@
         <div class="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
+            title={t("extract.hardcodedDesc")}
             class="inline-flex items-center gap-2 rounded-xl border border-indigo-400/25 bg-indigo-500/15 px-4 py-2.5 text-xs font-semibold text-indigo-200 transition-colors hover:bg-indigo-500/25 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
             disabled={busy || extractingHardcoded || downloadingIndex !== null || !isVideoMedia || !canOcr || aiStore.isOcring}
             onclick={() => void previewHardcoded()}
@@ -1237,6 +1243,7 @@
           </button>
           <button
             type="button"
+            title={t("extract.hardcodedDesc")}
             class="inline-flex items-center gap-2 rounded-xl border border-teal-500/25 bg-teal-600/20 px-4 py-2.5 text-xs font-semibold text-teal-100 transition-colors hover:bg-teal-600/30 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
             disabled={busy || extractingHardcoded || downloadingIndex !== null || !isVideoMedia || !canOcr || aiStore.isOcring}
             onclick={() => void extractHardcoded()}

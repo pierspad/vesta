@@ -15,12 +15,12 @@
 
 {#if !aiStore.killSwitchActive}
   <!-- Unified Autosync Button Group -->
-  <div class="flex max-w-full flex-wrap items-center justify-center bg-white/5 border border-white/10 rounded-xl p-1 shrink-0 relative group">
+  <div class="flex max-w-full flex-wrap min-[961px]:flex-nowrap items-center justify-center bg-white/5 border border-white/10 rounded-xl p-1 shrink-0 relative group">
     <!-- Autosync Trigger Button -->
     <button
       onclick={onStart}
       disabled={autoSyncStore.isAutoSyncing || !canAutoSync}
-      class="px-3 min-[961px]:px-5 py-2 bg-indigo-600/80 hover:bg-indigo-500/80 border border-indigo-500/30 disabled:bg-indigo-600/40 text-indigo-100 rounded-lg font-bold text-xs min-[961px]:text-sm transition-all shadow-lg shadow-indigo-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-55 shrink-0 {!canAutoSync ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
+      class="px-3 min-[961px]:px-4 2xl:px-5 py-2 bg-indigo-600/80 hover:bg-indigo-500/80 border border-indigo-500/30 disabled:bg-indigo-600/40 text-indigo-100 rounded-lg font-bold text-xs min-[961px]:text-sm transition-all shadow-lg shadow-indigo-950/20 flex items-center gap-2 whitespace-nowrap enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-55 shrink-0 {!canAutoSync ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
     >
       {#if autoSyncStore.isAutoSyncing}
         <svg class="animate-spin w-4 h-4 text-indigo-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -60,7 +60,7 @@
         onclick={() => { if (!autoSyncStore.isAutoSyncing) autoSyncStore.selectedMode = "quick"; }}
         aria-pressed={autoSyncStore.selectedMode === "quick"}
         disabled={autoSyncStore.isAutoSyncing || !canAutoSync}
-        class="w-[70px] min-[961px]:w-[100px] py-1 rounded-md text-[10px] font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed select-none relative z-10
+        class="w-[70px] min-[961px]:w-[84px] 2xl:w-[96px] py-1 px-1.5 rounded-md text-[10px] font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer disabled:cursor-not-allowed select-none relative z-10
           {autoSyncStore.selectedMode === 'quick' ? 'text-indigo-200' : 'text-gray-500 hover:text-gray-300'}
           {!canAutoSync ? 'opacity-30 pointer-events-none' : ''}"
       >
@@ -73,7 +73,7 @@
         onclick={() => { if (!autoSyncStore.isAutoSyncing) autoSyncStore.selectedMode = "precise"; }}
         aria-pressed={autoSyncStore.selectedMode === "precise"}
         disabled={autoSyncStore.isAutoSyncing || !canAutoSync}
-        class="w-[70px] min-[961px]:w-[100px] py-1 rounded-md text-[10px] font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed select-none relative z-10
+        class="w-[70px] min-[961px]:w-[84px] 2xl:w-[96px] py-1 px-1.5 rounded-md text-[10px] font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer disabled:cursor-not-allowed select-none relative z-10
           {autoSyncStore.selectedMode === 'precise' ? 'text-indigo-200' : 'text-gray-500 hover:text-gray-300'}
           {!canAutoSync ? 'opacity-30 pointer-events-none' : ''}"
       >

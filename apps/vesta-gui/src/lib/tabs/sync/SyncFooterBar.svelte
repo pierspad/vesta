@@ -40,7 +40,7 @@
     <div class="relative group">
       <button
         onclick={onLoadSession}
-        class="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-cyan-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] cursor-pointer"
+        class="px-4 2xl:px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-cyan-950/20 flex items-center gap-2 whitespace-nowrap enabled:hover:scale-[1.02] enabled:active:scale-[0.98] cursor-pointer"
       >
         <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -53,7 +53,7 @@
     </div>
 
     {#if !aiStore.killSwitchActive}
-      <div class="w-40 min-[961px]:w-56 max-w-full min-w-0">
+      <div class="w-40 min-[961px]:w-44 2xl:w-56 max-w-full min-w-0">
         <SpeechEngineSelector
           purpose="sync"
           compact
@@ -71,7 +71,7 @@
       <button
         onclick={onRequestReset}
         disabled={!canReset}
-        class="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:bg-amber-500/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-amber-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-55 disabled:cursor-not-allowed cursor-pointer"
+        class="px-4 2xl:px-5 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:bg-amber-500/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-amber-950/20 flex items-center gap-2 whitespace-nowrap enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-55 disabled:cursor-not-allowed cursor-pointer"
       >
         <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -87,7 +87,7 @@
       <button
         onclick={onSaveFile}
         disabled={!canSave}
-        class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-55 disabled:cursor-not-allowed cursor-pointer"
+        class="px-4 2xl:px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 whitespace-nowrap enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-55 disabled:cursor-not-allowed cursor-pointer"
       >
         <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />

@@ -83,7 +83,7 @@
   );
 </script>
 
-<div class="glass-card relative flex flex-auto shrink-0 flex-col overflow-visible">
+<div class="glass-card relative flex min-h-0 flex-1 flex-col overflow-visible">
   <div class="p-5 pb-3 flex-shrink-0">
     <SectionHeader
       title={t("sync.wizard.title")}
@@ -149,7 +149,7 @@
         {/if}
       </div>
     {:else}
-      <div class="w-full max-w-6xl flex flex-col gap-4">
+      <div class="w-full max-w-6xl flex flex-col gap-4 xl:min-h-0 xl:flex-1 xl:justify-center">
         <div class="text-center flex-shrink-0">
           <span
             class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/20 text-indigo-300 text-sm font-medium"
@@ -171,11 +171,11 @@
         </div>
 
         <div
-          class="bg-white/5 rounded-xl px-5 py-3 text-center flex-shrink-0 flex flex-col items-center justify-between h-[136px]"
+          class="bg-white/5 rounded-xl px-5 py-3 text-center flex flex-col items-center justify-between min-h-[136px] xl:flex-1 xl:max-h-[240px]"
           data-testid="wizard-subtitle-box"
         >
-          <div class="flex min-h-0 flex-1 w-full items-center justify-center overflow-y-auto scrollbar-thin px-1">
-            <p class="text-lg xl:text-xl text-white font-medium leading-snug break-words">
+          <div class="flex min-h-0 flex-1 w-full overflow-y-auto scrollbar-thin px-1">
+            <p class="m-auto text-lg xl:text-xl text-white font-medium leading-snug break-words">
               {wizardSubtitle?.text ?? t(srtLoaded ? "sync.wizard.selectCheckpoint" : "sync.noSrtFileSelected")}
             </p>
           </div>
