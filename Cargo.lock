@@ -5986,6 +5986,8 @@ version = "1.0.0-dev.4"
 dependencies = [
  "anyhow",
  "clap",
+ "serde",
+ "serde_json",
  "tempfile",
  "tokio",
  "tokio-util",
@@ -6007,6 +6009,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-util",
+ "vesta-ankiconnect",
  "vesta-autosync",
  "vesta-extract",
  "vesta-flashcards",
@@ -6090,6 +6093,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-util",
+ "vesta-ankiconnect",
  "vesta-refine",
  "vesta-translate",
 ]

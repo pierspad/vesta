@@ -9,14 +9,16 @@
 //! applies the suggested anchors through `vesta_sync::SyncEngine` (anchor-based
 //! piecewise-linear interpolation) to write the synced SRT.
 
+use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Arc;
 
-use anyhow::{Context as _, Result};
+use anyhow::{Context as _, Result, ensure};
 use clap::Parser;
 use tokio_util::sync::CancellationToken;
-use vesta_autosync::{AnchorSuggestion, AutoSyncConfig, SubtitleLine, run_auto_sync};
+use vesta_autosync::{AnchorSuggestion, AutoSyncConfig, SubtitleLine, run_auto_sync_with_cloud};
 use vesta_sync::SyncEngine;
+use vesta_transcribe::cloud::CloudConfig;
 
 #[derive(Parser)]
 #[command(
@@ -24,7 +26,7 @@ use vesta_sync::SyncEngine;
     version,
     about = "Automatically re-sync an SRT file to a media file using Whisper anchor points",
     long_about = None,
-    after_help = "Example:\n  vesta-autosync input.srt movie.mkv -o synced.srt --model small --language ja\n\nThe Whisper model is downloaded on demand. ffmpeg and ffprobe must be installed or selected with --ffmpeg/--ffprobe. Use --quick for fewer, faster samples."
+    after_help = "Examples:\n  vesta-autosync input.srt movie.mkv -o synced.srt --model small --language ja\n  vesta-autosync input.srt movie.mkv -o synced.srt --provider groq --model whisper-large-v3-turbo --api-key \"$GROQ_API_KEY\"\n  vesta-autosync input.srt movie.mkv -o synced.srt --provider custom --model whisper-1 --api-url http://localhost:8000/v1\n\nFor local providers, the Whisper model is downloaded on demand. Cloud providers require --api-key (except anonymous --provider custom endpoints, which require --api-url). ffmpeg and ffprobe must be installed or selected with --ffmpeg/--ffprobe. Use --quick for fewer, faster samples."
 )]
 struct Cli {
     /// SRT file to re-sync.
@@ -34,7 +36,7 @@ struct Cli {
     /// Output path for the synced SRT.
     #[arg(short, long)]
     output: String,
-    /// Whisper model id (e.g. "tiny", "base", "small"). Downloaded on demand.
+    /// Whisper model id (local backend, e.g. "tiny", "base", "small") or provider model name (cloud).
     #[arg(short, long, default_value = "base")]
     model: String,
     /// Spoken language hint (ISO code). Omit to autodetect.
@@ -43,6 +45,33 @@ struct Cli {
     /// Quick mode: fewer, shorter audio samples (faster, less precise).
     #[arg(short, long)]
     quick: bool,
+    /// Transcription engine: "local" (whisper.cpp) or a cloud provider
+    /// ("openai" | "groq" | "deepgram" | "assemblyai" | "custom").
+    #[arg(
+        long,
+        default_value = "local",
+        ignore_case = true,
+        value_parser = [
+            "local",
+            "whisper",
+            "local_whisper",
+            "openai",
+            "groq",
+            "deepgram",
+            "assemblyai",
+            "custom"
+        ]
+    )]
+    provider: String,
+    /// API key for hosted cloud providers (optional for anonymous --provider custom endpoints).
+    #[arg(long)]
+    api_key: Option<String>,
+    /// Base URL override (required when --provider is custom).
+    #[arg(long)]
+    api_url: Option<String>,
+    /// Maximum subtitle-to-audio drift search window in seconds (defaults to 120 in the engine).
+    #[arg(long)]
+    max_offset_secs: Option<u32>,
     /// ffmpeg executable (path or command on PATH).
     #[arg(long, default_value = "ffmpeg")]
     ffmpeg: String,
@@ -52,6 +81,57 @@ struct Cli {
     /// Suppress progress output on stderr.
     #[arg(long)]
     quiet: bool,
+}
+
+fn is_local_provider(provider: &str) -> bool {
+    matches!(
+        provider.to_ascii_lowercase().as_str(),
+        "local" | "whisper" | "local_whisper"
+    )
+}
+
+fn validate_cli(cli: &Cli) -> Result<()> {
+    let provider = cli.provider.to_ascii_lowercase();
+    ensure!(
+        provider != "custom"
+            || cli
+                .api_url
+                .as_deref()
+                .is_some_and(|url| !url.trim().is_empty()),
+        "--api-url is required when --provider is custom"
+    );
+    ensure!(
+        is_local_provider(&provider)
+            || provider == "custom"
+            || cli
+                .api_key
+                .as_deref()
+                .is_some_and(|key| !key.trim().is_empty()),
+        "--api-key is required for cloud provider '{provider}'"
+    );
+    if let Some(secs) = cli.max_offset_secs {
+        ensure!(secs > 0, "--max-offset-secs must be at least 1");
+    }
+    Ok(())
+}
+
+fn build_cloud_config(cli: &Cli) -> Option<CloudConfig> {
+    if is_local_provider(&cli.provider) {
+        return None;
+    }
+    Some(CloudConfig {
+        provider: cli.provider.to_ascii_lowercase(),
+        api_key: cli.api_key.clone().unwrap_or_default(),
+        api_url: cli
+            .api_url
+            .as_deref()
+            .map(str::trim)
+            .filter(|url| !url.is_empty())
+            .map(str::to_string),
+        model: cli.model.clone(),
+        language: cli.language.clone(),
+        translate_to_english: false,
+    })
 }
 
 async fn run_async(args: Vec<std::ffi::OsString>) -> ExitCode {
@@ -79,6 +159,7 @@ pub fn run_from(args: Vec<std::ffi::OsString>) -> ExitCode {
 
 async fn run(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
     let cli = Cli::parse_from(args);
+    validate_cli(&cli)?;
 
     // Ctrl-C cancels both the on-demand model download and the analysis.
     let cancel_token = CancellationToken::new();
@@ -106,12 +187,17 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
         })
         .collect();
 
-    // Ensure the Whisper model is available (download on demand).
-    let model_path = match download_model(&cli.model, cli.quiet, &cancel_token).await? {
-        ModelDownload::Ready(path) => path,
-        ModelDownload::Cancelled => {
-            eprintln!("Auto-sync cancelled during model download.");
-            return Ok(ExitCode::from(130));
+    let cloud = build_cloud_config(&cli);
+    let model_path = if cloud.is_some() {
+        PathBuf::new()
+    } else {
+        // Ensure the local Whisper model is available (download on demand).
+        match download_model(&cli.model, cli.quiet, &cancel_token).await? {
+            ModelDownload::Ready(path) => path,
+            ModelDownload::Cancelled => {
+                eprintln!("Auto-sync cancelled during model download.");
+                return Ok(ExitCode::from(130));
+            }
         }
     };
 
@@ -128,7 +214,7 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
         ffmpeg_cmd: cli.ffmpeg.clone(),
         ffprobe_cmd: cli.ffprobe.clone(),
         use_gpu: None,
-        max_offset_secs: None,
+        max_offset_secs: cli.max_offset_secs,
         existing_anchors: Vec::new(),
     };
 
@@ -141,14 +227,16 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
         })
     });
 
-    let outcome = match run_auto_sync(&config, subtitles, on_progress, &cancel_token).await {
-        Ok(outcome) => outcome,
-        Err(_) if cancel_token.is_cancelled() => {
-            eprintln!("Auto-sync cancelled.");
-            return Ok(ExitCode::from(130));
-        }
-        Err(error) => return Err(error),
-    };
+    let outcome =
+        match run_auto_sync_with_cloud(&config, subtitles, on_progress, &cancel_token, cloud).await
+        {
+            Ok(outcome) => outcome,
+            Err(_) if cancel_token.is_cancelled() => {
+                eprintln!("Auto-sync cancelled.");
+                return Ok(ExitCode::from(130));
+            }
+            Err(error) => return Err(error),
+        };
 
     if outcome.cancelled {
         eprintln!(
@@ -294,5 +382,170 @@ mod tests {
             .is_err()
         );
         assert_eq!(std::fs::read_to_string(output).unwrap(), "existing output");
+    }
+
+    #[test]
+    fn cli_parses_cloud_and_offset_flags_with_defaults() {
+        let defaults =
+            Cli::try_parse_from(["vesta-autosync", "subs.srt", "video.mkv", "-o", "out.srt"])
+                .unwrap();
+        assert_eq!(defaults.provider, "local");
+        assert!(defaults.api_key.is_none());
+        assert!(defaults.api_url.is_none());
+        assert!(defaults.max_offset_secs.is_none());
+        assert!(validate_cli(&defaults).is_ok());
+        assert!(build_cloud_config(&defaults).is_none());
+
+        let cloud = Cli::try_parse_from([
+            "vesta-autosync",
+            "subs.srt",
+            "video.mkv",
+            "-o",
+            "out.srt",
+            "--provider",
+            "Groq",
+            "--model",
+            "whisper-large-v3-turbo",
+            "--api-key",
+            "secret-key",
+            "--language",
+            "ja",
+            "--max-offset-secs",
+            "240",
+        ])
+        .unwrap();
+        assert!(validate_cli(&cloud).is_ok());
+        assert_eq!(cloud.max_offset_secs, Some(240));
+        let cfg = build_cloud_config(&cloud).expect("cloud config");
+        assert_eq!(cfg.provider, "groq");
+        assert_eq!(cfg.api_key, "secret-key");
+        assert_eq!(cfg.api_url, None);
+        assert_eq!(cfg.model, "whisper-large-v3-turbo");
+        assert_eq!(cfg.language.as_deref(), Some("ja"));
+        assert!(!cfg.translate_to_english);
+
+        assert!(
+            Cli::try_parse_from([
+                "vesta-autosync",
+                "subs.srt",
+                "video.mkv",
+                "-o",
+                "out.srt",
+                "--provider",
+                "unknown-provider",
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn cloud_validation_enforces_keys_for_hosted_and_url_for_custom() {
+        for provider in ["local", "whisper", "local_whisper"] {
+            let cli = Cli::try_parse_from([
+                "vesta-autosync",
+                "subs.srt",
+                "video.mkv",
+                "-o",
+                "out.srt",
+                "--provider",
+                provider,
+            ])
+            .unwrap();
+            assert!(validate_cli(&cli).is_ok(), "{provider}");
+            assert!(build_cloud_config(&cli).is_none(), "{provider}");
+        }
+
+        for provider in ["openai", "groq", "deepgram", "assemblyai"] {
+            let missing = Cli::try_parse_from([
+                "vesta-autosync",
+                "subs.srt",
+                "video.mkv",
+                "-o",
+                "out.srt",
+                "--provider",
+                provider,
+            ])
+            .unwrap();
+            let err = validate_cli(&missing).unwrap_err().to_string();
+            assert!(err.contains("--api-key"), "{provider}: {err}");
+
+            let blank = Cli::try_parse_from([
+                "vesta-autosync",
+                "subs.srt",
+                "video.mkv",
+                "-o",
+                "out.srt",
+                "--provider",
+                provider,
+                "--api-key",
+                "   ",
+            ])
+            .unwrap();
+            assert!(validate_cli(&blank).is_err(), "{provider}");
+
+            let valid = Cli::try_parse_from([
+                "vesta-autosync",
+                "subs.srt",
+                "video.mkv",
+                "-o",
+                "out.srt",
+                "--provider",
+                provider,
+                "--api-key",
+                "k",
+            ])
+            .unwrap();
+            assert!(validate_cli(&valid).is_ok(), "{provider}");
+        }
+
+        let custom_no_url = Cli::try_parse_from([
+            "vesta-autosync",
+            "subs.srt",
+            "video.mkv",
+            "-o",
+            "out.srt",
+            "--provider",
+            "custom",
+        ])
+        .unwrap();
+        assert!(
+            validate_cli(&custom_no_url)
+                .unwrap_err()
+                .to_string()
+                .contains("--api-url")
+        );
+
+        let custom_anon = Cli::try_parse_from([
+            "vesta-autosync",
+            "subs.srt",
+            "video.mkv",
+            "-o",
+            "out.srt",
+            "--provider",
+            "custom",
+            "--api-url",
+            " http://127.0.0.1:8000/v1 ",
+        ])
+        .unwrap();
+        assert!(validate_cli(&custom_anon).is_ok());
+        let custom_cfg = build_cloud_config(&custom_anon).unwrap();
+        assert_eq!(custom_cfg.provider, "custom");
+        assert_eq!(custom_cfg.api_key, "");
+        assert_eq!(
+            custom_cfg.api_url.as_deref(),
+            Some("http://127.0.0.1:8000/v1")
+        );
+
+        let zero_offset = Cli::try_parse_from([
+            "vesta-autosync",
+            "subs.srt",
+            "video.mkv",
+            "-o",
+            "out.srt",
+            "--max-offset-secs",
+            "0",
+        ])
+        .unwrap();
+        assert!(validate_cli(&zero_offset).is_err());
     }
 }

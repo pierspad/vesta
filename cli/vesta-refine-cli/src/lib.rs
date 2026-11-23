@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, ensure};
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use serde::Deserialize;
 use std::{
     path::{Path, PathBuf},
@@ -27,12 +27,39 @@ struct Cli {
 enum Command {
     /// Print card fields as JSON without contacting any provider.
     #[command(
-        after_help = "Example:\n  vesta-refine inspect --input deck.apkg > cards.json\n\nInput must be a TSV or APKG deck."
+        after_help = "Examples:\n  vesta-refine inspect --input deck.apkg > cards.json\n  vesta-refine inspect --input deck.tsv --query verb --offset 0 --limit 25\n\nInput must be a TSV or APKG deck."
     )]
     Inspect {
         /// TSV or APKG deck to read.
         #[arg(short, long)]
         input: PathBuf,
+        /// Optional case-insensitive substring filter matched against id, expression, meaning, and notes.
+        #[arg(long)]
+        query: Option<String>,
+        /// Zero-based card offset after filtering.
+        #[arg(long, default_value_t = 0)]
+        offset: usize,
+        /// Maximum number of cards to emit after filtering and offset.
+        #[arg(long)]
+        limit: Option<usize>,
+    },
+    /// Update a single card's notes field directly without contacting an LLM provider.
+    #[command(
+        after_help = "Example:\n  vesta-refine edit --input deck.apkg --output deck.edited.apkg --id 42 --notes \"Grammar explanation\"\n\nSupported conversions are TSV to TSV, APKG to TSV, and APKG to APKG. Output must be distinct from input."
+    )]
+    Edit {
+        /// Source TSV or APKG deck.
+        #[arg(short, long)]
+        input: PathBuf,
+        /// Destination TSV or APKG path (must be distinct from --input).
+        #[arg(short, long)]
+        output: PathBuf,
+        /// Card ID to update (as reported by `inspect`).
+        #[arg(long)]
+        id: String,
+        /// New notes content for the selected card.
+        #[arg(long)]
+        notes: String,
     },
     /// Annotate notes using the shared tiered engine.
     #[command(long_about = r#"Annotate notes using the shared tiered engine.
@@ -57,6 +84,34 @@ Supported output conversions are TSV to TSV, APKG to TSV, and APKG to APKG."#)]
         /// Publish successful annotations even if some cards fail; still exits 1.
         #[arg(long)]
         allow_partial: bool,
+    },
+    /// Interact with a running Anki instance via the AnkiConnect HTTP API.
+    #[command(
+        after_help = "Examples:\n  vesta-refine ankiconnect ping\n  vesta-refine ankiconnect decks\n  vesta-refine ankiconnect import --apkg deck.apkg"
+    )]
+    Ankiconnect(AnkiConnectArgs),
+}
+
+#[derive(Args)]
+struct AnkiConnectArgs {
+    /// AnkiConnect endpoint URL.
+    #[arg(long, default_value = vesta_ankiconnect::DEFAULT_URL)]
+    url: String,
+    #[command(subcommand)]
+    action: AnkiAction,
+}
+
+#[derive(Subcommand)]
+enum AnkiAction {
+    /// Check AnkiConnect availability and print its API version.
+    Ping,
+    /// List deck names available in Anki.
+    Decks,
+    /// Import a local .apkg file into Anki via AnkiConnect.
+    Import {
+        /// Path to the .apkg file to import.
+        #[arg(long)]
+        apkg: PathBuf,
     },
 }
 
@@ -110,6 +165,24 @@ fn validate_output(input: &Path, output: &Path) -> Result<()> {
     Ok(())
 }
 
+fn ensure_distinct_files(input: &Path, output: &Path) -> Result<()> {
+    let input_canon = std::fs::canonicalize(input)
+        .with_context(|| format!("Cannot inspect input file: {}", input.display()))?;
+    match std::fs::symlink_metadata(output) {
+        Ok(_) => {
+            let output_canon = std::fs::canonicalize(output)
+                .with_context(|| format!("Cannot inspect output file: {}", output.display()))?;
+            ensure!(
+                input_canon != output_canon,
+                "Input and output refer to the same file; choose a separate output path"
+            );
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error).context("Cannot inspect output file"),
+    }
+    Ok(())
+}
+
 pub fn run_from(args: Vec<std::ffi::OsString>) -> ExitCode {
     match tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -125,11 +198,69 @@ pub fn run_from(args: Vec<std::ffi::OsString>) -> ExitCode {
 
 async fn run(args: Vec<std::ffi::OsString>) -> Result<u8> {
     match Cli::parse_from(args).command {
-        Command::Inspect { input } => {
+        Command::Inspect {
+            input,
+            query,
+            offset,
+            limit,
+        } => {
             let cards = load_cards(path_text(&input)?)
                 .map_err(anyhow::Error::msg)
                 .with_context(|| format!("Failed to load {}", input.display()))?;
-            println!("{}", serde_json::to_string_pretty(&cards)?);
+            let needle = query
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_lowercase);
+            let iter = cards
+                .into_iter()
+                .filter(|card| {
+                    needle.as_ref().is_none_or(|q| {
+                        card.id.to_lowercase().contains(q)
+                            || card.expression.to_lowercase().contains(q)
+                            || card.meaning.to_lowercase().contains(q)
+                            || card.notes.to_lowercase().contains(q)
+                    })
+                })
+                .skip(offset);
+            let filtered: Vec<_> = match limit {
+                Some(limit) => iter.take(limit).collect(),
+                None => iter.collect(),
+            };
+            println!("{}", serde_json::to_string_pretty(&filtered)?);
+            Ok(0)
+        }
+        Command::Edit {
+            input,
+            output,
+            id,
+            notes,
+        } => {
+            validate_output(&input, &output)?;
+            ensure_distinct_files(&input, &output)?;
+            let input_text = path_text(&input)?;
+            let output_text = path_text(&output)?;
+            let cards = load_cards(input_text)
+                .map_err(anyhow::Error::msg)
+                .with_context(|| format!("Failed to load {}", input.display()))?;
+            let Some(mut card) = cards.into_iter().find(|card| card.id == id) else {
+                anyhow::bail!("Card ID '{id}' not found in {}", input.display());
+            };
+            card.notes = notes;
+            save_cards(
+                input_text,
+                output_text,
+                vec![RefineUpdate {
+                    id: card.id.clone(),
+                    notes: card.notes,
+                }],
+            )
+            .map_err(anyhow::Error::msg)
+            .with_context(|| format!("Failed to save {}", output.display()))?;
+            println!(
+                "{}",
+                serde_json::json!({ "ok": true, "id": card.id, "output": output_text })
+            );
             Ok(0)
         }
         Command::Enrich {
@@ -275,6 +406,38 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<u8> {
             } else {
                 1
             })
+        }
+        Command::Ankiconnect(args) => {
+            let url = args.url.trim();
+            ensure!(!url.is_empty(), "AnkiConnect URL must not be empty");
+            match args.action {
+                AnkiAction::Ping => {
+                    let version = vesta_ankiconnect::ping(url)
+                        .await
+                        .map_err(anyhow::Error::msg)?;
+                    println!("{}", serde_json::json!({ "ok": true, "version": version }));
+                }
+                AnkiAction::Decks => {
+                    let decks = vesta_ankiconnect::deck_names(url)
+                        .await
+                        .map_err(anyhow::Error::msg)?;
+                    println!("{}", serde_json::to_string_pretty(&decks)?);
+                }
+                AnkiAction::Import { apkg } => {
+                    ensure!(apkg.is_file(), "APKG file not found: {}", apkg.display());
+                    let canonical = std::fs::canonicalize(&apkg)
+                        .with_context(|| format!("Failed to resolve {}", apkg.display()))?;
+                    let canonical_str = path_text(&canonical)?;
+                    vesta_ankiconnect::import_package(url, canonical_str)
+                        .await
+                        .map_err(anyhow::Error::msg)?;
+                    println!(
+                        "{}",
+                        serde_json::json!({ "ok": true, "apkg": canonical_str })
+                    );
+                }
+            }
+            Ok(0)
         }
     }
 }

@@ -511,3 +511,253 @@ fn generate_parity_flags_and_merge_subcommand_work_end_to_end() {
     let bad_merge = run(&["merge", apkg1.to_str().unwrap(), "--output", "out.apkg"]);
     assert_eq!(bad_merge.status.code(), Some(2));
 }
+
+#[test]
+fn preview_json_supports_filtering_and_offset_limit_pagination() {
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("target.srt");
+    let native = dir.path().join("native.srt");
+    let unused_output = dir.path().join("never-created");
+
+    std::fs::write(
+        &target,
+        concat!(
+            "1\n00:00:01,000 --> 00:00:02,000\nHi\n\n",
+            "2\n00:00:03,000 --> 00:00:04,500\nSecond line\n\n",
+            "3\n00:00:05,000 --> 00:00:06,200\nThird line here\n\n",
+            "4\n00:00:07,000 --> 00:00:08,000\nFourth line\n",
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        &native,
+        concat!(
+            "1\n00:00:03,100 --> 00:00:04,400\nSeconda riga\n\n",
+            "2\n00:00:05,100 --> 00:00:06,100\nTerza riga\n",
+        ),
+    )
+    .unwrap();
+
+    let preview = run(&[
+        "preview",
+        "--target",
+        target.to_str().unwrap(),
+        "--native",
+        native.to_str().unwrap(),
+        "--output",
+        unused_output.to_str().unwrap(),
+        "--min-chars",
+        "5",
+        "--json",
+        "--offset",
+        "1",
+        "--limit",
+        "2",
+    ]);
+    assert!(
+        preview.status.success(),
+        "{}",
+        String::from_utf8_lossy(&preview.stderr)
+    );
+    assert!(preview.stderr.is_empty());
+    assert!(
+        !unused_output.exists(),
+        "preview --json must not create output dir"
+    );
+
+    let payload: serde_json::Value = serde_json::from_slice(&preview.stdout).unwrap();
+    assert_eq!(payload["total"], 4);
+    assert_eq!(payload["active"], 3);
+    assert_eq!(payload["matched"], 2);
+    assert_eq!(payload["offset"], 1);
+    assert_eq!(payload["limit"], 2);
+
+    let rows = payload["rows"].as_array().unwrap();
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0]["index"], 1);
+    assert_eq!(rows[0]["start_ms"], 3000);
+    assert_eq!(rows[0]["end_ms"], 4500);
+    assert_eq!(rows[0]["duration_ms"], 1500);
+    assert_eq!(rows[0]["subs1_text"], "Second line");
+    assert_eq!(rows[0]["subs2_text"], "Seconda riga");
+    assert_eq!(rows[0]["active"], true);
+    assert!(rows[0]["actor"].is_null());
+    assert!(rows[0]["leading_context"].is_array());
+    assert!(rows[0]["trailing_context"].is_array());
+
+    assert_eq!(rows[1]["index"], 2);
+    assert_eq!(rows[1]["subs1_text"], "Third line here");
+    assert_eq!(rows[1]["subs2_text"], "Terza riga");
+
+    let empty_page = run(&[
+        "preview",
+        "--target",
+        target.to_str().unwrap(),
+        "--json",
+        "--offset",
+        "10",
+        "--limit",
+        "2",
+    ]);
+    assert!(empty_page.status.success());
+    let empty_payload: serde_json::Value = serde_json::from_slice(&empty_page.stdout).unwrap();
+    assert_eq!(empty_payload["total"], 4);
+    assert_eq!(empty_payload["rows"].as_array().unwrap().len(), 0);
+}
+
+#[test]
+fn batch_manifest_generates_episodes_and_merges_apkgs() {
+    let dir = tempfile::tempdir().unwrap();
+    let ep1 = dir.path().join("ep1.srt");
+    let ep2 = dir.path().join("ep2.srt");
+    std::fs::write(&ep1, "1\n00:00:01,000 --> 00:00:02,000\nEpisode one\n").unwrap();
+    std::fs::write(&ep2, "1\n00:00:01,000 --> 00:00:02,000\nEpisode two\n").unwrap();
+
+    let out_dir = dir.path().join("batch_out");
+    let merged_path = dir.path().join("merged").join("series.apkg");
+    let manifest_path = dir.path().join("manifest.json");
+    let manifest = serde_json::json!({
+        "output_dir": out_dir.to_str().unwrap(),
+        "merge_output": merged_path.to_str().unwrap(),
+        "defaults": {
+            "format": "apkg",
+            "deck": "Series",
+            "no_audio": true,
+            "no_snapshots": true,
+            "no_video": true,
+            "no_optimize": true,
+            "jobs": 2
+        },
+        "episodes": [
+            { "target": ep1.to_str().unwrap(), "deck": "Ep1", "episode": 1 },
+            { "target": ep2.to_str().unwrap(), "deck": "Ep2", "episode": 2 }
+        ]
+    });
+    std::fs::write(&manifest_path, manifest.to_string()).unwrap();
+
+    let result = run(&[
+        "batch",
+        "--manifest",
+        manifest_path.to_str().unwrap(),
+        "--quiet",
+    ]);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(result.stderr.is_empty());
+    assert!(out_dir.join("Ep1.apkg").is_file());
+    assert!(out_dir.join("Ep2.apkg").is_file());
+    assert!(merged_path.is_file());
+    assert!(std::fs::read(&merged_path).unwrap().starts_with(b"PK"));
+    assert!(String::from_utf8_lossy(&result.stdout).contains("Merged 2 APKG decks"));
+
+    // Shared default deck name without per-episode deck override must isolate files and still merge.
+    let shared_out = dir.path().join("shared_out");
+    let shared_merged = shared_out.join("SharedSeries.apkg");
+    let shared_manifest = dir.path().join("shared.json");
+    std::fs::write(
+        &shared_manifest,
+        serde_json::json!({
+            "output_dir": shared_out.to_str().unwrap(),
+            "merge_output": shared_merged.to_str().unwrap(),
+            "defaults": {
+                "format": "apkg",
+                "deck": "SharedSeries",
+                "no_audio": true,
+                "no_snapshots": true,
+                "no_video": true
+            },
+            "episodes": [
+                { "target": ep1.to_str().unwrap() },
+                { "target": ep2.to_str().unwrap() }
+            ]
+        })
+        .to_string(),
+    )
+    .unwrap();
+    let shared_run = run(&[
+        "batch",
+        "--manifest",
+        shared_manifest.to_str().unwrap(),
+        "--quiet",
+    ]);
+    assert!(
+        shared_run.status.success(),
+        "{}",
+        String::from_utf8_lossy(&shared_run.stderr)
+    );
+    assert!(shared_merged.is_file());
+    assert!(std::fs::read(&shared_merged).unwrap().starts_with(b"PK"));
+
+    // Single episode with merge_output copies cleanly.
+    let single_out = dir.path().join("single_out");
+    let single_merged = dir.path().join("single_merged.apkg");
+    let single_manifest = dir.path().join("single.json");
+    std::fs::write(
+        &single_manifest,
+        serde_json::json!({
+            "output_dir": single_out.to_str().unwrap(),
+            "merge_output": single_merged.to_str().unwrap(),
+            "defaults": {
+                "format": "apkg",
+                "deck": "Solo",
+                "no_audio": true,
+                "no_snapshots": true,
+                "no_video": true
+            },
+            "episodes": [
+                { "target": ep1.to_str().unwrap() }
+            ]
+        })
+        .to_string(),
+    )
+    .unwrap();
+    let single_run = run(&[
+        "batch",
+        "--manifest",
+        single_manifest.to_str().unwrap(),
+        "--quiet",
+    ]);
+    assert!(single_run.status.success());
+    assert!(single_merged.is_file());
+    assert!(std::fs::read(&single_merged).unwrap().starts_with(b"PK"));
+}
+
+#[test]
+fn batch_rejects_invalid_manifests() {
+    let dir = tempfile::tempdir().unwrap();
+    let ep1 = dir.path().join("ep1.srt");
+    std::fs::write(&ep1, "1\n00:00:01,000 --> 00:00:02,000\nLine\n").unwrap();
+
+    for (name, body, expected) in [
+        (
+            "empty_episodes.json",
+            serde_json::json!({ "output_dir": "out", "episodes": [] }),
+            "at least one episode",
+        ),
+        (
+            "empty_output.json",
+            serde_json::json!({ "output_dir": "  ", "episodes": [{ "target": ep1.to_str().unwrap() }] }),
+            "output_dir must not be empty",
+        ),
+        (
+            "merge_with_tsv.json",
+            serde_json::json!({
+                "output_dir": "out",
+                "merge_output": "merged.apkg",
+                "defaults": { "format": "tsv" },
+                "episodes": [{ "target": ep1.to_str().unwrap() }]
+            }),
+            "requires defaults.format to be 'apkg'",
+        ),
+    ] {
+        let path = dir.path().join(name);
+        std::fs::write(&path, body.to_string()).unwrap();
+        let result = run(&["batch", "--manifest", path.to_str().unwrap()]);
+        assert_eq!(result.status.code(), Some(1), "case {name}");
+        let stderr = String::from_utf8_lossy(&result.stderr);
+        assert!(stderr.contains(expected), "case {name}: {stderr}");
+    }
+}

@@ -154,3 +154,94 @@ fn ctrl_c_cancels_analysis_with_130_and_preserves_output() {
     assert!(String::from_utf8_lossy(&result.stderr).contains("cancelled"));
     assert_eq!(std::fs::read_to_string(output).unwrap(), "existing output");
 }
+
+#[test]
+fn cloud_flags_and_max_offset_are_documented_and_validated() {
+    let help = Command::new(env!("CARGO_BIN_EXE_vesta-autosync"))
+        .arg("--help")
+        .output()
+        .unwrap();
+    assert!(help.status.success());
+    let help_text = String::from_utf8_lossy(&help.stdout);
+    for flag in ["--provider", "--api-key", "--api-url", "--max-offset-secs"] {
+        assert!(help_text.contains(flag), "missing {flag} in:\n{help_text}");
+    }
+
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("input.srt");
+    let media = dir.path().join("media.mp4");
+    let output = dir.path().join("output.srt");
+    std::fs::write(&input, "1\n00:00:01,000 --> 00:00:02,000\nHello\n").unwrap();
+    std::fs::write(&output, "keep").unwrap();
+
+    let bad_provider = Command::new(env!("CARGO_BIN_EXE_vesta-autosync"))
+        .args([
+            input.to_str().unwrap(),
+            media.to_str().unwrap(),
+            "--output",
+            output.to_str().unwrap(),
+            "--provider",
+            "bogus",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(bad_provider.status.code(), Some(2));
+
+    let missing_key = Command::new(env!("CARGO_BIN_EXE_vesta-autosync"))
+        .args([
+            input.to_str().unwrap(),
+            media.to_str().unwrap(),
+            "--output",
+            output.to_str().unwrap(),
+            "--provider",
+            "openai",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(missing_key.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&missing_key.stderr).contains("--api-key"));
+    assert_eq!(std::fs::read_to_string(&output).unwrap(), "keep");
+
+    let missing_url = Command::new(env!("CARGO_BIN_EXE_vesta-autosync"))
+        .args([
+            input.to_str().unwrap(),
+            media.to_str().unwrap(),
+            "--output",
+            output.to_str().unwrap(),
+            "--provider",
+            "custom",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(missing_url.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&missing_url.stderr).contains("--api-url"));
+    assert_eq!(std::fs::read_to_string(&output).unwrap(), "keep");
+
+    // Anonymous custom endpoint skips Whisper model download completely and fails on missing ffmpeg.
+    let empty_home = dir.path().join("empty_home");
+    let empty_cache = dir.path().join("empty_cache");
+    let skips_download = Command::new(env!("CARGO_BIN_EXE_vesta-autosync"))
+        .args([
+            input.to_str().unwrap(),
+            media.to_str().unwrap(),
+            "--output",
+            output.to_str().unwrap(),
+            "--provider",
+            "custom",
+            "--api-url",
+            "http://127.0.0.1:1/v1",
+            "--max-offset-secs",
+            "180",
+            "--ffmpeg",
+            dir.path().join("missing-ffmpeg").to_str().unwrap(),
+            "--quiet",
+        ])
+        .env("HOME", &empty_home)
+        .env("XDG_CACHE_HOME", &empty_cache)
+        .output()
+        .unwrap();
+    assert_eq!(skips_download.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&skips_download.stderr);
+    assert!(stderr.contains("FFmpeg is required"), "stderr: {stderr}");
+    assert!(!stderr.contains("Model download failed"));
+}

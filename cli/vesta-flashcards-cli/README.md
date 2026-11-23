@@ -18,6 +18,9 @@ vesta-flashcards info Detour-en.srt
 # Dry-run the pipeline (counts only, no media, --output not required)
 vesta-flashcards preview --target Detour-en.srt --native Detour-it.srt
 
+# Dry-run with paginated JSON rows (for programmatic previewing)
+vesta-flashcards preview --target Detour-en.srt --native Detour-it.srt --json --offset 0 --limit 50
+
 # Generate a TSV deck + media folder
 vesta-flashcards generate \
   --target Detour-en.srt --native Detour-it.srt \
@@ -26,6 +29,9 @@ vesta-flashcards generate \
 # Generate a self-contained .apkg with seven requested media workers
 vesta-flashcards generate -t Detour-en.srt -n Detour-it.srt \
   -v "Detour(1945).mp4" -o out -f apkg -d Detour -j 7
+
+# Batch generate multiple episodes from a JSON manifest (optionally merging .apkg outputs)
+vesta-flashcards batch --manifest series.json
 
 # Export bilingual dueling subtitles (.ass or .srt)
 vesta-flashcards dueling -t Detour-en.srt --native Detour-it.srt \
@@ -60,19 +66,63 @@ vesta-flashcards merge Ep01.apkg Ep02.apkg --output Detour.series.apkg
 | `--span-start` / `--span-end` | Restrict to a time window (ms). |
 | `--min-chars` / `--exclude-words` / … | Subtitle filters (see `--help`). |
 | `--ffmpeg` / `--ffprobe` | Override the binaries to invoke. |
+| `--json` / `--offset` / `--limit` | `preview` only: emit JSON summary counts and paginated `PreviewLine` rows. |
+| `--manifest` | `batch` only: path to JSON manifest (`output_dir`, optional `merge_output`, `defaults`, `episodes`). |
 
 Run `vesta-flashcards generate --help` for the full list of filters, context lines,
 codecs, and bitrates. Custom HTML/CSS note templates and font downloads
 are configured through the library or GUI; see the
 [coverage matrix](../../docs/CLI.md#feature-coverage-by-interface).
 
+## Batch manifest schema (`batch --manifest`)
+
+```json
+{
+  "output_dir": "./out",
+  "merge_output": "./out/Series.apkg",
+  "defaults": {
+    "format": "apkg",
+    "deck": "Series",
+    "no_audio": false,
+    "no_snapshots": false,
+    "no_video": true,
+    "jobs": 4,
+    "no_optimize": false
+  },
+  "episodes": [
+    {
+      "target": "ep01-ja.srt",
+      "native": "ep01-en.srt",
+      "video": "ep01.mkv",
+      "deck": "Series Ep01",
+      "episode": 1
+    },
+    {
+      "target": "ep02-ja.srt",
+      "native": "ep02-en.srt",
+      "video": "ep02.mkv",
+      "deck": "Series Ep02",
+      "episode": 2
+    }
+  ]
+}
+```
+
+`output_dir` must be non-empty and `episodes` must contain at least one item. Each
+episode entry supports `target` (required) and optional overrides (`native`, `video`,
+`audio`, `deck`, `episode`, `audio_track`, `crop_bottom`, `shift_target`,
+`shift_native`). When `merge_output` is set, `defaults.format` must be `apkg`: two
+or more generated `.apkg` files are merged via `merge_apkg`, and a single-episode
+batch copies its `.apkg` to `merge_output`.
+
 ## Script contract
 
-`info` and `preview` print human-readable summaries to stdout; `preview` never
-creates the output directory. Successful generation prints its summary and output
-paths to stdout. Progress and errors use stderr; `--quiet` suppresses progress,
-but keeps the success summary and failures visible. These commands do not expose
-a JSON protocol.
+`info` and `preview` print human-readable summaries to stdout (`preview --json`
+emits `{ "total", "active", "matched", "offset", "limit", "rows" }`); `preview`
+never creates the output directory. Successful generation (`generate`, `batch`,
+`merge`, `dueling`) prints its summary and output paths to stdout. Progress and
+errors use stderr; `--quiet` suppresses progress, but keeps the success summary and
+failures visible.
 
 Exit codes are `0` for success, `1` for input/processing errors, `2` for invalid
 CLI arguments, and `130` when generation cooperatively returns an unsuccessful

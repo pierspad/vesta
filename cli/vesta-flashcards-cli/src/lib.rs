@@ -8,16 +8,19 @@
 //! This binary is the "shell": it parses CLI arguments and delegates all logic
 //! to the library, mirroring the `vesta-extract` / `vesta-translate` CLIs.
 
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::atomic::{AtomicI64, Ordering};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use clap::{Args, Parser, Subcommand};
+use serde::{Deserialize, Deserializer, Serialize};
 use tokio_util::sync::CancellationToken;
 use vesta_flashcards::{
     AudioFormat, ContextConfig, DuelingExportOptions, DuelingFormat, FieldNamesConfig,
-    FlashcardConfig, FlashcardProgressEvent, MediaTools, OutputFields, SnapshotFormat,
-    SubtitleFilters,
+    FlashcardConfig, FlashcardProgressEvent, FlashcardResult, MediaTools, OutputFields,
+    PreviewLine, SnapshotFormat, SubtitleFilters,
 };
 
 #[derive(Parser)]
@@ -45,11 +48,11 @@ enum Command {
         /// Subtitle file to inspect.
         file: String,
     },
-    /// Run the parse/match/filter pipeline and report line counts (no media).
+    /// Run the parse/match/filter pipeline and report line counts or JSON rows (no media).
     #[command(
-        after_help = "Example:\n  vesta-flashcards preview -t target.srt --native native.srt --only-cjk\n\nPreview reads subtitle files only and never creates the --output directory (--output is optional for preview). Its CLI options are shared with generate; media/export options are ignored."
+        after_help = "Examples:\n  vesta-flashcards preview -t target.srt --native native.srt --only-cjk\n  vesta-flashcards preview -t target.srt --json --offset 0 --limit 25\n\nPreview reads subtitle files only and never creates the --output directory (--output is optional for preview). Its CLI options are shared with generate; media/export options are ignored."
     )]
-    Preview(GenerateArgs),
+    Preview(PreviewArgs),
     /// Export bilingual "dueling" subtitles (.ass or .srt) from matched subtitle tracks.
     #[command(
         after_help = "Examples:\n  vesta-flashcards dueling -t target.srt --native native.srt -o episode.dueling.ass\n  vesta-flashcards dueling -t target.srt --native native.srt --dueling-format srt -o episode.dueling.srt"
@@ -61,6 +64,42 @@ enum Command {
         after_help = "Example:\n  vesta-flashcards merge ep1.apkg ep2.apkg --output series.apkg\n\nInputs must be fresh Vesta .apkg exports without review history."
     )]
     Merge(MergeArgs),
+    /// Generate multiple episodes from a JSON manifest (optionally merging .apkg outputs).
+    #[command(
+        after_help = "Example:\n  vesta-flashcards batch --manifest series.json\n\nManifest JSON requires non-empty `output_dir` and at least one entry in `episodes`. Optional `merge_output` combines generated .apkg decks into a single package when `defaults.format` is `apkg`."
+    )]
+    Batch(BatchArgs),
+}
+
+#[derive(Args, Clone)]
+struct PreviewArgs {
+    #[command(flatten)]
+    common: GenerateArgs,
+    /// Emit a JSON object with summary counts and paginated preview rows.
+    #[arg(long)]
+    json: bool,
+    /// Zero-based row offset when `--json` is enabled.
+    #[arg(long, default_value_t = 0)]
+    offset: usize,
+    /// Maximum number of rows to emit when `--json` is enabled.
+    #[arg(long, default_value_t = 50)]
+    limit: usize,
+}
+
+#[derive(Args, Clone)]
+struct BatchArgs {
+    /// Path to the JSON batch manifest.
+    #[arg(long)]
+    manifest: PathBuf,
+    /// Suppress progress output on stderr.
+    #[arg(short, long)]
+    quiet: bool,
+    /// ffmpeg executable (path or command on PATH).
+    #[arg(long, default_value = "ffmpeg")]
+    ffmpeg: String,
+    /// ffprobe executable (path or command on PATH).
+    #[arg(long, default_value = "ffprobe")]
+    ffprobe: String,
 }
 
 #[derive(Args, Clone)]
@@ -411,6 +450,411 @@ impl GenerateArgs {
     }
 }
 
+#[derive(Serialize)]
+struct PreviewJsonOutput<'a> {
+    total: usize,
+    active: usize,
+    matched: usize,
+    offset: usize,
+    limit: usize,
+    rows: Vec<&'a PreviewLine>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BatchManifest {
+    output_dir: String,
+    #[serde(default)]
+    merge_output: Option<PathBuf>,
+    #[serde(default)]
+    defaults: BatchDefaults,
+    episodes: Vec<BatchEpisode>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BatchDefaults {
+    format: Option<String>,
+    deck: Option<String>,
+    note_type: Option<String>,
+    target_language: Option<String>,
+    #[serde(default)]
+    no_dictionary_lookup: bool,
+    #[serde(default)]
+    no_auto_card_font: bool,
+    #[serde(default)]
+    no_embed_card_font: bool,
+    jobs: Option<usize>,
+    #[serde(default)]
+    no_audio: bool,
+    #[serde(default)]
+    no_snapshots: bool,
+    #[serde(default)]
+    no_video: bool,
+    #[serde(default)]
+    no_optimize: bool,
+    #[serde(default)]
+    normalize_audio: bool,
+    pad_audio_start: Option<i64>,
+    pad_audio_end: Option<i64>,
+    audio_gain: Option<i32>,
+    audio_bitrate: Option<u32>,
+    audio_format: Option<String>,
+    audio_track: Option<usize>,
+    snapshot_width: Option<u32>,
+    snapshot_height: Option<u32>,
+    snapshot_format: Option<String>,
+    snapshot_quality: Option<u8>,
+    crop_bottom: Option<u32>,
+    video_codec: Option<String>,
+    h264_preset: Option<String>,
+    video_bitrate: Option<u32>,
+    video_audio_bitrate: Option<u32>,
+    video_hw_accel: Option<String>,
+    pad_video_start: Option<i64>,
+    pad_video_end: Option<i64>,
+    min_chars: Option<usize>,
+    max_chars: Option<usize>,
+    min_duration: Option<i64>,
+    max_duration: Option<i64>,
+    include_words: Option<String>,
+    exclude_words: Option<String>,
+    #[serde(default)]
+    exclude_duplicates: bool,
+    #[serde(default, deserialize_with = "deserialize_actor_filter")]
+    actor_filter: Vec<String>,
+    #[serde(default)]
+    only_cjk: bool,
+    #[serde(default)]
+    remove_no_match: bool,
+    span_start: Option<i64>,
+    span_end: Option<i64>,
+    shift_target: Option<i64>,
+    shift_native: Option<i64>,
+    context_leading: Option<usize>,
+    context_trailing: Option<usize>,
+    max_gap: Option<f64>,
+    #[serde(default)]
+    combine_sentences: bool,
+    continuation_chars: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BatchEpisode {
+    target: String,
+    native: Option<String>,
+    video: Option<String>,
+    audio: Option<String>,
+    deck: Option<String>,
+    episode: Option<u32>,
+    audio_track: Option<usize>,
+    crop_bottom: Option<u32>,
+    shift_target: Option<i64>,
+    shift_native: Option<i64>,
+}
+
+fn deserialize_actor_filter<'de, D>(deserializer: D) -> std::result::Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrVec {
+        Str(String),
+        Vec(Vec<String>),
+        Null,
+    }
+    match Option::<StringOrVec>::deserialize(deserializer)? {
+        None | Some(StringOrVec::Null) => Ok(Vec::new()),
+        Some(StringOrVec::Str(s)) => Ok(s
+            .split(',')
+            .map(str::trim)
+            .filter(|item| !item.is_empty())
+            .map(str::to_string)
+            .collect()),
+        Some(StringOrVec::Vec(v)) => Ok(v),
+    }
+}
+
+fn sanitize_deck_filename(name: &str) -> String {
+    name.chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
+impl BatchManifest {
+    fn format(&self) -> &str {
+        self.defaults.format.as_deref().unwrap_or("tsv")
+    }
+
+    fn validate(&self) -> Result<()> {
+        ensure!(
+            !self.output_dir.trim().is_empty(),
+            "Manifest output_dir must not be empty"
+        );
+        ensure!(
+            !self.episodes.is_empty(),
+            "Manifest must contain at least one episode"
+        );
+        let format = self.format();
+        ensure!(
+            matches!(format, "tsv" | "apkg"),
+            "Unsupported batch format '{format}': expected 'tsv' or 'apkg'"
+        );
+        if let Some(ref merge_output) = self.merge_output {
+            ensure!(
+                !merge_output.as_os_str().is_empty(),
+                "Manifest merge_output must not be empty when specified"
+            );
+            ensure!(
+                format == "apkg",
+                "Manifest merge_output requires defaults.format to be 'apkg'"
+            );
+        }
+        if let Some(ref deck) = self.defaults.deck {
+            ensure!(
+                !deck.trim().is_empty(),
+                "Manifest defaults.deck must not be empty"
+            );
+        }
+        if let Some(ref audio_format) = self.defaults.audio_format {
+            ensure!(
+                matches!(audio_format.as_str(), "mp3" | "opus"),
+                "Unsupported audio_format '{audio_format}': expected 'mp3' or 'opus'"
+            );
+        }
+        if let Some(ref snapshot_format) = self.defaults.snapshot_format {
+            ensure!(
+                matches!(snapshot_format.as_str(), "webp" | "jpeg" | "avif"),
+                "Unsupported snapshot_format '{snapshot_format}': expected 'webp', 'jpeg', or 'avif'"
+            );
+        }
+        if let Some(quality) = self.defaults.snapshot_quality {
+            ensure!(
+                quality <= 100,
+                "snapshot_quality must be from 0 to 100 (got {quality})"
+            );
+        }
+        if let Some(ref video_codec) = self.defaults.video_codec {
+            ensure!(
+                matches!(video_codec.as_str(), "h264" | "mpeg4"),
+                "Unsupported video_codec '{video_codec}': expected 'h264' or 'mpeg4'"
+            );
+        }
+        if let Some(ref hw_accel) = self.defaults.video_hw_accel {
+            ensure!(
+                matches!(hw_accel.as_str(), "auto" | "off"),
+                "Unsupported video_hw_accel '{hw_accel}': expected 'auto' or 'off'"
+            );
+        }
+        for (idx, ep) in self.episodes.iter().enumerate() {
+            ensure!(
+                !ep.target.trim().is_empty(),
+                "Manifest episode {} has an empty target subtitle path",
+                idx + 1
+            );
+            if let Some(ref deck) = ep.deck {
+                ensure!(
+                    !deck.trim().is_empty(),
+                    "Manifest episode {} has an empty deck name",
+                    idx + 1
+                );
+            }
+        }
+        Ok(())
+    }
+
+    fn uses_isolated_episode_dirs(&self) -> bool {
+        let mut seen = HashSet::new();
+        for ep in &self.episodes {
+            let deck = ep
+                .deck
+                .as_deref()
+                .or(self.defaults.deck.as_deref())
+                .unwrap_or("Vesta");
+            if !seen.insert(sanitize_deck_filename(deck)) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn build_episode_config(
+        &self,
+        index: usize,
+        episode: &BatchEpisode,
+        isolated_dir: bool,
+        any_native: bool,
+        tools_ffmpeg: &str,
+        tools_ffprobe: &str,
+    ) -> FlashcardConfig {
+        let ep_number = episode.episode.unwrap_or((index + 1) as u32);
+        let output_dir = if isolated_dir {
+            Path::new(&self.output_dir)
+                .join("episodes")
+                .join(format!("episode-{:03}", index + 1))
+                .to_string_lossy()
+                .to_string()
+        } else {
+            self.output_dir.clone()
+        };
+        let d = &self.defaults;
+        let args = GenerateArgs {
+            target: episode.target.clone(),
+            native: episode.native.clone(),
+            video: episode.video.clone(),
+            audio: episode.audio.clone(),
+            output: Some(output_dir),
+            format: self.format().to_string(),
+            deck: episode
+                .deck
+                .clone()
+                .or_else(|| d.deck.clone())
+                .unwrap_or_else(|| "Vesta".to_string()),
+            note_type: d.note_type.clone(),
+            target_language: d.target_language.clone(),
+            no_dictionary_lookup: d.no_dictionary_lookup,
+            no_auto_card_font: d.no_auto_card_font,
+            no_embed_card_font: d.no_embed_card_font,
+            episode: ep_number,
+            jobs: d.jobs,
+            no_audio: d.no_audio,
+            no_snapshots: d.no_snapshots,
+            no_video: d.no_video,
+            no_optimize: d.no_optimize,
+            normalize_audio: d.normalize_audio,
+            pad_audio_start: d.pad_audio_start.unwrap_or(0),
+            pad_audio_end: d.pad_audio_end.unwrap_or(0),
+            audio_gain: d.audio_gain.unwrap_or(0),
+            audio_bitrate: d.audio_bitrate.unwrap_or(128),
+            audio_format: d.audio_format.clone().unwrap_or_else(|| "mp3".to_string()),
+            audio_track: episode.audio_track.or(d.audio_track),
+            snapshot_width: d.snapshot_width.unwrap_or(256),
+            snapshot_height: d.snapshot_height.unwrap_or(144),
+            snapshot_format: d
+                .snapshot_format
+                .clone()
+                .unwrap_or_else(|| "webp".to_string()),
+            snapshot_quality: d.snapshot_quality.unwrap_or(80),
+            crop_bottom: episode.crop_bottom.or(d.crop_bottom).unwrap_or(0),
+            video_codec: d.video_codec.clone().unwrap_or_else(|| "h264".to_string()),
+            h264_preset: d
+                .h264_preset
+                .clone()
+                .unwrap_or_else(|| "ultrafast".to_string()),
+            video_bitrate: d.video_bitrate.unwrap_or(1000),
+            video_audio_bitrate: d.video_audio_bitrate.unwrap_or(128),
+            video_hw_accel: d
+                .video_hw_accel
+                .clone()
+                .unwrap_or_else(|| "auto".to_string()),
+            pad_video_start: d.pad_video_start.unwrap_or(0),
+            pad_video_end: d.pad_video_end.unwrap_or(0),
+            min_chars: d.min_chars,
+            max_chars: d.max_chars,
+            min_duration: d.min_duration,
+            max_duration: d.max_duration,
+            include_words: d.include_words.clone(),
+            exclude_words: d.exclude_words.clone(),
+            exclude_duplicates: d.exclude_duplicates,
+            actor_filter: d.actor_filter.clone(),
+            only_cjk: d.only_cjk,
+            remove_no_match: d.remove_no_match,
+            span_start: d.span_start,
+            span_end: d.span_end,
+            shift_target: episode.shift_target.or(d.shift_target).unwrap_or(0),
+            shift_native: episode.shift_native.or(d.shift_native).unwrap_or(0),
+            context_leading: d.context_leading.unwrap_or(0),
+            context_trailing: d.context_trailing.unwrap_or(0),
+            max_gap: d.max_gap.unwrap_or(0.0),
+            combine_sentences: d.combine_sentences,
+            continuation_chars: d.continuation_chars.clone().unwrap_or_default(),
+            ffmpeg: tools_ffmpeg.to_string(),
+            ffprobe: tools_ffprobe.to_string(),
+            quiet: true,
+        };
+        let mut config = args.to_config();
+        // Keep APKG field schemas uniform across episodes when merging.
+        if self.merge_output.is_some() && any_native {
+            config.output_fields.include_subs2 = true;
+        }
+        config
+    }
+}
+
+fn spawn_ctrl_c_token() -> CancellationToken {
+    let cancel = CancellationToken::new();
+    let cancel_signal = cancel.clone();
+    tokio::spawn(async move {
+        if tokio::signal::ctrl_c().await.is_ok() {
+            eprintln!("\nCancelling…");
+            cancel_signal.cancel();
+        }
+    });
+    cancel
+}
+
+async fn run_generation_with_progress(
+    config: FlashcardConfig,
+    tools: MediaTools,
+    cancel: &CancellationToken,
+    quiet: bool,
+) -> Result<FlashcardResult> {
+    let last_pct = AtomicI64::new(-1);
+    let progress = move |ev: FlashcardProgressEvent| {
+        if quiet {
+            return;
+        }
+        let pct = ev.percentage as i64;
+        if last_pct.swap(pct, Ordering::Relaxed) == pct && ev.stage == "media" {
+            return;
+        }
+        if ev.stage == "media" {
+            eprint!(
+                "\r  [{:>3}%] extracting media {}/{}    ",
+                pct, ev.current, ev.total
+            );
+        } else {
+            eprintln!("\r  [{:>3}%] {}", pct, ev.stage);
+        }
+        use std::io::Write;
+        let _ = std::io::stderr().flush();
+    };
+
+    let result = vesta_flashcards::generate(config, tools, cancel.clone(), &progress)
+        .await
+        .map_err(|e| anyhow::anyhow!(e))?;
+
+    if !quiet {
+        eprintln!();
+    }
+
+    Ok(result)
+}
+
+fn copy_apkg_if_distinct(source: &Path, dest: &Path) -> Result<()> {
+    if let (Ok(src_canon), Ok(dst_canon)) =
+        (std::fs::canonicalize(source), std::fs::canonicalize(dest))
+        && src_canon == dst_canon
+    {
+        return Ok(());
+    }
+    if let Some(parent) = dest.parent().filter(|p| !p.as_os_str().is_empty()) {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create output directory {}", parent.display()))?;
+    }
+    std::fs::copy(source, dest)
+        .with_context(|| format!("Failed to copy {} to {}", source.display(), dest.display()))?;
+    Ok(())
+}
+
 async fn run_async(args: Vec<std::ffi::OsString>) -> ExitCode {
     match run(args).await {
         Ok(code) => code,
@@ -454,13 +898,27 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
         }
 
         Command::Preview(args) => {
-            let config = args.to_config();
+            let config = args.common.to_config();
             let lines = vesta_flashcards::preview(&config).map_err(|e| anyhow::anyhow!(e))?;
             let active = lines.iter().filter(|l| l.active).count();
             let matched = lines.iter().filter(|l| l.subs2_text.is_some()).count();
-            println!("Total lines:   {}", lines.len());
-            println!("Active lines:  {}", active);
-            println!("With native:   {}", matched);
+            if args.json {
+                let rows: Vec<&PreviewLine> =
+                    lines.iter().skip(args.offset).take(args.limit).collect();
+                let payload = PreviewJsonOutput {
+                    total: lines.len(),
+                    active,
+                    matched,
+                    offset: args.offset,
+                    limit: args.limit,
+                    rows,
+                };
+                println!("{}", serde_json::to_string_pretty(&payload)?);
+            } else {
+                println!("Total lines:   {}", lines.len());
+                println!("Active lines:  {}", active);
+                println!("With native:   {}", matched);
+            }
         }
 
         Command::Dueling(args) => {
@@ -503,7 +961,7 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
 
         Command::Merge(args) => {
             for input in &args.inputs {
-                anyhow::ensure!(
+                ensure!(
                     input.is_file(),
                     "Input APKG file not found: {}",
                     input.display()
@@ -524,6 +982,113 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
             );
         }
 
+        Command::Batch(args) => {
+            let bytes = std::fs::read(&args.manifest).with_context(|| {
+                format!("Failed to read batch manifest {}", args.manifest.display())
+            })?;
+            let manifest: BatchManifest = serde_json::from_slice(&bytes).with_context(|| {
+                format!("Failed to parse batch manifest {}", args.manifest.display())
+            })?;
+            manifest.validate()?;
+
+            let tools = MediaTools::new(args.ffmpeg.clone(), args.ffprobe.clone());
+            let cancel = spawn_ctrl_c_token();
+            let isolated_dir = manifest.uses_isolated_episode_dirs();
+            let any_native = manifest.episodes.iter().any(|ep| ep.native.is_some());
+            let total_episodes = manifest.episodes.len();
+            let mut apkg_paths = Vec::new();
+            let start = std::time::Instant::now();
+
+            for (idx, episode) in manifest.episodes.iter().enumerate() {
+                if cancel.is_cancelled() {
+                    if !args.quiet {
+                        eprintln!("Batch generation cancelled.");
+                    }
+                    return Ok(ExitCode::from(130));
+                }
+
+                if !args.quiet {
+                    eprintln!("Episode {}/{}: {}", idx + 1, total_episodes, episode.target);
+                }
+
+                let config = manifest.build_episode_config(
+                    idx,
+                    episode,
+                    isolated_dir,
+                    any_native,
+                    &args.ffmpeg,
+                    &args.ffprobe,
+                );
+                let result =
+                    run_generation_with_progress(config, tools.clone(), &cancel, args.quiet)
+                        .await?;
+
+                if !result.success {
+                    if cancel.is_cancelled() {
+                        if !args.quiet {
+                            eprintln!("Batch generation cancelled.");
+                        }
+                        return Ok(ExitCode::from(130));
+                    }
+                    anyhow::bail!(
+                        "Batch episode {} ({}) failed: {}",
+                        idx + 1,
+                        episode.target,
+                        result.message
+                    );
+                }
+
+                println!(
+                    "✅ Episode {}/{}: {}",
+                    idx + 1,
+                    total_episodes,
+                    result.message
+                );
+                if let Some(ref p) = result.tsv_path {
+                    println!("   TSV:  {p}");
+                }
+                if let Some(ref p) = result.apkg_path {
+                    println!("   APKG: {p}");
+                    if manifest.format() == "apkg" {
+                        apkg_paths.push(PathBuf::from(p));
+                    }
+                }
+            }
+
+            if let Some(ref merge_output) = manifest.merge_output {
+                if apkg_paths.len() == 1 {
+                    copy_apkg_if_distinct(&apkg_paths[0], merge_output)?;
+                    println!(
+                        "✅ Copied 1 APKG deck to {} in {:.1}s",
+                        merge_output.display(),
+                        start.elapsed().as_secs_f64()
+                    );
+                } else {
+                    ensure!(
+                        apkg_paths.len() >= 2,
+                        "Expected generated APKG paths to merge into {}",
+                        merge_output.display()
+                    );
+                    if let Some(parent) =
+                        merge_output.parent().filter(|p| !p.as_os_str().is_empty())
+                    {
+                        std::fs::create_dir_all(parent).with_context(|| {
+                            format!("Failed to create output directory {}", parent.display())
+                        })?;
+                    }
+                    vesta_flashcards::merge_apkg(&apkg_paths, merge_output).with_context(|| {
+                        format!("Failed to merge APKG decks into {}", merge_output.display())
+                    })?;
+                    println!(
+                        "✅ Merged {} APKG decks into {} in {:.1}s",
+                        apkg_paths.len(),
+                        merge_output.display(),
+                        start.elapsed().as_secs_f64()
+                    );
+                }
+            }
+        }
+
         Command::Generate(args) => {
             if args.output.as_ref().is_none_or(|s| s.trim().is_empty()) {
                 eprintln!(
@@ -533,48 +1098,10 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
             }
             let config = args.to_config();
             let tools = MediaTools::new(args.ffmpeg.clone(), args.ffprobe.clone());
-
-            // Cooperative cancellation on Ctrl-C.
-            let cancel = CancellationToken::new();
-            let cancel_signal = cancel.clone();
-            tokio::spawn(async move {
-                if tokio::signal::ctrl_c().await.is_ok() {
-                    eprintln!("\nCancelling…");
-                    cancel_signal.cancel();
-                }
-            });
-
-            // Throttled progress: only redraw when the integer percentage moves.
-            let quiet = args.quiet;
-            let last_pct = AtomicI64::new(-1);
-            let progress = move |ev: FlashcardProgressEvent| {
-                if quiet {
-                    return;
-                }
-                let pct = ev.percentage as i64;
-                if last_pct.swap(pct, Ordering::Relaxed) == pct && ev.stage == "media" {
-                    return;
-                }
-                if ev.stage == "media" {
-                    eprint!(
-                        "\r  [{:>3}%] extracting media {}/{}    ",
-                        pct, ev.current, ev.total
-                    );
-                } else {
-                    eprintln!("\r  [{:>3}%] {}", pct, ev.stage);
-                }
-                use std::io::Write;
-                let _ = std::io::stderr().flush();
-            };
+            let cancel = spawn_ctrl_c_token();
 
             let start = std::time::Instant::now();
-            let result = vesta_flashcards::generate(config, tools, cancel.clone(), &progress)
-                .await
-                .map_err(|e| anyhow::anyhow!(e))?;
-
-            if !quiet {
-                eprintln!();
-            }
+            let result = run_generation_with_progress(config, tools, &cancel, args.quiet).await?;
 
             if result.success {
                 println!(
@@ -593,7 +1120,7 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
                 }
             } else {
                 if cancel.is_cancelled() {
-                    if !quiet {
+                    if !args.quiet {
                         eprintln!("Generation cancelled.");
                     }
                     return Ok(ExitCode::from(130));

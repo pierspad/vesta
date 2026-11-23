@@ -16,35 +16,38 @@ CLI configuration is isolated from desktop preferences: commands do not read the
 
 | Workflow | CLI Flags & Subcommands | GUI / Library Capabilities Not Exposed via CLI Flags |
 |---|---|---|
-| Flashcards | Subtitle info, count-only preview, single-episode TSV/APKG generation, APKG merging (`merge`), bilingual dueling export (`dueling`); filters, context lines, codecs, dimensions, audio padding/gain/normalization, audio track index, video padding/HW accel, note type, target language, dictionary lookup, font auto/embed toggles, and worker count | Interactive row selection/editing, media previews, multi-episode batch orchestration, and custom Anki note templates/field mapping |
+| Flashcards | Subtitle info, count or paginated JSON preview (`preview --json --offset --limit`), single-episode TSV/APKG generation, manifest-driven multi-episode batch generation with optional merge (`batch --manifest`), APKG merging (`merge`), bilingual dueling export (`dueling`); filters, context lines, codecs, dimensions, audio padding/gain/normalization, audio track index, video padding/HW accel, note type, target language, dictionary lookup, font auto/embed toggles, and worker count | Interactive row selection/editing, media previews, and custom Anki note templates/field mapping |
 | Extract | SRT reports (`json`, `stats`, `summary`, `debug`); embedded stream discovery (`--list-tracks`) and text-to-SRT track extraction (`--track`) | Embedded-track preview and existing-output discovery; bitmap subtitle tracks use `ocr` |
 | OCR | Extract and OCR bitmap subtitle tracks or hardcoded video ROI regions (`run` with `--provider`, `--model`, `--track`, `--roi`, `--fps`, `--json`), local model catalog (`models`, `download`, `remove`) | Multi-tier provider failover and in-app bitmap/ROI subtitle preview |
 | Sync | Apply subtitle-ID/time anchor pairs (`--anchor ID:MS`) to an SRT file | Interactive playback, anchor sampling, session files, undo/redo stack, and side-by-side editing |
-| Auto-sync | Whisper sample analysis and automatic application of all suggested anchors | Interactive review or selective acceptance of suggested anchors |
+| Auto-sync | Local Whisper or cloud STT (`--provider`, `--api-key`, `--api-url`) sample analysis, drift window (`--max-offset-secs`), and automatic application of all suggested anchors | Interactive review or selective acceptance of suggested anchors |
 | Transcribe | Single local or cloud endpoint per run; model list/download/removal; default Silero VAD, beam-search quality, segmentation, and JSON-Lines progress | Multi-tier provider failover, remote model discovery, and per-run custom VAD variant or model directory selection |
 | Translate | Tiered TOML provider pools, batch size, resume overlap, language list, and completeness check | Context preview/editing, interactive subtitle table editing, and remote model discovery |
-| Refine | JSON card inspection (`inspect`) and tiered LLM annotation (`enrich`) for TSV/APKG decks | Interactive card selection/editing, custom TSV column mapping, and GUI auto-run controls |
+| Refine | Filtered/paginated JSON card inspection (`inspect --query --offset --limit`), direct single-card edits (`edit`), tiered LLM annotation (`enrich`) for TSV/APKG decks, and AnkiConnect (`ankiconnect ping\|decks\|import`) | Interactive card selection/editing, custom TSV column mapping, and GUI auto-run controls |
 | MCP | `vesta-cli mcp --read-root ... --output-root ...` stdio JSON-RPC server (18 tools; see [MCP.md](MCP.md)) | Settings card (`AI assistant integration (MCP)`) detects the bundled `vesta-cli` path and copies ready client JSON |
-| AnkiConnect & Desktop | No dedicated CLI command | Direct AnkiConnect import (`vesta-ankiconnect`), setup wizard, update installer, support logs, and local media playback server |
+| AnkiConnect & Desktop | Exposed via `vesta-refine ankiconnect` / `vesta-cli refine ankiconnect` (`ping`, `decks`, `import --apkg`) | Setup wizard, update installer, support logs, and local media playback server |
 
 ## Subcommands and Options
 
 Timestamps, anchor targets, duration filters, and time shifts are expressed in milliseconds unless noted otherwise (`--max-gap` uses seconds). Pass negative numbers using `=` syntax (for example, `--shift-target=-500`).
 
-### `flashcards` (`info`, `preview`, `generate`, `dueling`, `merge`)
+### `flashcards` (`info`, `preview`, `generate`, `dueling`, `merge`, `batch`)
 
 ```sh
 vesta-cli flashcards info episode-ja.srt
 vesta-cli flashcards preview --target episode-ja.srt --native episode-en.srt
+vesta-cli flashcards preview --target episode-ja.srt --native episode-en.srt --json --offset 0 --limit 25
 vesta-cli flashcards generate --target episode-ja.srt --native episode-en.srt \
   --video episode.mkv --output out --format apkg --deck Episode --no-video
+vesta-cli flashcards batch --manifest series.json
 vesta-cli flashcards merge ep1.apkg ep2.apkg --output series.apkg
 # Text-only export:
 vesta-cli flashcards generate --target episode-ja.srt --output out --deck Text \
   --no-audio --no-snapshots --no-video
 ```
 
-- `preview` accepts the same filter and matching options as `generate`, does not require `--output`, writes no files, and prints card counts only.
+- `preview` accepts the same filter and matching options as `generate`, does not require `--output`, writes no files, and prints card counts (or `{ "total", "active", "matched", "offset", "limit", "rows" }` JSON with `--json`, paginated by `--offset` and `--limit`).
+- `batch --manifest <PATH>` reads a JSON manifest (`output_dir`, optional `merge_output`, optional `defaults`, and non-empty `episodes`), generates each episode using merged defaults + per-episode overrides, and merges generated `.apkg` outputs into `merge_output` when `defaults.format` is `apkg` (copying directly for a single episode). See [`cli/vesta-flashcards-cli/README.md`](../cli/vesta-flashcards-cli/README.md#batch-manifest-schema-batch---manifest).
 - `generate` enables audio clips, snapshots, and video clips by default. Pass `--no-video`, `--no-snapshots`, or `--no-audio` to disable specific media types. If a media source (`--video` or `--audio`) is omitted, the corresponding media extraction is skipped.
 - `--audio-track N` selects the zero-based audio stream (`0:a:N`), not the absolute container stream index reported by `extract --list-tracks`.
 - `--jobs` clamps the number of concurrent FFmpeg worker processes to `[1, logical_cores]`.
@@ -95,11 +98,17 @@ vesta-cli sync --input episode.srt --output episode.synced.srt \
 
 ```sh
 vesta-cli autosync episode.srt episode.mkv --output episode.synced.srt --model base
-vesta-cli autosync episode.srt episode.mkv --output episode.quick.srt --quick
+vesta-cli autosync episode.srt episode.mkv --output episode.quick.srt --quick --max-offset-secs 180
+vesta-cli autosync episode.srt episode.mkv --output episode.synced.srt \
+  --provider groq --model whisper-large-v3-turbo --api-key "$GROQ_API_KEY"
+vesta-cli autosync episode.srt episode.mkv --output episode.synced.srt \
+  --provider custom --model whisper-1 --api-url http://localhost:8000/v1
 ```
 
 - Positional arguments are `<SRT> <MEDIA>`. Requires `ffmpeg` and `ffprobe`.
-- Downloads the requested local Whisper model on demand if not already cached.
+- With local providers (`--provider local` / `whisper` / `local_whisper`, default), downloads the requested local Whisper model on demand if not already cached.
+- With cloud STT providers (`openai`, `groq`, `deepgram`, `assemblyai`, `custom`), local Whisper model download is skipped. Hosted cloud providers require `--api-key`; `--provider custom` requires `--api-url` and accepts anonymous endpoints without `--api-key`.
+- `--max-offset-secs <N>` overrides the default 120-second drift search radius.
 - `--quick` reduces the number and duration of audio samples. All matched anchors are applied before writing `--output`.
 
 ### `transcribe` (`run`, `models`, `download`, `remove`)
@@ -132,30 +141,37 @@ vesta-cli translate --input episode.srt --check-missing episode.it.srt
 - `--language-list` and `--check-missing <TRANSLATED_FILE>` run locally without reading `config.toml` or contacting providers.
 - If the output file already exists, completed cues are preserved and translation resumes from the first missing cue (with `resume_overlap` context). Output must not resolve to the input path.
 
-### `refine` (`inspect`, `enrich`)
+### `refine` (`inspect`, `edit`, `enrich`, `ankiconnect`)
 
 ```sh
 vesta-cli refine inspect --input deck.apkg
+vesta-cli refine inspect --input deck.tsv --query verb --offset 0 --limit 25
+vesta-cli refine edit --input deck.apkg --output deck.edited.apkg --id 42 --notes "Manual note"
 vesta-cli refine enrich --input deck.apkg --output deck.annotated.apkg --config refine.json
+vesta-cli refine ankiconnect ping
+vesta-cli refine ankiconnect decks
+vesta-cli refine ankiconnect import --apkg deck.apkg
 ```
 
-- `inspect` prints deck cards as JSON to stdout without network requests.
+- `inspect` prints deck cards as JSON to stdout without network requests; optional `--query` filters case-insensitively across `id`, `expression`, `meaning`, and `notes`, while `--offset` and `--limit` paginate the matched array.
+- `edit` updates a single card's `notes` field by `--id` and saves the updated deck to a distinct `--output` path without contacting an LLM provider.
 - `enrich` annotates cards using a JSON configuration file (`prompt`, `tiers`, optional `batch_mode` and `batch_size`; see [`cli/vesta-refine-cli/README.md`](../cli/vesta-refine-cli/README.md)).
-- Supported input→output pairs: `TSV → TSV`, `APKG → TSV`, and `APKG → APKG`. In-place updates (`--input` equal to `--output`) are written atomically.
-- By default, any failed or unannotated card aborts publication and exits `1`. `--allow-partial` writes completed card updates before exiting `1`.
+- Supported input→output pairs for `edit` and `enrich`: `TSV → TSV`, `APKG → TSV`, and `APKG → APKG`. In-place updates (`--input` equal to `--output`) are written atomically by `enrich`, whereas `edit` requires `--output` to be distinct from `--input`.
+- By default for `enrich`, any failed or unannotated card aborts publication and exits `1`. `--allow-partial` writes completed card updates before exiting `1`.
+- `ankiconnect` (`--url`, defaulting to `http://127.0.0.1:8765`) delegates `ping`, `decks`, and `import --apkg <PATH>` to `vesta-ankiconnect` (checking file existence and canonicalizing `--apkg` before import).
 
 ## Standard Streams and Exit Codes
 
 | Command | `stdout` | `stderr` |
 |---|---|---|
-| `flashcards` | Summary counts and output paths | Progress and errors (`-q, --quiet` hides progress) |
+| `flashcards` | Summary counts and output paths (or paginated JSON with `preview --json`) | Progress and errors (`-q, --quiet` hides progress) |
 | `extract` | Formatted SRT report or `--list-tracks` JSON (when `-o` is omitted) | Status messages and errors |
 | `ocr` | Final summary (or JSON-Lines stream with `--json`) | Progress and errors (`-q, --quiet` or `--json` hides progress) |
 | `sync` | Empty | Completion summary and errors |
 | `autosync` | Alignment summary | Progress and errors (`--quiet` hides progress) |
 | `transcribe` | Final output path, or JSON-Lines stream with `--json` | Progress and errors (`-q, --quiet` or `--json` hides progress) |
 | `translate` | Progress, summary, or `--check-missing` report | Errors and cancellation notice |
-| `refine` | `inspect` card JSON or `enrich` summary JSON | Progress and errors |
+| `refine` | `inspect` card JSON, `edit` confirmation JSON, `enrich` summary JSON, or `ankiconnect` JSON output | Progress and errors |
 | `mcp` | JSON-RPC 2.0 MCP protocol stream (owned exclusively by `rmcp`) | Server startup/shutdown errors |
 
 - `0`: Completed without error.
