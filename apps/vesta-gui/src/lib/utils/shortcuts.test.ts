@@ -47,15 +47,16 @@ describe("shortcuts", () => {
       }
     });
 
-    it("registers global reserved shortcuts for Extract and Plugins tabs", () => {
+    it("registers global shortcuts for Extract and Plugins tabs and reserves fixed navigation aliases", () => {
       expect(defaultShortcuts).toEqual(
         expect.arrayContaining([
           { id: "tab-extract", action: "switchToExtract", description: "shortcuts.action.goToExtract", defaultKey: "Alt+Shift+E", category: "global" },
           { id: "tab-plugins", action: "switchToPlugins", description: "shortcuts.action.goToPlugins", defaultKey: "Alt+Shift+P", category: "global" },
         ]),
       );
-      expect(isReservedShortcut("Alt+Shift+E")).toBe(true);
-      expect(isReservedShortcut("Alt+Shift+P")).toBe(true);
+      expect(isReservedShortcut("Shift+?")).toBe(true);
+      expect(isReservedShortcut("Ctrl+PageDown")).toBe(true);
+      expect(isReservedShortcut("Alt+Shift+1")).toBe(true);
     });
   });
 
@@ -77,15 +78,20 @@ describe("shortcuts", () => {
       expect(cancelSc?.defaultKey).toBe("Escape");
     });
 
-    it("allows the same custom key in different tabs and reserves global keys", () => {
+    it("allows the same custom key in different tabs, prevents conflicts with active global keys, and allows customizing global keys", () => {
       saveShortcutOverride("sync-new", "Ctrl+K");
       saveShortcutOverride("flashcards-preview", "Ctrl+K");
+      // Cannot override sync-new to Alt+1 while tab-flashcards uses Alt+1
       saveShortcutOverride("sync-new", "Alt+1");
+      // Cannot override tab-flashcards to Ctrl+K while sync-new / flashcards-preview use Ctrl+K
       saveShortcutOverride("tab-flashcards", "Ctrl+K");
       const key = (id: string) => getShortcuts().find(shortcut => shortcut.id === id)?.defaultKey;
       expect(key("sync-new")).toBe("Ctrl+K");
       expect(key("flashcards-preview")).toBe("Ctrl+K");
       expect(key("tab-flashcards")).toBe("Alt+1");
+      // Customizing a global shortcut to a free key works
+      saveShortcutOverride("tab-flashcards", "Alt+F");
+      expect(key("tab-flashcards")).toBe("Alt+F");
       const event = { key: "k", ctrlKey: true, metaKey: false, altKey: false, shiftKey: false } as KeyboardEvent;
       expect(localShortcutAction(event, "sync")).toBe("newSync");
       expect(localShortcutAction(event, "flashcards")).toBe("previewCards");

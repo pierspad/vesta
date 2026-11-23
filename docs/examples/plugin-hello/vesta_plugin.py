@@ -491,6 +491,10 @@ class VestaPlugin:
     def notify(self, msg: str, level: str = "info"):
         self._send_notification("ui.notify", {"level": level, "msg": msg})
 
+    def log(self, msg: str, level: str = "info"):
+        """Emit a structured diagnostic log entry (`vesta.log`) captured by Vesta Support Logs."""
+        self._send_notification("vesta.log", {"level": level, "msg": msg})
+
     def progress(self, id: str, value: float, label: str = ""):
         self._send_notification("ui.progress", {"id": id, "value": value, "label": label})
 

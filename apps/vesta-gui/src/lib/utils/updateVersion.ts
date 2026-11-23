@@ -42,6 +42,14 @@ export interface UpdateAsset {
   digest?: string | null;
   size: number;
 }
+const BINARY_ASSET_EXTENSIONS = ['.deb', '.rpm', '.exe', '.msi', '.dmg', '.flatpak', '.pkg.tar.zst', '.appimage'];
+export function hasBinaryReleaseAssets(assets: UpdateAsset[] | undefined | null): boolean {
+  if (!Array.isArray(assets) || assets.length === 0) return false;
+  return assets.some(asset => {
+    const name = (asset?.name || '').toLowerCase();
+    return (asset?.size ?? 0) > 0 && BINARY_ASSET_EXTENSIONS.some(ext => name.endsWith(ext));
+  });
+}
 export function selectInstaller(assets: UpdateAsset[], channel: string, arch: string, version: string): UpdateAsset | undefined {
   const extension = { windows: '.exe', deb: '.deb', rpm: '.rpm' }[channel];
   const markers = arch === 'x86_64' ? ['x64', 'x86_64', 'amd64'] : arch === 'aarch64' ? ['arm64', 'aarch64'] : [];

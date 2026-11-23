@@ -64,3 +64,24 @@ it("records retry metadata without copying unexpected provider payload fields", 
   expect(store.previewText).not.toMatch(/PRIVATE-SUBTITLE|private-key/);
   expect(store.previewText).toContain("Recording stopped");
 });
+
+it("records plugin:log, plugin:notify message details, and supports clearing the UI preview", async () => {
+  const store = new SupportLogStore();
+  vi.mocked(invoke).mockClear();
+  vi.mocked(listen).mockClear();
+  vi.mocked(invoke).mockImplementation(async () => ({ path: null, recording: false }));
+  const callbacks: Record<string, (ev: any) => void> = {};
+  vi.mocked(listen).mockImplementation(async (name, cb) => {
+    callbacks[name] = cb as (ev: any) => void;
+    return () => {};
+  });
+  await store.initialize();
+  callbacks["plugin:log"]?.({ event: "plugin:log", id: 1, payload: { pluginId: "subtitles-veplugin", level: "info", msg: "Searching OpenSubtitles" } });
+  callbacks["plugin:notify"]?.({ event: "plugin:notify", id: 2, payload: { pluginId: "subtitles-veplugin", level: "error", msg: "HTTP 403: You cannot consume this service" } });
+  await Promise.resolve();
+  expect(store.previewText).toContain("Searching OpenSubtitles");
+  expect(store.previewText).toContain("HTTP 403: You cannot consume this service");
+  store.clear();
+  expect(store.preview).toHaveLength(0);
+  expect(store.previewText).toBe("");
+});

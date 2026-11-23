@@ -88,8 +88,7 @@ export function shortcutsShareScope(a: ShortcutDefinition, b: ShortcutDefinition
 }
 
 export function isReservedShortcut(key: string): boolean {
-  return defaultShortcuts.some(shortcut => shortcut.category === "global" && shortcut.defaultKey === key)
-    || key === "Shift+?"
+  return key === "Shift+?"
     || /^Alt\+Shift\+[1-6]$|^Ctrl\+Page(?:Up|Down)$/.test(key);
 }
 
@@ -100,11 +99,18 @@ export function getShortcuts(): ShortcutDefinition[] {
 
   try {
     const overrides: Record<string, string> = JSON.parse(overridesJson);
-    return defaultShortcuts.map((shortcut) => ({
-      ...shortcut,
-      defaultKey: shortcut.category !== "global" && overrides[shortcut.id] && !isReservedShortcut(overrides[shortcut.id])
-        ? overrides[shortcut.id] : shortcut.defaultKey,
-    }));
+    const resolved = defaultShortcuts.map((shortcut) => ({ ...shortcut }));
+    for (const shortcut of resolved) {
+      const candidate = overrides[shortcut.id];
+      if (!candidate || isReservedShortcut(candidate)) continue;
+      const hasConflict = resolved.some(
+        (other) => other.id !== shortcut.id && other.defaultKey === candidate && shortcutsShareScope(other, shortcut),
+      );
+      if (!hasConflict) {
+        shortcut.defaultKey = candidate;
+      }
+    }
+    return resolved;
   } catch {
     return defaultShortcuts;
   }
@@ -112,8 +118,12 @@ export function getShortcuts(): ShortcutDefinition[] {
 
 // Funzione per salvare override shortcut
 export function saveShortcutOverride(shortcutId: string, newKey: string): void {
-  if (!defaultShortcuts.some(shortcut => shortcut.id === shortcutId && shortcut.category !== "global")
-    || isReservedShortcut(newKey)) return;
+  const target = defaultShortcuts.find((shortcut) => shortcut.id === shortcutId);
+  if (!target || isReservedShortcut(newKey)) return;
+  const current = getShortcuts();
+  if (current.some((s) => s.id !== shortcutId && s.defaultKey === newKey && shortcutsShareScope(s, target))) {
+    return;
+  }
   const overridesJson = vestaConfig.getItem("vesta-shortcut-overrides");
   let overrides: Record<string, string> = {};
 

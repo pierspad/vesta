@@ -4,6 +4,7 @@ use std::{io::Write, path::Path, process::Command, time::Duration};
 use tauri::{Emitter, Manager};
 
 const RELEASE_API: &str = "https://api.github.com/repos/pierspad/vesta/releases/latest";
+const RELEASE_TAG_API_PREFIX: &str = "https://api.github.com/repos/pierspad/vesta/releases/tags/";
 static INSTALLING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 struct InstallGuard;
 impl Drop for InstallGuard {
@@ -148,8 +149,16 @@ pub async fn install_release_update(app: tauri::AppHandle, version: String) -> R
         .timeout(Duration::from_secs(300))
         .build()
         .map_err(|e| e.to_string())?;
+    let release_url = if version.starts_with('v')
+        && version[1..].chars().all(|c| c.is_ascii_digit() || c == '.')
+        && version.matches('.').count() == 2
+    {
+        format!("{RELEASE_TAG_API_PREFIX}{version}")
+    } else {
+        RELEASE_API.to_string()
+    };
     let release: Release = client
-        .get(RELEASE_API)
+        .get(&release_url)
         .send()
         .await
         .map_err(|e| e.to_string())?

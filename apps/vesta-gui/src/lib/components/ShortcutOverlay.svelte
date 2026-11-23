@@ -2,7 +2,7 @@
   import { isInputActive } from "$lib/utils/keyboardFocus";
   import { onDestroy, onMount } from "svelte";
   import { locale } from "$lib/i18n";
-  import { formatKeyPart, getShortcuts, getSortedKeys, type ShortcutDefinition } from "$lib/utils/shortcuts";
+  import { formatKeyPart, getShortcuts, getSortedKeys, matchesConfiguredShortcut, type ShortcutDefinition } from "$lib/utils/shortcuts";
 
   interface Props {
     activeTab: string;
@@ -36,13 +36,17 @@
   });
 
 
+  let showHelpKeys = $derived(
+    getSortedKeys(shortcuts.find((s) => s.id === "show-help")?.defaultKey || "Shift+F1"),
+  );
+
   function handleKeyDown(e: KeyboardEvent) {
     if (e.defaultPrevented || e.isComposing || isInputActive()) {
       return;
     }
 
-    // Toggle help overlay with Shift+F1 (or Shift+? alias)
-    if (e.shiftKey && (e.key === "F1" || e.key === "?")) {
+    // Toggle help overlay with configured show-help shortcut (or Shift+? alias)
+    if (matchesConfiguredShortcut(e, "show-help") || (e.shiftKey && e.key === "?")) {
       e.preventDefault();
       visible = !visible;
       return;
@@ -55,6 +59,10 @@
     }
   }
 
+  function refreshShortcuts() {
+    shortcuts = getShortcuts();
+  }
+
   $effect(() => {
     if (visible) {
       shortcuts = getShortcuts();
@@ -64,10 +72,12 @@
   onMount(() => {
     shortcuts = getShortcuts();
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("shortcuts-updated", refreshShortcuts);
   });
 
   onDestroy(() => {
     window.removeEventListener("keydown", handleKeyDown);
+    window.removeEventListener("shortcuts-updated", refreshShortcuts);
   });
 </script>
 
@@ -98,9 +108,12 @@
               {t("shortcuts.overlay.title")}
             </h3>
             <span class="inline-flex items-center gap-0.5 rounded-md border border-indigo-400/30 bg-indigo-500/15 px-1.5 py-0.5 font-mono text-[10px] text-indigo-200">
-              <kbd>{formatKeyPart("Shift", t)}</kbd>
-              <span class="text-indigo-400/70">+</span>
-              <kbd>{formatKeyPart("F1", t)}</kbd>
+              {#each showHelpKeys as keyPart, idx}
+                {#if idx > 0}
+                  <span class="text-indigo-400/70">+</span>
+                {/if}
+                <kbd>{formatKeyPart(keyPart, t)}</kbd>
+              {/each}
             </span>
           </div>
           <p class="text-[11px] text-gray-400 mt-0.5">

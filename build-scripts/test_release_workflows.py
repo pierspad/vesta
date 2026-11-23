@@ -78,6 +78,8 @@ def main():
 
     require('cancel-in-progress: false' in release,
             'release runs must not cancel an active release')
+    require('gh release edit "$NEW_TAG" --prerelease' in release,
+            'release.yml must hold new stable releases as pre-release until binary assets are uploaded')
 
     release_job_start = build.rfind('\n  release:\n')
     require(release_job_start >= 0, 'build workflow must define its final release job')
@@ -98,6 +100,8 @@ def main():
             'Flatpak manifest and CI workflow must target the supported GNOME 49 runtime')
     require('gh workflow run build-arm64.yml --ref "$ARM64_REF" -f release_tag="$RELEASE_TAG"' in release_job,
             'release job must trigger the non-blocking ARM64 workflow after upload')
+    require('gh release edit "$RELEASE_TAG" --prerelease=false --latest' in release_job,
+            'release job must promote stable releases to latest only after binary assets are uploaded')
 
     require('Verify release tag matches source version' in release_job
             and 'TAG_VERSION="${RELEASE_TAG#v}"' in release_job

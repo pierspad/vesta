@@ -39,7 +39,7 @@ export class SupportLogStore {
   }
 
   private async connect() {
-    const events = ["flashcard-progress", "translate-progress", "translate-complete", "transcribe-progress", "transcribe-complete", "refine-progress", "sync-auto-progress", "sync-auto-complete", "ocr-progress", "provider-retry", "plugin:notify", "plugin:progress", "font-download-progress", "update-download-progress"];
+    const events = ["flashcard-progress", "translate-progress", "translate-complete", "transcribe-progress", "transcribe-complete", "refine-progress", "sync-auto-progress", "sync-auto-complete", "ocr-progress", "provider-retry", "plugin:notify", "plugin:progress", "plugin:log", "font-download-progress", "update-download-progress"];
     await Promise.all(events.map(async name => {
       try {
         await listen<Record<string, unknown> | number>(name, event => {
@@ -47,9 +47,14 @@ export class SupportLogStore {
             recordSupportEvent(name, safeLogValue(event.payload));
             return;
           }
-          if (name === "plugin:notify" || name === "plugin:progress") {
-            const { pluginId, level, value } = event.payload || {};
-            recordSupportEvent(name, safeLogValue({ pluginId, level, value }));
+          if (name === "plugin:notify" || name === "plugin:log") {
+            const { pluginId, level, msg } = event.payload || {};
+            recordSupportEvent(name, safeLogValue({ pluginId, level, msg }));
+            return;
+          }
+          if (name === "plugin:progress") {
+            const { pluginId, id, value, label } = event.payload || {};
+            recordSupportEvent(name, safeLogValue({ pluginId, id, value, label }));
             return;
           }
           if (name === "provider-retry") {
@@ -139,6 +144,12 @@ export class SupportLogStore {
       return await invoke<string>("support_log_export", { destination });
     } catch (error) { this.error = safeLogValue(error); return null; }
     finally { this.busy = false; }
+  }
+
+  clear() {
+    this.recentEntries = [];
+    this.preview = [];
+    this.error = "";
   }
 }
 export const supportLogStore = new SupportLogStore();

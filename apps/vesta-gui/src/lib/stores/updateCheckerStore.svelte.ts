@@ -2,7 +2,7 @@ import { invokeCommand as invoke } from "$lib/services/tauriClient";
 import { fetch as tauriFetch } from "$lib/services/tauriHttp";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { compareVersions, officialReleaseUrl, selectInstaller, type UpdateAsset } from "$lib/utils/updateVersion";
+import { compareVersions, hasBinaryReleaseAssets, officialReleaseUrl, selectInstaller, type UpdateAsset } from "$lib/utils/updateVersion";
 import { snackbar } from "$lib/stores/snackbarStore.svelte";
 import { t } from "$lib/i18n";
 import * as vestaConfig from "$lib/config/vestaConfig";
@@ -10,6 +10,7 @@ import * as vestaConfig from "$lib/config/vestaConfig";
 export type UpdateStatus = "idle" | "checking" | "available" | "current" | "error" | "disabled" | "offline";
 
 const RELEASE_API_URL = "https://api.github.com/repos/pierspad/vesta/releases/latest";
+const RELEASES_LIST_API_URL = "https://api.github.com/repos/pierspad/vesta/releases?per_page=10";
 const RELEASES_PAGE_URL = "https://github.com/pierspad/vesta/releases";
 
 /** Self-contained "overview" card: startup auto-check toggle + manual check
@@ -141,9 +142,35 @@ class UpdateCheckerStore {
         });
         if (!response.ok) throw new Error(`GitHub API returned status ${response.status}`);
 
-        const latest = await response.json() as { tag_name?: string; name?: string; html_url?: string; draft?: boolean; prerelease?: boolean; assets?: UpdateAsset[]; body?: string };
-        const tag = latest.tag_name || latest.name || "";
+        type GitHubReleasePayload = { tag_name?: string; name?: string; html_url?: string; draft?: boolean; prerelease?: boolean; assets?: UpdateAsset[]; body?: string };
+        let latest = await response.json() as GitHubReleasePayload;
+        let tag = latest.tag_name || latest.name || "";
         if (!tag || latest.draft || latest.prerelease || !officialReleaseUrl(latest.html_url)) throw new Error("Invalid stable release in API response");
+
+        // If the latest release has no compiled binary assets (e.g. build still running or failed),
+        // look up the most recent stable release that actually has downloadable binary assets.
+        if (!hasBinaryReleaseAssets(latest.assets)) {
+          try {
+            const listResp = await tauriFetch(RELEASES_LIST_API_URL, {
+              method: "GET",
+              headers: { "Accept": "application/vnd.github+json", "User-Agent": userAgent },
+            });
+            if (listResp.ok) {
+              const list = await listResp.json();
+              if (Array.isArray(list)) {
+                const withAssets = (list as GitHubReleasePayload[]).find(
+                  r => !r.draft && !r.prerelease && (r.tag_name || r.name) && officialReleaseUrl(r.html_url) && hasBinaryReleaseAssets(r.assets),
+                );
+                if (withAssets) {
+                  latest = withAssets;
+                  tag = withAssets.tag_name || withAssets.name || "";
+                }
+              }
+            }
+          } catch {
+            // Best-effort fallback to latest payload
+          }
+        }
 
         this.latestVersion = tag.startsWith("v") || tag.startsWith("V") ? tag : `v${tag}`;
         this.releaseUrl = officialReleaseUrl(latest.html_url)!;
@@ -153,6 +180,17 @@ class UpdateCheckerStore {
           this.installedReleaseNotes = this.releaseNotes;
           const installedTag = this.normalizedInstalledTag();
           if (installedTag) this.installedNotesLoadedFor = installedTag;
+        }
+        // Do not advertise an assetless stable release as an upgrade to an installed stable release.
+        if (!hasBinaryReleaseAssets(this.releaseAssets) && this.appVersionNum && !this.appVersionNum.includes("-")) {
+          if (compareVersions(this.latestVersion, this.appVersionNum) === null) {
+            throw new Error("Cannot compare app and release versions");
+          }
+          this.updateStatus = "current";
+          if (source === "manual") {
+            snackbar.show(t("settings.updatesUpToDate"), "success");
+          }
+          return;
         }
         this.processUpdateResult(source);
         return;

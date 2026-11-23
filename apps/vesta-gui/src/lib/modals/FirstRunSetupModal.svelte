@@ -1,6 +1,6 @@
 <script lang="ts">
   import { listen } from "@tauri-apps/api/event";
-  import { buildSetupPlan, installSetupPlan, resolveSetupChoices, setupTierPreferences, suggestedOcrModelForLanguage, type SetupResources, type SetupTask, type SetupTaskStatus, type SetupDestination } from "$lib/workflows/firstRunSetup";
+  import { buildSetupPlan, installSetupPlan, resolveSetupChoices, setupIttTierPreferences, setupTierPreferences, suggestedOcrModelForLanguage, type SetupResources, type SetupTask, type SetupTaskStatus, type SetupDestination } from "$lib/workflows/firstRunSetup";
   import { loadSetupResources, installSetupResource } from "$lib/services/setup";
   import { saveVadSelection } from "$lib/config/vadSelection";
   import { onMount } from "svelte";
@@ -32,7 +32,7 @@
   let useVad = $state(true);
   let vadChoice = $state<"silero" | "custom">("silero");
   let whisperModel = $state("small");
-  let wantsOcr = $state(false);
+  let wantsOcr = $state(true);
   let ocrModel = $state(suggestedOcrModelForLanguage("en"));
   let ocrModelManuallyChosen = $state(false);
   let suggestedOcrModel = $derived(suggestedOcrModelForLanguage(studyLanguage));
@@ -158,9 +158,11 @@
       vestaConfig.setItem("vesta-transcribe-vad", String(choices.wantsTranscription && choices.useVad));
       vestaConfig.setItem("vesta-default-whisper-model", choices.whisperModel);
       vestaConfig.setItem("vesta-transcribe-tiers", setupTierPreferences(choices.whisperModel, choices.wantsTranscription));
+      const selectedOcrModel = choices.ocrModel || suggestedOcrModelForLanguage(choices.studyLanguage);
       if (choices.wantsOcr) {
-        vestaConfig.setItem("vesta-default-ocr-model", choices.ocrModel || "paddleocr-v4-mobile-multi");
+        vestaConfig.setItem("vesta-default-ocr-model", selectedOcrModel);
       }
+      vestaConfig.setItem("vesta-itt-tiers", setupIttTierPreferences(selectedOcrModel, Boolean(choices.wantsOcr)));
       if (choices.wantsTranscription && choices.useVad && choices.vadChoice === "silero") saveVadSelection({ modelId: "v6.2.0", customPath: null });
       const media = loadMediaSettings();
       media.audioFormat = mode === "custom" && compactAudio ? "opus" : "mp3";

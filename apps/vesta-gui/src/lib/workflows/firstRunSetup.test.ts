@@ -15,7 +15,7 @@ describe("first run setup", () => {
   expect(choices.wantsTranscription).toBe(false);
  });
  it("custom choices can select Medium, custom VAD or no transcription", () => {
-  const custom = { ...choices, mode: "custom" as const, wantsTranscription: true, whisperModel: "medium", useVad: true };
+  const custom = { ...choices, mode: "custom" as const, wantsTranscription: true, whisperModel: "medium", useVad: true, ocrModel: "paddleocr-v4-mobile-cjk" };
   expect(resolveSetupChoices(custom)).toEqual(custom);
   expect(buildSetupPlan(custom, resources).map(task => task.resourceId)).toEqual(["ffmpeg", "medium", "japanese"]);
   expect(buildSetupPlan({ ...custom, wantsTranscription: false }, resources).map(task => task.kind)).toEqual(["media", "font"]);
@@ -44,9 +44,10 @@ describe("first run setup", () => {
   expect(JSON.parse(setupTierPreferences("medium", true))[0].entries[0].model).toBe("medium");
   expect(JSON.parse(setupTierPreferences("small", false))).toEqual([]);
  });
- it("includes the selected local OCR model task when wantsOcr is true in custom mode and excludes it in quick mode", () => {
+ it("includes the selected local OCR model task in both quick mode and custom mode when wantsOcr is true, and excludes it when disabled in custom mode", () => {
   const ocrModels = [
    { id: "paddleocr-v4-mobile-multi", name: "PaddleOCR v4 Mobile (Multilingual)", size: "~11 MB", downloaded: false },
+   { id: "paddleocr-v4-mobile-cjk", name: "PaddleOCR v4 Mobile (CJK)", size: "~11 MB", downloaded: false },
    { id: "paddleocr-v4-mobile-latin", name: "PaddleOCR v4 Mobile (Latin)", size: "~10 MB", downloaded: true },
   ];
   const withOcr = buildSetupPlan(
@@ -58,8 +59,13 @@ describe("first run setup", () => {
    ["ocr", "paddleocr-v4-mobile-latin", true],
    ["font", "japanese", false],
   ]);
-  const quickWithOcrFlag = buildSetupPlan({ ...choices, mode: "quick", wantsOcr: true }, { ...resources, ocrModels });
-  expect(quickWithOcrFlag.some(task => task.kind === "ocr")).toBe(false);
+  const quickPlan = buildSetupPlan({ ...choices, mode: "quick", wantsOcr: false }, { ...resources, ocrModels });
+  expect(quickPlan.some(task => task.kind === "ocr" && task.resourceId === "paddleocr-v4-mobile-cjk")).toBe(true);
+  const customWithoutOcr = buildSetupPlan(
+   { ...choices, mode: "custom", wantsTranscription: false, wantsOcr: false },
+   { ...resources, ocrModels },
+  );
+  expect(customWithoutOcr.some(task => task.kind === "ocr")).toBe(false);
  });
  it("suggests the right local OCR model based on study language", () => {
   expect(suggestedOcrModelForLanguage("ja")).toBe("paddleocr-v4-mobile-cjk");

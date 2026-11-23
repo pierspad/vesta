@@ -61,7 +61,8 @@ it("keeps the custom configuration and a concise component review", async () => 
   expect(target.textContent).not.toContain("One click downloads");
   expect(target.textContent).not.toContain("Checking installed components");
   expect(target.querySelectorAll(".language-badge")).toHaveLength(2);
-  expect(target.querySelectorAll(".component-icon")).toHaveLength(3);
+  expect(target.querySelectorAll(".component-icon")).toHaveLength(4);
+  expect(target.textContent).toContain("PaddleOCR v4 Mobile (Latin)");
   expect(target.textContent).toContain("Sizes are approximate");
   expect(target.querySelectorAll(".review-preferences dt svg")).toHaveLength(3);
   expect(target.querySelectorAll(".review-preferences dd")[0].textContent).toContain("🇬🇧");

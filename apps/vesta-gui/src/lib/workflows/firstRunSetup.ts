@@ -32,9 +32,21 @@ export interface SetupTask {
   installed: boolean;
 }
 export function resolveSetupChoices(choices: SetupChoices): SetupChoices {
+  const defaultOcr = choices.ocrModel || suggestedOcrModelForLanguage(choices.studyLanguage);
   return choices.mode === "quick"
-    ? { ...choices, wantsTranscription: true, whisperModel: "small", useVad: true, vadChoice: "silero", wantsOcr: false }
-    : { ...choices };
+    ? {
+        ...choices,
+        wantsTranscription: true,
+        whisperModel: "small",
+        useVad: true,
+        vadChoice: "silero",
+        wantsOcr: true,
+        ocrModel: suggestedOcrModelForLanguage(choices.studyLanguage),
+      }
+    : {
+        ...choices,
+        ocrModel: defaultOcr,
+      };
 }
 export function buildSetupPlan(raw: SetupChoices, resources: SetupResources): SetupTask[] {
   const choices = resolveSetupChoices(raw);
@@ -51,8 +63,9 @@ export function buildSetupPlan(raw: SetupChoices, resources: SetupResources): Se
     }
   }
   if (choices.wantsOcr) {
-    const ocrModelId = choices.ocrModel || "paddleocr-v4-mobile-multi";
-    const ocrModel = (resources.ocrModels ?? []).find(m => m.id === ocrModelId);
+    const ocrModelId = choices.ocrModel || suggestedOcrModelForLanguage(choices.studyLanguage);
+    const ocrList = resources.ocrModels ?? [];
+    const ocrModel = ocrList.find(m => m.id === ocrModelId) ?? ocrList[0];
     if (ocrModel) {
       plan.push({ id: "ocr", kind: "ocr", resourceId: ocrModel.id, name: ocrModel.name, size: ocrModel.size, installed: ocrModel.downloaded });
     }
@@ -74,6 +87,13 @@ export async function installSetupPlan(plan: SetupTask[], install: (task: SetupT
 }
 export function setupTierPreferences(model: string, wantsTranscription: boolean): string {
   return JSON.stringify(wantsTranscription ? [{ id: "setup-local", entries: [{ id: "setup-whisper", provider: "local", apiKeyId: "", model }] }] : []);
+}
+export function setupIttTierPreferences(ocrModel: string, wantsOcr: boolean): string {
+  return JSON.stringify(
+    wantsOcr
+      ? [{ id: "setup-itt-local", entries: [{ id: "setup-ocr", provider: "local_ocr", apiKeyId: "local_ocr", model: ocrModel }] }]
+      : [],
+  );
 }
 
 const CJK_OCR_LANGUAGES = new Set(["zh", "zh-tw", "ja", "ko"]);

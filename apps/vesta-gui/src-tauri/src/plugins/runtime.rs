@@ -1011,15 +1011,27 @@ impl PluginRuntimeManager {
 
         // Bounded stderr logger task
         let plugin_id_err = manifest.id.clone();
+        let app_handle_err = app_handle.clone();
         tokio::spawn(async move {
             let mut reader = BufReader::new(stderr);
             while let Ok(Some((line, was_truncated))) =
                 read_bounded_stderr_line(&mut reader, MAX_PLUGIN_STDERR_LINE_BYTES).await
             {
-                if was_truncated {
-                    eprintln!("[plugin:{plugin_id_err}:stderr] {line}... [truncated]");
+                let formatted = if was_truncated {
+                    format!("{line}... [truncated]")
                 } else {
-                    eprintln!("[plugin:{plugin_id_err}:stderr] {line}");
+                    line
+                };
+                eprintln!("[plugin:{plugin_id_err}:stderr] {formatted}");
+                if let Some(ref app) = app_handle_err {
+                    let _ = app.emit(
+                        "plugin:log",
+                        serde_json::json!({
+                            "pluginId": plugin_id_err,
+                            "level": "stderr",
+                            "msg": formatted,
+                        }),
+                    );
                 }
             }
         });
@@ -1182,6 +1194,21 @@ impl PluginRuntimeManager {
                         serde_json::json!({
                             "videoPath": video_path,
                             "subtitlePath": subtitle_path
+                        }),
+                    );
+                }
+                "vesta.log" | "ui.log" => {
+                    let level = params
+                        .get("level")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("info");
+                    let msg = params.get("msg").and_then(|v| v.as_str()).unwrap_or("");
+                    let _ = app.emit(
+                        "plugin:log",
+                        serde_json::json!({
+                            "pluginId": plugin_id,
+                            "level": level,
+                            "msg": msg
                         }),
                     );
                 }

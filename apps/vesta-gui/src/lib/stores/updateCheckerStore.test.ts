@@ -7,7 +7,8 @@ vi.mock('@tauri-apps/plugin-opener', () => ({ openUrl: mocks.open }));
 vi.mock('$lib/stores/snackbarStore.svelte', () => ({ snackbar: { show: mocks.snackbar } }));
 vi.mock('$lib/i18n', () => ({ t: (key: string) => key }));
 vi.mock('$lib/config/vestaConfig', () => ({ getItem: () => 'false', setItem: vi.fn() }));
-const release = (assets: unknown[] = []) => ({ tag_name: 'v1.2.3', html_url: 'https://github.com/pierspad/vesta/releases/tag/v1.2.3', assets });
+const defaultAsset = { name: 'vesta_1.2.3_amd64.deb', size: 100, browser_download_url: 'https://github.com/pierspad/vesta/releases/download/v1.2.3/vesta_1.2.3_amd64.deb' };
+const release = (assets: unknown[] = [defaultAsset]) => ({ tag_name: 'v1.2.3', html_url: 'https://github.com/pierspad/vesta/releases/tag/v1.2.3', assets });
 const response = (data: unknown) => ({ ok: true, json: async () => data });
 async function store() {
   const { updateCheckerStore } = await import('./updateCheckerStore.svelte');
@@ -106,8 +107,9 @@ describe('update checker', () => {
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
   it('fetches release notes strictly for the installed version rather than overwriting with newer latest notes', async () => {
+    const asset = { name: 'vesta_0.34.1_amd64.deb', size: 100, browser_download_url: 'https://github.com/pierspad/vesta/releases/download/v0.34.1/vesta_0.34.1_amd64.deb' };
     mocks.fetch
-      .mockResolvedValueOnce(response({ tag_name: 'v0.34.1', html_url: 'https://github.com/pierspad/vesta/releases/tag/v0.34.1', body: 'Newer v0.34.1 notes', assets: [] }))
+      .mockResolvedValueOnce(response({ tag_name: 'v0.34.1', html_url: 'https://github.com/pierspad/vesta/releases/tag/v0.34.1', body: 'Newer v0.34.1 notes', assets: [asset] }))
       .mockResolvedValueOnce(response({ tag_name: 'v0.33.0', body: 'Installed v0.33.0 notes', draft: false }));
     const updates = await store();
     updates.appVersionNum = 'v0.33.0';
@@ -118,6 +120,20 @@ describe('update checker', () => {
     await updates.loadInstalledReleaseNotes();
     expect(mocks.fetch.mock.calls[1][0]).toBe('https://api.github.com/repos/pierspad/vesta/releases/tags/v0.33.0');
     expect(updates.installedReleaseNotes).toBe('Installed v0.33.0 notes');
+  });
+  it('skips an incomplete latest release with no binary assets and falls back to the latest release with assets', async () => {
+    const asset33 = { name: 'vesta_0.33.0_amd64.deb', size: 1024, browser_download_url: 'https://github.com/pierspad/vesta/releases/download/v0.33.0/vesta_0.33.0_amd64.deb' };
+    mocks.fetch
+      .mockResolvedValueOnce(response({ tag_name: 'v0.34.1', html_url: 'https://github.com/pierspad/vesta/releases/tag/v0.34.1', body: 'Broken assetless release', assets: [] }))
+      .mockResolvedValueOnce(response([
+        { tag_name: 'v0.34.1', html_url: 'https://github.com/pierspad/vesta/releases/tag/v0.34.1', draft: false, prerelease: false, assets: [] },
+        { tag_name: 'v0.33.0', html_url: 'https://github.com/pierspad/vesta/releases/tag/v0.33.0', draft: false, prerelease: false, body: 'v0.33.0 notes', assets: [asset33] },
+      ]));
+    const updates = await store();
+    updates.appVersionNum = 'v0.33.0';
+    await updates.checkForUpdates();
+    expect(updates.latestVersion).toBe('v0.33.0');
+    expect(updates.updateStatus).toBe('current');
   });
   it('handles 404 or offline gracefully when loading installed release notes without setting updateError', async () => {
     mocks.fetch.mockResolvedValueOnce({ ok: false, status: 404 });

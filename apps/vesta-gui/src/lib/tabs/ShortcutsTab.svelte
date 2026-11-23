@@ -177,7 +177,7 @@
   let currentKeyHandler: ((e: KeyboardEvent) => void) | null = null;
 
   function startEditing(shortcutId: string) {
-    if (editingShortcut === shortcutId || shortcuts.find(s => s.id === shortcutId)?.category === "global") return;
+    if (editingShortcut === shortcutId) return;
 
     if (editingShortcut !== null) {
       cancelEditing();
@@ -335,6 +335,15 @@
     if (id === "tab-shortcuts") {
       return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7a3 3 0 013-3h10a3 3 0 013 3v10a3 3 0 01-3 3H7a3 3 0 01-3-3V7zm4 2h2m2 0h2m2 0h2M7 13h2m2 0h2m2 0h2M7 17h6" /></svg>`;
     }
+    if (id === "tab-extract") {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 7h4m2 0h4M12 17v4m0 0l-3-3m3 3l3-3" /></svg>`;
+    }
+    if (id === "tab-plugins") {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 3a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H6a1 1 0 01-1-1v-3a1 1 0 00-1-1H3a2 2 0 110-4h1a1 1 0 001-1V6a1 1 0 011-1h3a1 1 0 001-1V3z" /></svg>`;
+    }
+    if (id === "tab-diagnostics") {
+      return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h10M18 7h2M4 17h2m4 0h10M14 5v4M8 15v4M4 12h4m4 0h8M10 10v4" /></svg>`;
+    }
     if (id === "sync-auto") {
       return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>`;
     }
@@ -390,7 +399,7 @@
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="flex items-center justify-between p-4 rounded-xl border transition-all duration-200 {shortcut.category === "global" ? "" : "cursor-pointer"}
+    class="flex items-center justify-between p-4 rounded-xl border transition-all duration-200 cursor-pointer
       {editingShortcut === shortcut.id
       ? 'bg-red-500/10 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.25)] text-white font-semibold'
       : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10 text-gray-300 hover:text-white'}"
@@ -403,19 +412,10 @@
       </div>
 
       <div class="min-w-0 flex-1">
-        {#if shortcut.category === "global"}
-          <p class="flex items-center gap-2 text-sm font-semibold">
-            <span class="truncate">{t(shortcut.description)}</span>
-            <svg aria-hidden="true" class="size-3 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-              <rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 1 1 8 0v4" />
-            </svg>
-          </p>
-        {:else}
-          <button type="button" class="block max-w-full truncate text-start text-sm font-semibold" onclick={(event) => {
-            event.stopPropagation();
-            startEditing(shortcut.id);
-          }}>{t(shortcut.description)}</button>
-        {/if}
+        <button type="button" class="block max-w-full truncate text-start text-sm font-semibold" onclick={(event) => {
+          event.stopPropagation();
+          startEditing(shortcut.id);
+        }}>{t(shortcut.description)}</button>
         {#if isModified(shortcut)}
           <p class="text-[10px] text-amber-400/80 mt-0.5 font-medium">
             {t("shortcuts.modified", { key: getDefaultKey(shortcut.id) })}

@@ -561,6 +561,17 @@ jobs:
             if gh release upload "$RELEASE_TAG" release/* --clobber; then
               echo "Upload completed successfully."
               if [[ "$RELEASE_TAG" != *-* ]]; then
+                echo "Promoting $RELEASE_TAG to latest stable release now that binary assets are attached..."
+                gh release edit "$RELEASE_TAG" --prerelease=false --latest || echo "::warning::Failed to promote $RELEASE_TAG to latest"
+                for empty_tag in $(gh release list --exclude-drafts --exclude-pre-releases --limit 20 --json tagName --jq '.[].tagName' 2>/dev/null || true); do
+                  if [[ "$empty_tag" != "$RELEASE_TAG" ]]; then
+                    asset_count=$(gh release view "$empty_tag" --json assets --jq '.assets | length' 2>/dev/null || echo "1")
+                    if [[ "$asset_count" == "0" ]]; then
+                      echo "Cleaning up incomplete zero-asset release $empty_tag..."
+                      gh release delete "$empty_tag" --yes || gh release edit "$empty_tag" --prerelease || true
+                    fi
+                  fi
+                done
                 echo "Stable release ($RELEASE_TAG): triggering AUR publication workflow..."
                 gh workflow run "Publish to AUR" --ref main || echo "::warning::Failed to trigger AUR publication workflow"
               else

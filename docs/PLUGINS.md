@@ -243,6 +243,14 @@ Displays a standard toast notification in Vesta:
 {"jsonrpc": "2.0", "method": "ui.notify", "params": {"level": "success", "msg": "Action completed successfully!"}}
 ```
 
+### `vesta.log` (Notification)
+Sends a structured diagnostic log entry to Vesta's **Support Logs** recorder (Settings → Diagnostics → Support logs) without displaying a user toast. Any output written by the plugin child process to `stderr` is also captured automatically under `plugin:log`.
+- `level`: `"debug"` | `"info"` | `"warn"` | `"error"`
+- `msg`: String message (automatically redacted by Vesta's support log scrubber)
+```json
+{"jsonrpc": "2.0", "method": "vesta.log", "params": {"level": "info", "msg": "Searching OpenSubtitles for query='pulp fiction' (lang=en)"}}
+```
+
 ### `ui.progress` (Notification)
 Updates progress on long operations:
 - `id`: string

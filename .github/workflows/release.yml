@@ -117,3 +117,14 @@ jobs:
             conventional-changelog-conventionalcommits@9.3.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Hold stable release as pre-release until binary assets are uploaded
+        if: steps.release.outputs.new_release_published == 'true' && github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_TAG: v${{ steps.release.outputs.new_release_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Marking $NEW_TAG as pre-release until Build and Release uploads binary installers..."
+          gh release edit "$NEW_TAG" --prerelease || true

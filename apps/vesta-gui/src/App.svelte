@@ -283,7 +283,29 @@
     if (e.defaultPrevented || e.isComposing) return;
     const inputActive = isInputActive();
 
-    // Handle context-sensitive Alt+1..6 and Alt+Shift+1..6 navigation
+    if (!inputActive) {
+      const inSettings = activeTab === "settings";
+      const killSwitch = aiStore.killSwitchActive;
+      const isPlainAltDigit1To6 =
+        e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && ((e.key >= "1" && e.key <= "6") || /^Digit[1-6]$/.test(e.code));
+
+      // Dispatch configured global & settings shortcuts first (unless in Settings or Kill Switch mode with plain Alt+1..6 positional navigation)
+      if (!(isPlainAltDigit1To6 && (inSettings || killSwitch))) {
+        for (const shortcut of shortcutsList) {
+          if (
+            shortcut.action !== "showShortcutHelp" &&
+            (shortcut.category === "global" || (inSettings && shortcut.category === "settings")) &&
+            matchShortcut(e, shortcut.defaultKey)
+          ) {
+            e.preventDefault();
+            triggerGlobalAction(shortcut.action);
+            return;
+          }
+        }
+      }
+    }
+
+    // Handle context-sensitive Alt+1..6 (in Settings / Kill Switch) and Alt+Shift+1..6 navigation
     if (!inputActive && e.altKey && !e.ctrlKey && !e.metaKey) {
       let num: number | null = null;
       if (e.key >= "1" && e.key <= "6") {
@@ -316,21 +338,19 @@
               return;
             }
           }
-        } else {
-          if (inSettings) {
-            const targetSection = getSettingsSectionForDigit(num, killSwitch);
-            if (targetSection) {
-              e.preventDefault();
-              goToSettings(targetSection);
-              return;
-            }
-          } else {
-            const targetTab = getMainTabForDigit(num, killSwitch);
-            if (targetTab) {
-              e.preventDefault();
-              changeTab(targetTab);
-              return;
-            }
+        } else if (inSettings) {
+          const targetSection = getSettingsSectionForDigit(num, killSwitch);
+          if (targetSection) {
+            e.preventDefault();
+            goToSettings(targetSection);
+            return;
+          }
+        } else if (killSwitch) {
+          const targetTab = getMainTabForDigit(num, killSwitch);
+          if (targetTab) {
+            e.preventDefault();
+            changeTab(targetTab);
+            return;
           }
         }
       }
@@ -350,16 +370,6 @@
           changeTab(TABS_ORDER[nextIndex]);
         }
         return;
-      }
-    }
-
-    if (!inputActive) {
-      for (const shortcut of shortcutsList) {
-        if (shortcut.action !== "showShortcutHelp" && (shortcut.category === "global" || (activeTab === "settings" && shortcut.category === "settings")) && matchShortcut(e, shortcut.defaultKey)) {
-          e.preventDefault();
-          triggerGlobalAction(shortcut.action);
-          return;
-        }
       }
     }
   }
