@@ -30,19 +30,19 @@ encoding_rs = "0.8"
 chardetng = "1"
 
 # Internal crates
-vesta-cli = { path = "./cli/vesta-cli", version = "1.0.0-dev.4" }
-vesta-download = { path = "./core/vesta-download", version = "1.0.0-dev.4" }
-vesta-parser = { path = "./core/vesta-parser", version = "1.0.0-dev.4" }
-vesta-apkg = { path = "./core/vesta-apkg", version = "1.0.0-dev.4" }
-vesta-extract = { path = "./lib/vesta-extract", version = "1.0.0-dev.4" }
-vesta-translate = { path = "./lib/vesta-translate", version = "1.0.0-dev.4" }
-vesta-sync = { path = "./lib/vesta-sync", version = "1.0.0-dev.4" }
-vesta-autosync = { path = "./lib/vesta-autosync", version = "1.0.0-dev.4" }
-vesta-flashcards = { path = "./lib/vesta-flashcards", version = "1.0.0-dev.4" }
-vesta-refine = { path = "./lib/vesta-refine", version = "1.0.0-dev.4" }
-vesta-transcribe = { path = "./lib/vesta-transcribe", version = "1.0.0-dev.4" }
-vesta-ankiconnect = { path = "./lib/vesta-ankiconnect", version = "1.0.0-dev.4" }
-vesta-ocr = { path = "./lib/vesta-ocr", version = "1.0.0-dev.4" }
+vesta-cli = { path = "./cli/vesta-cli", version = "1.0.0-dev.5" }
+vesta-download = { path = "./core/vesta-download", version = "1.0.0-dev.5" }
+vesta-parser = { path = "./core/vesta-parser", version = "1.0.0-dev.5" }
+vesta-apkg = { path = "./core/vesta-apkg", version = "1.0.0-dev.5" }
+vesta-extract = { path = "./lib/vesta-extract", version = "1.0.0-dev.5" }
+vesta-translate = { path = "./lib/vesta-translate", version = "1.0.0-dev.5" }
+vesta-sync = { path = "./lib/vesta-sync", version = "1.0.0-dev.5" }
+vesta-autosync = { path = "./lib/vesta-autosync", version = "1.0.0-dev.5" }
+vesta-flashcards = { path = "./lib/vesta-flashcards", version = "1.0.0-dev.5" }
+vesta-refine = { path = "./lib/vesta-refine", version = "1.0.0-dev.5" }
+vesta-transcribe = { path = "./lib/vesta-transcribe", version = "1.0.0-dev.5" }
+vesta-ankiconnect = { path = "./lib/vesta-ankiconnect", version = "1.0.0-dev.5" }
+vesta-ocr = { path = "./lib/vesta-ocr", version = "1.0.0-dev.5" }
 
 [profile.dev]
 opt-level = 0
