@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - dev
+  # Development prereleases are opt-in; every dev push still runs full CI.
   workflow_dispatch:
 
 concurrency:
@@ -49,6 +49,11 @@ jobs:
         run: |
           python3 build-scripts/check_doc_contracts.py
           python3 build-scripts/test_doc_contracts.py
+
+      - name: Validate generated scorecard
+        run: |
+          python3 build-scripts/generate_scorecard.py --check
+          python3 build-scripts/scorecard_db.py check
 
       - name: Validate i18n translations
         shell: bash

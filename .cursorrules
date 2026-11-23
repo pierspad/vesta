@@ -239,7 +239,7 @@ Many Svelte 5 stores (`aiStore`, `ankiStore`, `uiMode`, `i18n`, …) are module-
 
 - **`ci.yml`**: Runs on push (`main`, `dev`) and PRs — checks Tauri version compatibility, release workflow tests, doc contracts, frontend (`check`, `test`, `test:dev-css`, `check:i18n`, `build`), strict `cargo clippy --locked --workspace --all-targets -- -D warnings`, workspace tests, and internal crate versions (with `sccache`).
 - **`bindgen-drift-check.yml`**: Verifies vendored `whisper-rs-sys` bindings stay valid.
-- **`release.yml`**: Runs `semantic-release` on `main` (stable) and `dev` (prerelease), updates `PKGBUILD` + project versions + `Cargo.lock`, tags, creates the release, dispatches `build.yml`, and backmerges `main` → `dev`.
+- **`release.yml`**: Runs `semantic-release` automatically on `main` (stable) and only via manual dispatch on `dev` (prerelease), updates `PKGBUILD` + project versions + `Cargo.lock`, tags, creates the release, dispatches `build.yml`, and backmerges `main` → `dev`.
 - **`build.yml` & `build-arm64.yml`**: Build Linux `.deb`, `.rpm`, Arch, Flatpak, Windows x64/ARM64 installers (with `smoke-windows-arm64`), and macOS ARM64 `.dmg`.
 - **`aur-publish.yml`**: Publishes stable releases to AUR (`vesta-bin`) via `build-scripts/ci-push-aur.sh`.
 - **`whisper-bench.yml`**: Tracks Whisper/VAD benchmarks via `apps/whisper-bench`.

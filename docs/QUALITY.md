@@ -24,7 +24,7 @@ python3 build-scripts/quality_check.py --desktop --smoke
 
 During daily iteration on Linux `x86_64`, [`.cargo/config.toml`](../.cargo/config.toml) routes linking through `clang` + `mold` (install `clang` and `mold` locally) and you can keep compile/link loops fast with targeted crate tests (for example `cargo test --locked -p vesta-parser -p vesta-apkg`), reserving full `--desktop` / `vulkan` builds for final verification gates and CI.
 
-Publication in CI waits for the successful push workflow on the exact release commit, including workspace tests and strict Clippy; a missing, failed, or skipped run blocks `semantic-release`. `python3 build-scripts/test_release_workflows.py` validates release queueing, platform prerequisites, and tag/version agreement.
+Stable publication runs automatically on `main`; development prereleases require a manual dispatch of `release.yml` on `dev`. Both branches still run full CI on every push. Publication waits for the successful push workflow on the exact release commit, including workspace tests and strict Clippy; a missing, failed, or skipped run blocks `semantic-release`. Generated scorecard metrics and the SQLite database are checked before expensive release validation. `python3 build-scripts/test_release_workflows.py` validates release triggers, queueing, platform prerequisites, and tag/version agreement.
 
 ---
 
@@ -141,7 +141,7 @@ Install the tracked Git hooks once per repository clone:
 bash build-scripts/install-hooks.sh
 ```
 
-- **Pre-commit / Pre-push hooks**: Audit staged source and locale snapshots before commit and verify frontend/native gates before push (`python3 build-scripts/test_git_hooks.py`).
+- **Pre-commit / Pre-push hooks**: Check scorecard metrics and SQLite consistency as well as localization. Pre-commit reads the Git index and pre-push reads each outgoing commit snapshot, so unstaged source or dashboard fixes cannot hide stale commits. After changing source or tests, run `python3 build-scripts/generate_scorecard.py` and stage `docs/SCORECARD.md` together with the changes. After editing scorecard TOML, also run `python3 build-scripts/scorecard_db.py sync` and stage the database. Pre-push checks these artifacts before frontend/native gates (`python3 build-scripts/test_git_hooks.py`).
 - **Localization gate (`bash build-scripts/check-i18n.sh`)**: Verifies all 15 locale catalogs (`ar`, `de`, `en`, `es`, `fr`, `hi`, `it`, `ja`, `ko`, `nl`, `pl`, `pt`, `ru`, `tr`, `zh`). Blocks on missing keys, empty values, mismatched `{placeholder}` tokens, and untranslated English strings (`same_as_english`) outside the explicit technical-term allowlist.
 
 ---

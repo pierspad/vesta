@@ -79,6 +79,15 @@ def main():
 
     require('cancel-in-progress: false' in release,
             'release runs must not cancel an active release')
+    trigger = release.split('concurrency:', 1)[0]
+    require('      - main\n' in trigger and '      - dev\n' not in trigger
+            and '  workflow_dispatch:' in trigger,
+            'stable releases must run on main pushes; dev prereleases must be manually dispatched')
+    scorecard_check = run_block(release, 'Validate generated scorecard')
+    require('generate_scorecard.py --check' in scorecard_check
+            and 'scorecard_db.py check' in scorecard_check
+            and release.index('Validate generated scorecard') < release.index('Install frontend dependencies'),
+            'release validation must catch stale scorecard artifacts before expensive frontend checks')
     require('gh release edit "$NEW_TAG" --prerelease' in release,
             'release.yml must hold new stable releases as pre-release until binary assets are uploaded')
 
