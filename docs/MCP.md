@@ -23,7 +23,7 @@ over a single structured stdio protocol.
 | Interface | Best fit | Current coverage |
 |---|---|---|
 | `vesta-cli` / `vesta <operation>` | Shell scripts and terminal users | Nine subcommands: eight processing workflows plus `vesta-cli mcp` (`vesta mcp`); see the [CLI coverage matrix](CLI.md). |
-| `vesta-cli mcp` / `vesta-mcp` | MCP clients discovering structured tools and tracking export jobs | Subtitle inspection, embedded track listing, paged card previews, TSV/APKG exports, translation, transcription, bitmap OCR, and installed plugins (12 tools). |
+| `vesta-cli mcp` / `vesta-mcp` | MCP clients discovering structured tools and tracking export jobs | Subtitle inspection, embedded text extraction & track listing, paged card previews, TSV/APKG exports, bilingual dueling subtitles, APKG merge, manual/automatic subtitle sync, LLM deck refinement, translation, transcription, bitmap/ROI OCR, and installed plugins (18 tools). |
 | Rust libraries | Applications that need APIs/options not exposed by an adapter | All public engine APIs; caller owns orchestration, configuration and lifecycle. |
 
 The client starts a local subprocess for its connection. That process uses local
@@ -84,8 +84,14 @@ its directory arguments; a configured server then waits for an MCP client.
 | `get_configuration` | Read allowed roots and server limits | No |
 | `inspect_subtitles` | Read format, line count, duration, actors and sample text | No |
 | `list_embedded_subtitles` | List embedded text and bitmap subtitle tracks in a media container | No |
+| `extract_embedded_subtitle` | Extract an embedded text subtitle stream from a media container to `subtitle.srt` | New directory (`subtitle.srt`) |
 | `preview_flashcards` | Match target/native subtitles and return a page of preview rows | No |
 | `generate_flashcards` | Start a TSV/APKG export and return a job ID immediately | New directory |
+| `export_dueling_subtitles` | Export bilingual dueling subtitles (`.ass` or `.srt`) from matched target and native tracks | New directory |
+| `merge_apkg` | Merge 2 to 64 fresh `.apkg` packages (without review history) into `merged.apkg` | New directory (`merged.apkg`) |
+| `sync_subtitles` | Retime an SRT file via constant offset, speed factor (`0.5..=2.0`), or explicit manual anchors | New directory (`synced.srt`) |
+| `autosync_subtitles` | Start automatic speech-guided SRT synchronization using a named server transcription profile | New directory (`synced.srt`) |
+| `refine_flashcards` | Start AI annotation of a `.tsv` or `.apkg` deck using a named server translation/LLM profile | New directory (`refined.<ext>`) |
 | `translate_subtitles` | Start SRT translation using a named server profile | New directory; incremental checkpoints |
 | `transcribe_media` | Start local/cloud transcription using a named server profile | New directory; final SRT |
 | `ocr_subtitles` | Start bitmap track (`track_index`) or hardcoded video ROI (`roi`) OCR conversion to SRT using a named translation/OCR profile | New directory; final SRT |
@@ -125,9 +131,11 @@ Typical workflow:
    `include_audio`, `include_snapshots`, `include_video`, and `workers`.
    `target`, `deck` (1–256 characters) and `format` are required; the others are optional. `note_type`
    is a name (1–128 characters), not a custom field/template definition. Other
-   engine settings use library defaults; codecs, filters, padding, GUI note-type
-   preferences and multi-episode merging are not MCP parameters. Unknown fields
-   are rejected, so use the CLI/library for options outside this schema.
+   engine settings use library defaults; codecs, filters, padding and GUI
+   note-type preferences are not `generate_flashcards` MCP parameters (use
+   `merge_apkg` to combine generated `.apkg` packages or `export_dueling_subtitles`
+   for bilingual `.ass`/`.srt` exports). Unknown fields are rejected, so use the
+   CLI/library for options outside this schema.
 
 4. Poll `get_job` with the returned `job_id`. Its `progress` is the latest engine
    event; `result` includes the card count and export paths after success.
@@ -261,17 +269,16 @@ returns the engine's actual SRT path: local autodetection may add a language
 suffix. Transcription publishes only after success; a late cancellation after
 publication begins can still complete successfully.
 
-Both `transcribe_media`, `translate_subtitles`, and `ocr_subtitles` return a job snapshot immediately. Use the same `get_job` and
+Both `transcribe_media`, `translate_subtitles`, `ocr_subtitles`, `autosync_subtitles`, and `refine_flashcards` return a job snapshot immediately. Use the same `get_job` and
 `cancel_job` as for flashcards. `operation` identifies `flashcards`, `translation`,
-`transcription`, or `ocr`. `list_embedded_subtitles` returns embedded stream metadata synchronously so you can pick `track_index` for embedded bitmap tracks before calling `ocr_subtitles`, or omit `track_index` and pass a normalized `roi` (`{x, y, width, height}` in `0.0..=1.0`) plus optional `sample_fps` (`0.5..=15.0`, default `2.5`) to OCR burned-in subtitles; `ocr_subtitles` writes `ocr.srt` using either offline `local_ocr`/`paddle` catalog models or Vision LLM tiers from the named `translation` profile (while `translate_subtitles` rejects profiles that only define local OCR entries). Exactly **one processing job** may run at a time per server,
-across all three kinds (`max_active_jobs = 1`). Job history is bounded to 64 session-local records.
+`transcription`, `ocr`, `autosync`, or `refine`. `list_embedded_subtitles` returns embedded stream metadata synchronously so you can extract text tracks directly via `extract_embedded_subtitle` or pick `track_index` for embedded bitmap tracks before calling `ocr_subtitles` (or omit `track_index` and pass a normalized `roi` [`{x, y, width, height}` in `0.0..=1.0`] plus optional `sample_fps` [`0.5..=15.0`, default `2.5`] to OCR burned-in subtitles); `ocr_subtitles` writes `ocr.srt` using either offline `local_ocr`/`paddle` catalog models or Vision LLM tiers from the named `translation` profile (while `translate_subtitles` and `refine_flashcards` reject profiles that only define local OCR entries). Synchronous helpers `sync_subtitles` (constant `offset_ms`, linear `speed`, or explicit monotonic `anchors`), `export_dueling_subtitles`, and `merge_apkg` (which accepts 2–64 `.apkg` files from read or output roots so `generate_flashcards` / `refine_flashcards` outputs can be chained) write fresh output subdirectories without overwriting existing files. Exactly **one processing job** may run at a time per server,
+across all background job types (`max_active_jobs = 1`). Job history is bounded to 64 session-local records.
 No existing user output is overwritten. Cancel, then poll for a terminal state;
 shutdown/disconnect cancels active work and waits for cleanup.
 
 Invoking a configured cloud profile can send subtitle text/audio to its provider
-and incur account charges. Use these tools only for user-authorized work. GUI control,
-AnkiConnect, refinement and automatic synchronization are not exposed as MCP
-tools. The [CLI/library coverage guide](CLI.md) describes the remaining adapters,
+and incur account charges. Use these tools only for user-authorized work. GUI control
+and direct AnkiConnect import are not exposed as MCP tools (desktop GUI preferences and keys stay isolated). The [CLI/library coverage guide](CLI.md) describes the remaining adapters,
 and [`PLUGINS.md`](PLUGINS.md) documents the `list_plugins` and `call_plugin` protocol (`call_plugin` accepts required `plugin_id`, plus optional `screen` [default `"main"`], `widget_id` [dispatches `"event"` when set or `"render"` when omitted], `event_type` [default `"click"`], `values`, and `expert_mode` [default `false`]).
 
 ## Validation
@@ -282,8 +289,8 @@ cargo clippy --locked -p vesta-mcp --all-targets -- -D warnings
 ```
 
 Tests connect an MCP SDK client to the standalone server over stdio, discover
-all twelve tool schemas, inspect/preview subtitles, list embedded tracks, generate TSV/APKG exports,
-translate and OCR via loopback HTTP, transcribe an FFmpeg audio fixture through a
+all 18 tool schemas, inspect/preview/sync subtitles, list and extract embedded tracks, export dueling subtitles, generate and merge TSV/APKG exports,
+translate, refine, autosync cancellation, and OCR via loopback HTTP, transcribe an FFmpeg audio fixture through a
 stub provider, query the plugin registry, and verify cancellation, incomplete translation, disabled profiles,
 credential handling, shutdown and path boundaries. Client-specific
 configuration and hardware/media combinations still need their normal

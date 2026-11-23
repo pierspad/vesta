@@ -234,6 +234,277 @@ impl Jobs {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn start_autosync(
+        &self,
+        input: String,
+        media: String,
+        language: Option<String>,
+        quick: bool,
+        max_offset_secs: u32,
+        profile: crate::provider_config::TranscriptionProfile,
+        paths: &Paths,
+    ) -> Result<JobSnapshot, String> {
+        self.start_work(
+            paths,
+            "autosync",
+            move |output, cancel, progress| async move {
+                let input_clone = input.clone();
+                let media_clone = media.clone();
+                let (mut engine, subtitles) = tokio::task::spawn_blocking(move || {
+                    let mut engine = vesta_sync::SyncEngine::new(&input_clone)
+                        .map_err(|e| format!("Cannot parse SRT input: {e}"))?;
+                    engine.set_video_path(&media_clone);
+                    let subtitles: Vec<vesta_autosync::SubtitleLine> = engine
+                        .get_all_subtitles()
+                        .iter()
+                        .map(|sub| vesta_autosync::SubtitleLine {
+                            id: sub.id,
+                            start_ms: sub.start.milliseconds as i64,
+                            text: sub.text.clone(),
+                        })
+                        .collect();
+                    Ok::<_, String>((engine, subtitles))
+                })
+                .await
+                .map_err(|_| "Cannot load subtitle input".to_string())??;
+
+                if cancel.is_cancelled() {
+                    return Err("Auto-sync cancelled".into());
+                }
+                if subtitles.is_empty() {
+                    return Err("Input contains no subtitles".into());
+                }
+
+                let is_local =
+                    ["local", "whisper", "local_whisper"].contains(&profile.provider.as_str());
+                let (model_path, cloud) = if is_local {
+                    let resolved = vesta_transcribe::model::model_file_path(&profile.model)
+                        .map_err(|e| e.to_string())?;
+                    let path = if resolved.is_file() {
+                        resolved
+                    } else if !profile.allow_model_download {
+                        return Err("Local Whisper model is not installed; install it with vesta-cli transcribe download or explicitly enable allow_model_download in the server profile".into());
+                    } else {
+                        let progress_dl = progress.clone();
+                        let model_id = profile.model.clone();
+                        vesta_transcribe::model::download_model(
+                            &profile.model,
+                            move |pct| {
+                                progress_dl(serde_json::json!({
+                                    "stage": "download",
+                                    "message": format!("Downloading model {model_id}"),
+                                    "percentage": pct,
+                                }));
+                            },
+                            Some(&cancel),
+                        )
+                        .await
+                        .map_err(|e| e.to_string())?
+                    };
+                    (path, None)
+                } else {
+                    (
+                        std::path::PathBuf::new(),
+                        Some(vesta_transcribe::cloud::CloudConfig {
+                            provider: profile.provider.clone(),
+                            api_key: profile.api_key.unwrap_or_default(),
+                            api_url: profile.api_url.clone(),
+                            model: profile.model.clone(),
+                            language: language.clone(),
+                            translate_to_english: false,
+                        }),
+                    )
+                };
+
+                if cancel.is_cancelled() {
+                    return Err("Auto-sync cancelled".into());
+                }
+
+                let mut config = vesta_autosync::AutoSyncConfig::new(media, model_path);
+                config.language = language;
+                config.quick = quick;
+                config.use_gpu = Some(profile.use_gpu);
+                config.max_offset_secs = Some(max_offset_secs);
+
+                let progress_cb = progress.clone();
+                let on_progress: vesta_autosync::ProgressCallback =
+                    Arc::new(move |update: vesta_autosync::AutoSyncProgress| {
+                        if let Ok(value) = serde_json::to_value(update) {
+                            progress_cb(value);
+                        }
+                    });
+
+                let outcome = vesta_autosync::run_auto_sync_with_cloud(
+                    &config,
+                    subtitles,
+                    Some(on_progress),
+                    &cancel,
+                    cloud,
+                )
+                .await
+                .map_err(|e| e.to_string())?;
+
+                if outcome.cancelled || cancel.is_cancelled() {
+                    return Err("Auto-sync cancelled".into());
+                }
+                if outcome.suggestions.is_empty() {
+                    return Err("No confident subtitle matches found for auto-sync".into());
+                }
+
+                let output_path = output.join("synced.srt");
+                let out_clone = output_path.clone();
+                let suggestions = outcome.suggestions;
+                let (anchors_created, average_offset_ms) = tokio::task::spawn_blocking(move || {
+                    let created = engine.group_anchor_edits(|eng| -> Result<usize, String> {
+                        let mut count = 0;
+                        for suggestion in &suggestions {
+                            eng.add_anchor(
+                                suggestion.subtitle_id,
+                                suggestion.corrected_time_ms,
+                                false,
+                            )
+                            .map_err(|e| e.to_string())?;
+                            count += 1;
+                        }
+                        Ok(count)
+                    })?;
+                    engine.save_synced_file(&out_clone).map_err(|e| e.to_string())?;
+                    Ok::<_, String>((created, engine.get_average_offset().round() as i64))
+                })
+                .await
+                .map_err(|_| "Failed to save synced subtitles".to_string())??;
+
+                Ok(serde_json::json!({
+                    "output_path": output_path,
+                    "anchors_created": anchors_created,
+                    "segments_analyzed": outcome.segments_analyzed,
+                    "average_offset_ms": average_offset_ms,
+                }))
+            },
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn start_refine(
+        &self,
+        input: String,
+        output_ext: &'static str,
+        prompt: String,
+        batch_mode: bool,
+        batch_size: usize,
+        allow_partial: bool,
+        profile: crate::provider_config::TranslationProfile,
+        paths: &Paths,
+    ) -> Result<JobSnapshot, String> {
+        self.start_work(paths, "refine", move |output, cancel, progress| async move {
+            let input_for_load = input.clone();
+            let cards =
+                tokio::task::spawn_blocking(move || vesta_refine::load_cards(&input_for_load))
+                    .await
+                    .map_err(|_| "Cannot read deck input".to_string())??;
+            if cancel.is_cancelled() {
+                return Err("Refinement cancelled".into());
+            }
+            if cards.is_empty() {
+                return Err("Input contains no annotatable cards".into());
+            }
+            let pool = vesta_translate::build_pool(&profile.tiers)?;
+            let total = cards.len();
+            let updates = Arc::new(Mutex::new(Vec::<vesta_refine::RefineUpdate>::new()));
+            let updates_cb = updates.clone();
+            let done_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            let failed_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            let done_cb = done_count.clone();
+            let failed_cb = failed_count.clone();
+
+            let summary = vesta_refine::refine_cards_tiered(
+                cards,
+                vesta_refine::RefineRunConfig {
+                    prompt,
+                    batch_mode,
+                    batch_size,
+                },
+                pool,
+                move |event| match event {
+                    vesta_refine::RefineEvent::CardDone {
+                        id,
+                        notes,
+                        done,
+                        total,
+                    } => {
+                        updates_cb
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner)
+                            .push(vesta_refine::RefineUpdate { id, notes });
+                        done_cb.store(done, std::sync::atomic::Ordering::Relaxed);
+                        let failed = failed_cb.load(std::sync::atomic::Ordering::Relaxed);
+                        progress(serde_json::json!({
+                            "stage": "refine",
+                            "done": done,
+                            "failed": failed,
+                            "total": total,
+                        }));
+                    }
+                    vesta_refine::RefineEvent::CardFailed { id, error } => {
+                        let failed =
+                            failed_cb.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+                        let done = done_cb.load(std::sync::atomic::Ordering::Relaxed);
+                        progress(serde_json::json!({
+                            "stage": "refine",
+                            "done": done,
+                            "failed": failed,
+                            "total": total,
+                            "last_failed_id": id,
+                            "last_error": error,
+                        }));
+                    }
+                    vesta_refine::RefineEvent::Info { message } => {
+                        progress(serde_json::json!({
+                            "stage": "refine",
+                            "message": message,
+                            "total": total,
+                        }));
+                    }
+                },
+                cancel.clone(),
+            )
+            .await?;
+
+            let complete = summary.failed == 0 && summary.remaining == 0 && !summary.pool_exhausted;
+            let cancelled = summary.cancelled || cancel.is_cancelled();
+            if cancelled {
+                return Err("Refinement cancelled".into());
+            }
+            if summary.done == 0 || (!complete && !allow_partial) {
+                return Err(format!(
+                    "Refinement incomplete: {} done, {} failed, {} remaining (pool_exhausted: {})",
+                    summary.done, summary.failed, summary.remaining, summary.pool_exhausted
+                ));
+            }
+            let output_path = output.join(format!("refined.{output_ext}"));
+            let output_str = output_path.to_string_lossy().into_owned();
+            let updates_vec = std::mem::take(
+                &mut *updates
+                    .lock()
+                    .map_err(|_| "Annotation update lock poisoned".to_string())?,
+            );
+            tokio::task::spawn_blocking(move || {
+                vesta_refine::save_cards(&input, &output_str, updates_vec)
+            })
+            .await
+            .map_err(|_| "Failed to save refined deck".to_string())??;
+            Ok(serde_json::json!({
+                "output_path": output_path,
+                "done": summary.done,
+                "failed": summary.failed,
+                "remaining": summary.remaining,
+                "pool_exhausted": summary.pool_exhausted,
+                "cancelled": false,
+            }))
+        })
+    }
+
     fn start_work<F, Fut>(
         &self,
         paths: &Paths,
@@ -363,7 +634,7 @@ impl Jobs {
     }
 }
 
-fn clean_empty_output_dir(dir: &str) {
+pub(crate) fn clean_empty_output_dir(dir: &str) {
     let path = std::path::Path::new(dir);
     if let Ok(mut entries) = std::fs::read_dir(path)
         && entries.next().is_none()

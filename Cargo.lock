@@ -6007,10 +6007,13 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-util",
+ "vesta-autosync",
  "vesta-extract",
  "vesta-flashcards",
  "vesta-ocr",
  "vesta-parser",
+ "vesta-refine",
+ "vesta-sync",
  "vesta-transcribe",
  "vesta-translate",
 ]

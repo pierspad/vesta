@@ -70,6 +70,43 @@ impl Paths {
             .ok_or_else(|| "Input path must be valid UTF-8".into())
     }
 
+    /// Resolve a deck input (`.apkg` or `.tsv`) inside any read root OR the output root
+    /// so generated outputs can be chained into `refine_flashcards` and `merge_apkg`.
+    pub fn input_deck(&self, path: &Path, allowed_exts: &[&str]) -> Result<String, String> {
+        let path = path
+            .canonicalize()
+            .map_err(|e| format!("Cannot resolve input: {e}"))?;
+        if !self.reads.iter().any(|root| path.starts_with(root)) && !path.starts_with(&self.output)
+        {
+            return Err("Input is outside the configured read and output roots".into());
+        }
+        let metadata = path.metadata().map_err(|e| e.to_string())?;
+        if !metadata.is_file() {
+            return Err("Input must be a regular file".into());
+        }
+        let ext = path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if !allowed_exts
+            .iter()
+            .any(|expected| ext.eq_ignore_ascii_case(expected))
+        {
+            return Err(format!(
+                "Expected a {} file",
+                allowed_exts
+                    .iter()
+                    .map(|e| e.to_ascii_uppercase())
+                    .collect::<Vec<_>>()
+                    .join(" or ")
+            ));
+        }
+        path.to_str()
+            .map(str::to_owned)
+            .ok_or_else(|| "Input path must be valid UTF-8".into())
+    }
+
     pub fn new_output(&self) -> Result<PathBuf, String> {
         // Each job owns a new directory, so existing user exports are never overwritten.
         tempfile::Builder::new()

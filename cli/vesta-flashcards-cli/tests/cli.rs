@@ -395,3 +395,119 @@ fn dueling_exports_ass_and_srt_files() {
     let srt_text = std::fs::read_to_string(&srt_out).unwrap();
     assert!(srt_text.contains("00:00:01,000 --> 00:00:02,000\nCiao!\nHello there"));
 }
+
+#[test]
+fn generate_parity_flags_and_merge_subcommand_work_end_to_end() {
+    let dir = tempfile::tempdir().unwrap();
+    let target1 = dir.path().join("ep1.srt");
+    let target2 = dir.path().join("ep2.srt");
+    std::fs::write(
+        &target1,
+        "1\n00:00:01,000 --> 00:00:02,000\nEpisode 1 line\n",
+    )
+    .unwrap();
+    std::fs::write(
+        &target2,
+        "1\n00:00:01,000 --> 00:00:02,000\nEpisode 2 line\n",
+    )
+    .unwrap();
+
+    let out1 = dir.path().join("out1");
+    let out2 = dir.path().join("out2");
+
+    let gen1 = run(&[
+        "generate",
+        "--target",
+        target1.to_str().unwrap(),
+        "--output",
+        out1.to_str().unwrap(),
+        "--format",
+        "apkg",
+        "--deck",
+        "Ep1",
+        "--note-type",
+        "CustomVestaNote",
+        "--target-language",
+        "ja",
+        "--no-dictionary-lookup",
+        "--no-auto-card-font",
+        "--no-embed-card-font",
+        "--video-hw-accel",
+        "off",
+        "--pad-video-start=-100",
+        "--pad-video-end",
+        "250",
+        "--no-audio",
+        "--no-snapshots",
+        "--no-video",
+        "--quiet",
+    ]);
+    assert!(
+        gen1.status.success(),
+        "{}",
+        String::from_utf8_lossy(&gen1.stderr)
+    );
+    let apkg1 = out1.join("Ep1.apkg");
+    assert!(apkg1.exists());
+
+    let gen2 = run(&[
+        "generate",
+        "--target",
+        target2.to_str().unwrap(),
+        "--output",
+        out2.to_str().unwrap(),
+        "--format",
+        "apkg",
+        "--deck",
+        "Ep2",
+        "--note-type",
+        "CustomVestaNote",
+        "--target-language",
+        "ja",
+        "--no-dictionary-lookup",
+        "--no-auto-card-font",
+        "--no-embed-card-font",
+        "--no-audio",
+        "--no-snapshots",
+        "--no-video",
+        "--quiet",
+    ]);
+    assert!(
+        gen2.status.success(),
+        "{}",
+        String::from_utf8_lossy(&gen2.stderr)
+    );
+    let apkg2 = out2.join("Ep2.apkg");
+    assert!(apkg2.exists());
+
+    let merged = dir.path().join("merged.apkg");
+    let merge_run = run(&[
+        "merge",
+        apkg1.to_str().unwrap(),
+        apkg2.to_str().unwrap(),
+        "--output",
+        merged.to_str().unwrap(),
+    ]);
+    assert!(
+        merge_run.status.success(),
+        "{}",
+        String::from_utf8_lossy(&merge_run.stderr)
+    );
+    assert!(std::fs::read(&merged).unwrap().starts_with(b"PK"));
+    assert!(String::from_utf8_lossy(&merge_run.stdout).contains("Merged 2 APKG decks"));
+
+    let alias_merged = dir.path().join("alias_merged.apkg");
+    let alias_run = run(&[
+        "merge-apkg",
+        apkg1.to_str().unwrap(),
+        apkg2.to_str().unwrap(),
+        "--output",
+        alias_merged.to_str().unwrap(),
+    ]);
+    assert!(alias_run.status.success());
+
+    let bad_hw = run(&["generate", "--video-hw-accel", "bogus"]);
+    assert_eq!(bad_hw.status.code(), Some(2));
+    let bad_merge = run(&["merge", apkg1.to_str().unwrap(), "--output", "out.apkg"]);
+    assert_eq!(bad_merge.status.code(), Some(2));
+}

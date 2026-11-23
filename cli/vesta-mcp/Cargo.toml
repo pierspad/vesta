@@ -16,10 +16,13 @@ serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 tempfile.workspace = true
+vesta-autosync.workspace = true
 vesta-extract.workspace = true
 vesta-flashcards.workspace = true
 vesta-ocr.workspace = true
 vesta-parser.workspace = true
+vesta-refine.workspace = true
+vesta-sync.workspace = true
 vesta-translate.workspace = true
 vesta-transcribe.workspace = true
 tokio-util = "0.7"
@@ -30,7 +33,7 @@ schemars = "1"
 rmcp = { version = "3.9", default-features = false, features = ["client", "transport-child-process"] }
 
 [features]
-vulkan = ["vesta-transcribe/vulkan"]
-cuda = ["vesta-transcribe/cuda"]
-rocm = ["vesta-transcribe/rocm"]
-sycl = ["vesta-transcribe/sycl"]
+vulkan = ["vesta-transcribe/vulkan", "vesta-autosync/vulkan"]
+cuda = ["vesta-transcribe/cuda", "vesta-autosync/cuda"]
+rocm = ["vesta-transcribe/rocm", "vesta-autosync/rocm"]
+sycl = ["vesta-transcribe/sycl", "vesta-autosync/sycl"]

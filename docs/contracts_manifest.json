@@ -29,31 +29,44 @@
       ]
     },
     "mcp_server": {
-      "hash": "7f39063a15993c7c",
-      "tool_count": 12,
+      "hash": "71b0b1afd26c8602",
+      "tool_count": 18,
       "tools": {
+        "autosync_subtitles": "1fdd7e7151ce875b",
         "call_plugin": "aefeb191ab2dd457",
         "cancel_job": "55b0f0f34b0d35d1",
+        "export_dueling_subtitles": "a0affef4cfca658c",
+        "extract_embedded_subtitle": "ca65edc90463afdc",
         "generate_flashcards": "5ce6fc9001b9e59c",
         "get_configuration": "8652107635db1501",
         "get_job": "bfb606b616f84e48",
         "inspect_subtitles": "3c87fb1b34678ed1",
         "list_embedded_subtitles": "f507b98887110ea7",
         "list_plugins": "bb1b4d90058caf07",
+        "merge_apkg": "d8a46c73f58d859d",
         "ocr_subtitles": "3d0ba9337ae38016",
         "preview_flashcards": "59610fa461f61c02",
+        "refine_flashcards": "277111427304cfc4",
+        "sync_subtitles": "f421be1d9ee8b1fa",
         "transcribe_media": "1674ebe64dcbfd99",
         "translate_subtitles": "429f188dca35d539"
       },
       "schemas": {
+        "AutosyncSubtitlesRequest": "33dda6ffd66883b0",
         "EmbeddedSubtitlesRequest": "efb44c87d5a9d5e3",
+        "ExportDuelingRequest": "86067b2343ea406e",
+        "ExtractEmbeddedSubtitleRequest": "17f0dd68fbebcdfb",
         "GenerateRequest": "a071da9be00d82e8",
         "JobRequest": "c69f275fd4c865a3",
+        "MergeApkgRequest": "d914ea6dc8ebcbdd",
         "OcrRoiRequest": "e2f8d2dffd88e9eb",
         "OcrSubtitlesRequest": "6928039c78557174",
         "PluginCallRequest": "10d425505cb8b6d7",
         "PreviewRequest": "ada298a5316eacc4",
+        "RefineFlashcardsRequest": "dd58a6e05d242b2e",
         "SubtitleRequest": "9d5ebc7ee13ef847",
+        "SyncAnchorRequest": "053c4ee133483505",
+        "SyncSubtitlesRequest": "1b1a786e18384270",
         "TranscribeRequest": "7e818172b9af4869",
         "TranslateRequest": "88617dc1a1535de4"
       },
@@ -72,7 +85,7 @@
       ]
     },
     "cli_adapters": {
-      "hash": "e0b253c8760b3895",
+      "hash": "f50e986ec499e47d",
       "crates": {
         "vesta-autosync-cli": {
           "hash": "1d2908a1939ffe04",
@@ -136,11 +149,12 @@
           ]
         },
         "vesta-flashcards-cli": {
-          "hash": "f56f894938bc39c3",
+          "hash": "bd06d7490cb751c5",
           "subcommands": [
             "dueling",
             "generate",
             "info",
+            "merge",
             "preview"
           ],
           "subcommand_flags": {
@@ -173,14 +187,20 @@
               "--min-duration",
               "--native",
               "--no-audio",
+              "--no-auto-card-font",
+              "--no-dictionary-lookup",
+              "--no-embed-card-font",
               "--no-optimize",
               "--no-snapshots",
               "--no-video",
               "--normalize-audio",
+              "--note-type",
               "--only-cjk",
               "--output",
               "--pad-audio-end",
               "--pad-audio-start",
+              "--pad-video-end",
+              "--pad-video-start",
               "--quiet",
               "--remove-no-match",
               "--shift-native",
@@ -192,10 +212,12 @@
               "--span-end",
               "--span-start",
               "--target",
+              "--target-language",
               "--video",
               "--video-audio-bitrate",
               "--video-bitrate",
-              "--video-codec"
+              "--video-codec",
+              "--video-hw-accel"
             ],
             "info": [],
             "preview": [
@@ -227,14 +249,20 @@
               "--min-duration",
               "--native",
               "--no-audio",
+              "--no-auto-card-font",
+              "--no-dictionary-lookup",
+              "--no-embed-card-font",
               "--no-optimize",
               "--no-snapshots",
               "--no-video",
               "--normalize-audio",
+              "--note-type",
               "--only-cjk",
               "--output",
               "--pad-audio-end",
               "--pad-audio-start",
+              "--pad-video-end",
+              "--pad-video-start",
               "--quiet",
               "--remove-no-match",
               "--shift-native",
@@ -246,10 +274,12 @@
               "--span-end",
               "--span-start",
               "--target",
+              "--target-language",
               "--video",
               "--video-audio-bitrate",
               "--video-bitrate",
-              "--video-codec"
+              "--video-codec",
+              "--video-hw-accel"
             ],
             "dueling": [
               "--combine-sentences",
@@ -266,6 +296,10 @@
               "--span-end",
               "--span-start",
               "--target"
+            ],
+            "merge": [
+              "--output",
+              "<inputs>"
             ]
           },
           "flags": [
@@ -299,14 +333,20 @@
             "--native",
             "--native-first",
             "--no-audio",
+            "--no-auto-card-font",
+            "--no-dictionary-lookup",
+            "--no-embed-card-font",
             "--no-optimize",
             "--no-snapshots",
             "--no-video",
             "--normalize-audio",
+            "--note-type",
             "--only-cjk",
             "--output",
             "--pad-audio-end",
             "--pad-audio-start",
+            "--pad-video-end",
+            "--pad-video-start",
             "--quiet",
             "--remove-no-match",
             "--shift-native",
@@ -318,10 +358,13 @@
             "--span-end",
             "--span-start",
             "--target",
+            "--target-language",
             "--video",
             "--video-audio-bitrate",
             "--video-bitrate",
-            "--video-codec"
+            "--video-codec",
+            "--video-hw-accel",
+            "<inputs>"
           ],
           "docs": [
             "docs/CLI.md",

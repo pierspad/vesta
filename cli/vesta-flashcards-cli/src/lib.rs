@@ -55,6 +55,22 @@ enum Command {
         after_help = "Examples:\n  vesta-flashcards dueling -t target.srt --native native.srt -o episode.dueling.ass\n  vesta-flashcards dueling -t target.srt --native native.srt --dueling-format srt -o episode.dueling.srt"
     )]
     Dueling(DuelingArgs),
+    /// Merge two or more fresh Vesta .apkg packages into a unified .apkg file.
+    #[command(
+        alias = "merge-apkg",
+        after_help = "Example:\n  vesta-flashcards merge ep1.apkg ep2.apkg --output series.apkg\n\nInputs must be fresh Vesta .apkg exports without review history."
+    )]
+    Merge(MergeArgs),
+}
+
+#[derive(Args, Clone)]
+struct MergeArgs {
+    /// Two or more Vesta .apkg packages to merge.
+    #[arg(required = true, num_args = 2..)]
+    inputs: Vec<std::path::PathBuf>,
+    /// Output .apkg file path.
+    #[arg(short, long)]
+    output: std::path::PathBuf,
 }
 
 #[derive(Args, Clone)]
@@ -127,6 +143,21 @@ struct GenerateArgs {
     /// Deck name (used for filenames and the Anki deck).
     #[arg(short, long, default_value = "Vesta")]
     deck: String,
+    /// Anki note type name (only applied to .apkg exports).
+    #[arg(long)]
+    note_type: Option<String>,
+    /// ISO language code for card font selection and dictionary lookup hints.
+    #[arg(long)]
+    target_language: Option<String>,
+    /// Disable word-lookup links in .apkg card templates.
+    #[arg(long)]
+    no_dictionary_lookup: bool,
+    /// Disable automatic language-matched card font styling in .apkg exports.
+    #[arg(long)]
+    no_auto_card_font: bool,
+    /// Do not bundle downloaded card fonts inside .apkg archives.
+    #[arg(long)]
+    no_embed_card_font: bool,
     /// Episode number (used in the media filename pattern).
     #[arg(long, default_value_t = 1)]
     episode: u32,
@@ -197,6 +228,15 @@ struct GenerateArgs {
     /// Video audio-track bitrate (kbps).
     #[arg(long, default_value_t = 128)]
     video_audio_bitrate: u32,
+    /// Hardware acceleration mode for H.264 video encoding (`auto` or `off`).
+    #[arg(long, default_value = "auto", value_parser = ["auto", "off"])]
+    video_hw_accel: String,
+    /// Additional padding at the start of video clips (milliseconds).
+    #[arg(long, default_value_t = 0, allow_hyphen_values = true)]
+    pad_video_start: i64,
+    /// Additional padding at the end of video clips (milliseconds).
+    #[arg(long, default_value_t = 0, allow_hyphen_values = true)]
+    pad_video_end: i64,
 
     // ── Filters ──────────────────────────────────────────────────────────
     /// Keep only lines with at least this many characters.
@@ -343,11 +383,15 @@ impl GenerateArgs {
             generate_video_clips: !self.no_video,
             video_codec: self.video_codec.clone(),
             h264_preset: self.h264_preset.clone(),
+            video_hw_accel: self.video_hw_accel.clone(),
             video_bitrate: self.video_bitrate,
             video_audio_bitrate: self.video_audio_bitrate,
+            video_pad_start_ms: self.pad_video_start,
+            video_pad_end_ms: self.pad_video_end,
             deck_name: self.deck.clone(),
             episode_number: self.episode,
             export_format: Some(self.format.clone()),
+            note_type_name: self.note_type.clone(),
             field_names: Some(FieldNamesConfig::default()),
             output_fields: OutputFields {
                 include_audio: !self.no_audio,
@@ -358,6 +402,10 @@ impl GenerateArgs {
             },
             cpu_cores: self.jobs,
             optimize_video: !self.no_optimize,
+            target_language: self.target_language.clone(),
+            dictionary_lookup: !self.no_dictionary_lookup,
+            auto_card_font: !self.no_auto_card_font,
+            embed_card_font: !self.no_embed_card_font,
             ..FlashcardConfig::default()
         }
     }
@@ -450,6 +498,29 @@ async fn run(args: Vec<std::ffi::OsString>) -> Result<ExitCode> {
             println!(
                 "✅ Exported {} dueling lines ({} matched) to {}",
                 result.line_count, result.matched_count, result.output_path
+            );
+        }
+
+        Command::Merge(args) => {
+            for input in &args.inputs {
+                anyhow::ensure!(
+                    input.is_file(),
+                    "Input APKG file not found: {}",
+                    input.display()
+                );
+            }
+            if let Some(parent) = args.output.parent().filter(|p| !p.as_os_str().is_empty()) {
+                std::fs::create_dir_all(parent).with_context(|| {
+                    format!("Failed to create output directory {}", parent.display())
+                })?;
+            }
+            vesta_flashcards::merge_apkg(&args.inputs, &args.output).with_context(|| {
+                format!("Failed to merge APKG decks into {}", args.output.display())
+            })?;
+            println!(
+                "✅ Merged {} APKG decks into {}",
+                args.inputs.len(),
+                args.output.display()
             );
         }
 

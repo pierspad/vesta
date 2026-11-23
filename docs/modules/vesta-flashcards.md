@@ -44,10 +44,13 @@ cargo build --release -p vesta-flashcards-cli
 ./target/release/vesta-flashcards info movie-en.srt
 ./target/release/vesta-flashcards preview --target movie-en.srt --native movie-it.srt
 ./target/release/vesta-flashcards dueling --target movie-en.srt --native movie-it.srt --dueling-format ass --output movie.dueling.ass
+./target/release/vesta-flashcards merge ep1.apkg ep2.apkg --output series.apkg
 ```
 
 Run `vesta-flashcards generate --help` for the full option list (filters,
-context, media parameters, `-j` parallelism…).
+context, media/video-padding parameters, `--note-type`, `--target-language`,
+`--no-dictionary-lookup`, `--no-auto-card-font`, `--no-embed-card-font`,
+`--video-hw-accel`, `-j` parallelism…).
 
 ## Use as a Rust dependency
 

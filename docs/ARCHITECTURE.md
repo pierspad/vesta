@@ -42,7 +42,7 @@ cancellable resource downloads and atomic publication.
 |---|---|---|
 | **core** | `vesta-parser`, `vesta-apkg`, `vesta-download` | Foundational primitives. Minimal external dependencies, zero knowledge of higher engines or GUI. Auto-charset detection via `chardetng` + `encoding_rs`, lossless timing arithmetic, direct ZIP/SQLite archive serialization, and cancellable atomic resource downloads. |
 | **lib** | `vesta-flashcards`, `vesta-translate`, `vesta-transcribe`, `vesta-autosync`, `vesta-extract`, `vesta-ocr`, `vesta-refine`, `vesta-sync`, `vesta-ankiconnect` | Self-contained domain engines. **Zero GUI/Tauri coupling**. Long-running tasks accept a `tokio_util::sync::CancellationToken` and report progress through callbacks. External tools and heavy dependencies (FFmpeg processes, `whisper-rs`, `rusqlite`, `reqwest`) are encapsulated here. |
-| **cli** | `vesta-cli`, `vesta-mcp`, and `vesta-*-cli` (`vesta-flashcards`, `vesta-translate`, `vesta-transcribe`, `vesta-autosync`, `vesta-extract`, `vesta-ocr`, `vesta-sync`, `vesta-refine`) | Headless terminal frontends powered by `clap`, plus the `vesta-cli` unified entry point and `vesta-mcp` stdio MCP server (12 tools). Thin adapters over corresponding `lib/` engines for scripting, batch processing, CI, AI assistants, and benchmarking. |
+| **cli** | `vesta-cli`, `vesta-mcp`, and `vesta-*-cli` (`vesta-flashcards`, `vesta-translate`, `vesta-transcribe`, `vesta-autosync`, `vesta-extract`, `vesta-ocr`, `vesta-sync`, `vesta-refine`) | Headless terminal frontends powered by `clap`, plus the `vesta-cli` unified entry point and `vesta-mcp` stdio MCP server (18 tools). Thin adapters over corresponding `lib/` engines for scripting, batch processing, CI, AI assistants, and benchmarking. |
 | **apps** | `apps/vesta-gui` (`vesta`), `apps/whisper-bench` | Desktop composition roots. Svelte owns presentation/state; Tauri commands adapt IPC to `lib/` crates and own process-level services such as local media streaming, declarative plugin subprocess management (`src-tauri/src/plugins`), dialogs, and window integration. |
 
 ---
@@ -245,7 +245,7 @@ The AUR `PKGBUILD` declares these runtime dependencies.
 
 ## Headless CLI Tooling
 
-Every key engine can be built and run standalone without Tauri. In addition to individual standalone CLI binaries, Vesta provides `vesta-cli` as a unified entry point (`vesta-cli <operation>`) and `vesta-mcp` as a stdio Model Context Protocol (MCP) server exposing 12 tools for MCP clients:
+Every key engine can be built and run standalone without Tauri. In addition to individual standalone CLI binaries, Vesta provides `vesta-cli` as a unified entry point (`vesta-cli <operation>`) and `vesta-mcp` as a stdio Model Context Protocol (MCP) server exposing 18 tools for MCP clients:
 
 ```bash
 # Build the unified CLI and MCP server
@@ -273,7 +273,7 @@ cargo build --release -p vesta-refine-cli
   --snapshot-format webp
 ```
 
-The `vesta-mcp` server provides 12 discoverable tools (`get_configuration`, `inspect_subtitles`, `list_embedded_subtitles`, `preview_flashcards`, `generate_flashcards`, `translate_subtitles`, `transcribe_media`, `ocr_subtitles`, `get_job`, `cancel_job`, `list_plugins`, `call_plugin`) over stdio JSON-RPC without requiring GUI automation. See [`docs/MCP.md`](MCP.md) for complete details.
+The `vesta-mcp` server provides 18 discoverable tools (`get_configuration`, `inspect_subtitles`, `list_embedded_subtitles`, `extract_embedded_subtitle`, `preview_flashcards`, `generate_flashcards`, `export_dueling_subtitles`, `merge_apkg`, `sync_subtitles`, `autosync_subtitles`, `refine_flashcards`, `translate_subtitles`, `transcribe_media`, `ocr_subtitles`, `get_job`, `cancel_job`, `list_plugins`, `call_plugin`) over stdio JSON-RPC without requiring GUI automation. See [`docs/MCP.md`](MCP.md) for complete details.
 
 For module-specific documentation and integration examples, see [`docs/modules/`](modules/README.md).
 

@@ -16,7 +16,7 @@ CLI configuration is isolated from desktop preferences: commands do not read the
 
 | Workflow | CLI Flags & Subcommands | GUI / Library Capabilities Not Exposed via CLI Flags |
 |---|---|---|
-| Flashcards | Subtitle info, count-only preview, single-episode TSV/APKG generation; filters, context lines, codecs, dimensions, audio padding/gain/normalization, audio track index, and worker count | Interactive row selection/editing and media previews; multi-episode orchestration and APKG merge; custom note templates/field mapping; explicit video padding, font/language/dictionary, and hardware-encoder settings |
+| Flashcards | Subtitle info, count-only preview, single-episode TSV/APKG generation, APKG merging (`merge`), bilingual dueling export (`dueling`); filters, context lines, codecs, dimensions, audio padding/gain/normalization, audio track index, video padding/HW accel, note type, target language, dictionary lookup, font auto/embed toggles, and worker count | Interactive row selection/editing, media previews, multi-episode batch orchestration, and custom Anki note templates/field mapping |
 | Extract | SRT reports (`json`, `stats`, `summary`, `debug`); embedded stream discovery (`--list-tracks`) and text-to-SRT track extraction (`--track`) | Embedded-track preview and existing-output discovery; bitmap subtitle tracks use `ocr` |
 | OCR | Extract and OCR bitmap subtitle tracks or hardcoded video ROI regions (`run` with `--provider`, `--model`, `--track`, `--roi`, `--fps`, `--json`), local model catalog (`models`, `download`, `remove`) | Multi-tier provider failover and in-app bitmap/ROI subtitle preview |
 | Sync | Apply subtitle-ID/time anchor pairs (`--anchor ID:MS`) to an SRT file | Interactive playback, anchor sampling, session files, undo/redo stack, and side-by-side editing |
@@ -24,20 +24,21 @@ CLI configuration is isolated from desktop preferences: commands do not read the
 | Transcribe | Single local or cloud endpoint per run; model list/download/removal; default Silero VAD, beam-search quality, segmentation, and JSON-Lines progress | Multi-tier provider failover, remote model discovery, and per-run custom VAD variant or model directory selection |
 | Translate | Tiered TOML provider pools, batch size, resume overlap, language list, and completeness check | Context preview/editing, interactive subtitle table editing, and remote model discovery |
 | Refine | JSON card inspection (`inspect`) and tiered LLM annotation (`enrich`) for TSV/APKG decks | Interactive card selection/editing, custom TSV column mapping, and GUI auto-run controls |
-| MCP | `vesta-cli mcp --read-root ... --output-root ...` stdio JSON-RPC server (12 tools; see [MCP.md](MCP.md)) | Settings card (`AI assistant integration (MCP)`) detects the bundled `vesta-cli` path and copies ready client JSON |
+| MCP | `vesta-cli mcp --read-root ... --output-root ...` stdio JSON-RPC server (18 tools; see [MCP.md](MCP.md)) | Settings card (`AI assistant integration (MCP)`) detects the bundled `vesta-cli` path and copies ready client JSON |
 | AnkiConnect & Desktop | No dedicated CLI command | Direct AnkiConnect import (`vesta-ankiconnect`), setup wizard, update installer, support logs, and local media playback server |
 
 ## Subcommands and Options
 
 Timestamps, anchor targets, duration filters, and time shifts are expressed in milliseconds unless noted otherwise (`--max-gap` uses seconds). Pass negative numbers using `=` syntax (for example, `--shift-target=-500`).
 
-### `flashcards` (`info`, `preview`, `generate`, `dueling`)
+### `flashcards` (`info`, `preview`, `generate`, `dueling`, `merge`)
 
 ```sh
 vesta-cli flashcards info episode-ja.srt
 vesta-cli flashcards preview --target episode-ja.srt --native episode-en.srt
 vesta-cli flashcards generate --target episode-ja.srt --native episode-en.srt \
   --video episode.mkv --output out --format apkg --deck Episode --no-video
+vesta-cli flashcards merge ep1.apkg ep2.apkg --output series.apkg
 # Text-only export:
 vesta-cli flashcards generate --target episode-ja.srt --output out --deck Text \
   --no-audio --no-snapshots --no-video

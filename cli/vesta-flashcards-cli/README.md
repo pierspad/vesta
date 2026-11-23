@@ -30,6 +30,9 @@ vesta-flashcards generate -t Detour-en.srt -n Detour-it.srt \
 # Export bilingual dueling subtitles (.ass or .srt)
 vesta-flashcards dueling -t Detour-en.srt --native Detour-it.srt \
   --dueling-format ass -o Detour.dueling.ass
+
+# Merge fresh .apkg packages without review history
+vesta-flashcards merge Ep01.apkg Ep02.apkg --output Detour.series.apkg
 ```
 
 ## Key options
@@ -42,8 +45,14 @@ vesta-flashcards dueling -t Detour-en.srt --native Detour-it.srt \
 | `--audio` | Separate audio source (defaults to `--video`). |
 | `-o, --output` | Output directory. Required for `generate`, optional for `preview`. |
 | `-f, --format` | `tsv` (default) or `apkg`. |
+| `--note-type` | Override the Anki note type name (`.apkg` exports). |
+| `--target-language` | Target ISO language code for card font selection and dictionary hints. |
+| `--no-dictionary-lookup` | Disable clickable word lookup links in `.apkg` card templates. |
+| `--no-auto-card-font` / `--no-embed-card-font` | Disable automatic language fonts or bundling fonts inside `.apkg`. |
 | `-j, --jobs` | Parallel ffmpeg workers (clamped to `[1, available cores]`). |
 | `--pad-audio-start` / `--pad-audio-end` | Pad audio clip start/end in ms (negative values trim). |
+| `--pad-video-start` / `--pad-video-end` | Pad video clip start/end in ms (negative values trim). |
+| `--video-hw-accel` | Hardware acceleration mode for H.264 clips (`auto` or `off`). |
 | `--audio-gain` | Audio gain adjustment in dB (`-20` to `+20`). |
 | `--normalize-audio` | Normalize audio loudness via EBU R128 (`loudnorm`). |
 | `--no-optimize` | Disable automatic clip preparation and nearby snapshot batching. |
@@ -53,7 +62,7 @@ vesta-flashcards dueling -t Detour-en.srt --native Detour-it.srt \
 | `--ffmpeg` / `--ffprobe` | Override the binaries to invoke. |
 
 Run `vesta-flashcards generate --help` for the full list of filters, context lines,
-codecs, and bitrates. Video padding, custom note templates, and font management
+codecs, and bitrates. Custom HTML/CSS note templates and font downloads
 are configured through the library or GUI; see the
 [coverage matrix](../../docs/CLI.md#feature-coverage-by-interface).
 

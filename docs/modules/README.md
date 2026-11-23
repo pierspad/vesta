@@ -36,7 +36,7 @@ See the [command-line guide](../CLI.md) for the unified and standalone command i
 
 ## MCP integration
 
-The optional `vesta-mcp` server lets compatible assistants inspect subtitles, list embedded tracks, preview cards, start/cancel TSV/APKG, translation, transcription, and OCR jobs, and query or invoke installed Vesta plugins (12 tools total) through the same Rust engines. Translation, transcription, and OCR require named server-side provider profiles. It uses local stdio and explicitly configured file roots. See [the MCP guide](../MCP.md) for setup, tool parameters and limits.
+The optional `vesta-mcp` server lets compatible assistants inspect subtitles, list and extract embedded tracks, preview cards, start/cancel TSV/APKG, dueling, APKG merge, manual/automatic sync, card refinement, translation, transcription, and OCR jobs, and query or invoke installed Vesta plugins (18 tools total) through the same Rust engines. Translation, refinement, transcription, autosync, and OCR require named server-side provider profiles. It uses local stdio and explicitly configured file roots. See [the MCP guide](../MCP.md) for setup, tool parameters and limits.
 
 ## Two ways to reuse a module
 

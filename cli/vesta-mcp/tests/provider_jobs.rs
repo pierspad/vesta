@@ -83,7 +83,7 @@ async fn stdio_provider_jobs_publish_outputs_and_cancel_without_exposing_credent
         command.arg("--read-root").arg(input.path()).arg("--output-root").arg(output.path()).arg("--provider-config").arg(config).env("VESTA_TEST_KEY", secret);
         let client = ().serve(TokioChildProcess::new(command)?).await?;
         let call = |name: &'static str, args: Value| client.call_tool(CallToolRequestParams::new(name).with_arguments(args.as_object().unwrap().clone()));
-        assert_eq!(client.list_all_tools().await?.len(), 12);
+        assert_eq!(client.list_all_tools().await?.len(), 18);
         let settings = call("get_configuration", json!({})).await?.structured_content.unwrap();
         assert_eq!(settings["translation_available"], true); assert_eq!(settings["transcription_available"], true);
         assert!(!settings.to_string().contains(secret)); assert!(!settings.to_string().contains("api_url"));
@@ -435,6 +435,355 @@ async fn stdio_ocr_lists_embedded_tracks_and_runs_cancellable_vision_jobs() -> a
     Ok(())
 }
 
+fn create_text_sub_mkv(dir: &Path) -> std::path::PathBuf {
+    let srt_path = dir.join("embedded_source.srt");
+    std::fs::write(
+        &srt_path,
+        "1\n00:00:00,200 --> 00:00:01,500\nEmbedded text line\n",
+    )
+    .unwrap();
+    let mkv_path = dir.join("text_sub.mkv");
+    let status = std::process::Command::new("ffmpeg")
+        .args([
+            "-nostdin",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=size=160x90:duration=2:rate=1",
+            "-i",
+        ])
+        .arg(&srt_path)
+        .args([
+            "-map",
+            "0:v",
+            "-map",
+            "1:s",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-c:s",
+            "srt",
+            "-y",
+        ])
+        .arg(&mkv_path)
+        .status()
+        .expect("FFmpeg text MKV fixture creation failed");
+    assert!(status.success());
+    mkv_path
+}
+
+#[tokio::test]
+async fn stdio_extract_embedded_refine_and_autosync_jobs_and_guardrails() -> anyhow::Result<()> {
+    tokio::time::timeout(Duration::from_secs(45), async {
+        let input = tempfile::tempdir()?;
+        let output = tempfile::tempdir()?;
+        let empty_cache = tempfile::tempdir()?;
+        let pg_mkv = create_single_cue_pgs_mkv(input.path());
+        let text_mkv = create_text_sub_mkv(input.path());
+
+        let tsv_deck = input.path().join("sample.tsv");
+        std::fs::write(&tsv_deck, "こんにちは\tHello\t\n")?;
+
+        let srt = input.path().join("sync.srt");
+        std::fs::write(&srt, "1\n00:00:01,000 --> 00:00:02,000\nSync hello world\n")?;
+
+        let long_wav = input.path().join("long.wav");
+        let ffmpeg_wav = std::process::Command::new("ffmpeg")
+            .args([
+                "-nostdin",
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=25",
+                "-ar",
+                "16000",
+                "-ac",
+                "1",
+                "-y",
+            ])
+            .arg(&long_wav)
+            .status()?;
+        anyhow::ensure!(ffmpeg_wav.success(), "FFmpeg long wav creation failed");
+
+        let (refine_url, refine_ready, refine_release, refine_server) = endpoint(
+            json!({"choices":[{"message":{"role":"assistant","content":"Greeting note"}}]}),
+        )
+        .await;
+        let (refine_cancel_url, refine_cancel_ready, refine_cancel_release, refine_cancel_server) =
+            endpoint(json!({"choices":[{"message":{"role":"assistant","content":"Late note"}}]}))
+                .await;
+        let (auto_url, auto_ready, auto_release, auto_server) =
+            endpoint(json!({"segments":[{"start":0.0,"end":1.0,"text":"Late autosync"}]})).await;
+
+        let config = input.path().join("providers.json");
+        std::fs::write(
+            &config,
+            json!({
+                "translation": {
+                    "profiles": {
+                        "llm": {
+                            "tiers": [[{
+                                "provider": "custom",
+                                "model": "test-llm",
+                                "api_url": refine_url,
+                                "rpm": 0
+                            }]]
+                        },
+                        "llm-cancel": {
+                            "tiers": [[{
+                                "provider": "custom",
+                                "model": "test-llm",
+                                "api_url": refine_cancel_url,
+                                "rpm": 0
+                            }]]
+                        }
+                    }
+                },
+                "transcription": {
+                    "profiles": {
+                        "local-no-dl": {
+                            "provider": "local",
+                            "model": "tiny",
+                            "allow_model_download": false
+                        },
+                        "cloud-auto": {
+                            "provider": "custom",
+                            "model": "whisper-1",
+                            "api_url": auto_url
+                        }
+                    }
+                }
+            })
+            .to_string(),
+        )?;
+
+        let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_vesta-mcp"));
+        command
+            .arg("--read-root")
+            .arg(input.path())
+            .arg("--output-root")
+            .arg(output.path())
+            .arg("--provider-config")
+            .arg(&config)
+            .env("HOME", empty_cache.path())
+            .env("XDG_DATA_HOME", empty_cache.path())
+            .env("XDG_CACHE_HOME", empty_cache.path());
+        let client = ().serve(TokioChildProcess::new(command)?).await?;
+        let call = |name: &'static str, args: Value| {
+            client.call_tool(
+                CallToolRequestParams::new(name).with_arguments(args.as_object().unwrap().clone()),
+            )
+        };
+
+        // 1. extract_embedded_subtitle: rejects bitmap track & missing index, succeeds on SRT track
+        let pgs_tracks = call("list_embedded_subtitles", json!({"input": pg_mkv}))
+            .await?
+            .structured_content
+            .unwrap();
+        let pgs_idx = pgs_tracks["tracks"][0]["index"].as_u64().unwrap();
+        assert_eq!(
+            call(
+                "extract_embedded_subtitle",
+                json!({"input": pg_mkv, "track_index": pgs_idx})
+            )
+            .await?
+            .is_error,
+            Some(true)
+        );
+        assert_eq!(
+            call(
+                "extract_embedded_subtitle",
+                json!({"input": pg_mkv, "track_index": 99})
+            )
+            .await?
+            .is_error,
+            Some(true)
+        );
+
+        let text_tracks = call("list_embedded_subtitles", json!({"input": text_mkv}))
+            .await?
+            .structured_content
+            .unwrap();
+        let text_idx = text_tracks["tracks"][0]["index"].as_u64().unwrap();
+        let extracted = call(
+            "extract_embedded_subtitle",
+            json!({"input": text_mkv, "track_index": text_idx}),
+        )
+        .await?
+        .structured_content
+        .unwrap();
+        let extracted_path = Path::new(extracted["output_path"].as_str().unwrap());
+        assert!(extracted_path.starts_with(output.path()));
+        assert!(std::fs::read_to_string(extracted_path)?.contains("Embedded text line"));
+
+        // 2. refine_flashcards: validation + success + cancel
+        assert_eq!(
+            call(
+                "refine_flashcards",
+                json!({
+                    "input": tsv_deck,
+                    "profile_id": "llm",
+                    "prompt": "Explain",
+                    "output_format": "apkg"
+                })
+            )
+            .await?
+            .is_error,
+            Some(true)
+        );
+        assert_eq!(
+            call(
+                "refine_flashcards",
+                json!({
+                    "input": tsv_deck,
+                    "profile_id": "llm",
+                    "prompt": "   "
+                })
+            )
+            .await?
+            .is_error,
+            Some(true)
+        );
+
+        let started_refine = call(
+            "refine_flashcards",
+            json!({
+                "input": tsv_deck,
+                "profile_id": "llm",
+                "prompt": "Explain {{expression}}"
+            }),
+        )
+        .await?
+        .structured_content
+        .unwrap();
+        assert_eq!(started_refine["operation"], "refine");
+        refine_ready.await?;
+        refine_release.send(()).unwrap();
+        refine_server.await?;
+
+        let refine_id = started_refine["job_id"].as_str().unwrap();
+        let finished_refine = loop {
+            let state = call("get_job", json!({"job_id": refine_id}))
+                .await?
+                .structured_content
+                .unwrap();
+            if state["status"] != "running" && state["status"] != "cancelling" {
+                break state;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        };
+        assert_eq!(finished_refine["status"], "succeeded", "{finished_refine}");
+        assert_eq!(finished_refine["result"]["done"], 1);
+        let refined_path = Path::new(finished_refine["result"]["output_path"].as_str().unwrap());
+        assert!(refined_path.starts_with(output.path()));
+        assert!(std::fs::read_to_string(refined_path)?.contains("Greeting note"));
+
+        let cancel_refine = call(
+            "refine_flashcards",
+            json!({
+                "input": tsv_deck,
+                "profile_id": "llm-cancel",
+                "prompt": "Explain {{expression}}"
+            }),
+        )
+        .await?
+        .structured_content
+        .unwrap();
+        refine_cancel_ready.await?;
+        let cancel_refine_id = cancel_refine["job_id"].as_str().unwrap();
+        call("cancel_job", json!({"job_id": cancel_refine_id})).await?;
+        refine_cancel_release.send(()).unwrap();
+        refine_cancel_server.await?;
+        let cancelled_refine = loop {
+            let state = call("get_job", json!({"job_id": cancel_refine_id}))
+                .await?
+                .structured_content
+                .unwrap();
+            if state["status"] != "running" && state["status"] != "cancelling" {
+                break state;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        };
+        assert_eq!(cancelled_refine["status"], "cancelled", "{cancelled_refine}");
+
+        // 3. autosync_subtitles: rejects missing profile, invalid max_offset_secs, uninstalled local model, and supports cancellation
+        assert_eq!(
+            call(
+                "autosync_subtitles",
+                json!({"input": srt, "media": long_wav, "profile_id": "missing"})
+            )
+            .await?
+            .is_error,
+            Some(true)
+        );
+        assert_eq!(
+            call(
+                "autosync_subtitles",
+                json!({"input": srt, "media": long_wav, "profile_id": "cloud-auto", "max_offset_secs": 0.0})
+            )
+            .await?
+            .is_error,
+            Some(true)
+        );
+        assert_eq!(
+            call(
+                "autosync_subtitles",
+                json!({"input": srt, "media": long_wav, "profile_id": "local-no-dl"})
+            )
+            .await?
+            .is_error,
+            Some(true)
+        );
+
+        let started_auto = call(
+            "autosync_subtitles",
+            json!({
+                "input": srt,
+                "media": long_wav,
+                "profile_id": "cloud-auto",
+                "language": "en",
+                "quick": true,
+                "max_offset_secs": 120
+            }),
+        )
+        .await?
+        .structured_content
+        .unwrap();
+        assert_eq!(started_auto["operation"], "autosync");
+        auto_ready.await?;
+        let auto_id = started_auto["job_id"].as_str().unwrap();
+        call("cancel_job", json!({"job_id": auto_id})).await?;
+        auto_release.send(()).unwrap();
+        auto_server.await?;
+        let cancelled_auto = loop {
+            let state = call("get_job", json!({"job_id": auto_id}))
+                .await?
+                .structured_content
+                .unwrap();
+            if state["status"] != "running" && state["status"] != "cancelling" {
+                break state;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        };
+        assert_eq!(cancelled_auto["status"], "cancelled", "{cancelled_auto}");
+        assert!(
+            !Path::new(started_auto["output_dir"].as_str().unwrap())
+                .join("synced.srt")
+                .exists()
+        );
+
+        client.cancel().await?;
+        anyhow::Ok(())
+    })
+    .await??;
+    Ok(())
+}
+
 fn create_burned_in_mkv(dir: &Path) -> std::path::PathBuf {
     let mkv_path = dir.join("burned_in.mkv");
     let vf = "drawbox=x=80:y=270:w=220:h=36:color=white@1.0:t=fill:enable='between(t,0.4,1.4)'";
@@ -511,7 +860,7 @@ async fn stdio_ocr_supports_hardcoded_roi_and_local_ocr_profiles() -> anyhow::Re
             .arg("--provider-config")
             .arg(&config);
         let client = ().serve(TokioChildProcess::new(command)?).await?;
-        assert_eq!(client.list_all_tools().await?.len(), 12);
+        assert_eq!(client.list_all_tools().await?.len(), 18);
 
         let call = |name: &'static str, args: Value| {
             client.call_tool(
@@ -529,6 +878,17 @@ async fn stdio_ocr_supports_hardcoded_roi_and_local_ocr_profiles() -> anyhow::Re
         )
         .await?;
         assert_eq!(bad_translate.is_error, Some(true));
+
+        let bad_refine = call(
+            "refine_flashcards",
+            json!({
+                "input": srt,
+                "profile_id": "offline-paddle",
+                "prompt": "Explain"
+            }),
+        )
+        .await?;
+        assert_eq!(bad_refine.is_error, Some(true));
 
         let started = call(
             "ocr_subtitles",

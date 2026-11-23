@@ -86,7 +86,7 @@ Individual standalone commands (`cargo install --path cli/<crate>`) expose the s
 
 CLI subcommands use their own flags and config files rather than desktop Settings; see the [CLI guide](docs/CLI.md) and [`vesta-cli`](cli/vesta-cli/README.md).
 
-For MCP clients, run `vesta-cli mcp` (or standalone `vesta-mcp`) as a local stdio server with 12 tools for subtitle inspection, embedded tracks, card previews, cancellable flashcard/translation/transcription/OCR jobs, and installed plugins, or copy the ready-to-paste client snippet from **Settings → Overview**; see [MCP setup and schemas](docs/MCP.md).
+For MCP clients, run `vesta-cli mcp` (or standalone `vesta-mcp`) as a local stdio server with 18 tools for subtitle inspection, embedded track listing/extraction, dueling subtitles, card previews, APKG merging, manual/automatic sync, cancellable flashcard/refine/translation/transcription/OCR jobs, and installed plugins, or copy the ready-to-paste client snippet from **Settings → Overview**; see [MCP setup and schemas](docs/MCP.md).
 
 ## Building from Source
 
