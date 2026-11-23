@@ -795,11 +795,7 @@ mod tests {
             checked_indices: Vec::new(),
             sampler_strategy: SamplerStrategy::BinarySearch,
         };
-        std::fs::write(
-            &missing_srt_session,
-            serde_json::to_string(&state).unwrap(),
-        )
-        .unwrap();
+        std::fs::write(&missing_srt_session, serde_json::to_string(&state).unwrap()).unwrap();
         assert!(SyncEngine::load_session(&missing_srt_session).is_err());
     }
 
