@@ -1351,7 +1351,7 @@
   "translate.contextDraft": "맥락 초안 — 적용 전에 확인",
   "translate.contextGenerating": "분석 중…",
   "translate.contextOptional": "선택 사항",
-  "translate.contextPlaceholder": "Detour (1945): 전후 미국을 배경으로 한 누아르 로드무비. 시대 은어와 간결한 대사로 운명론적이고 하드보일드한 톤을 유지할 것. 계급 갈등, 히치하이킹 문화, 도덕적으로 모호한 인물에 대한 언급을 보존할 것.",
+  "translate.contextPlaceholder": "예: Detour (1945) — 전후 미국을 배경으로 한 누아르 로드 무비. 시대적 속어와 간결한 대사를 살린 하드보일드 구어체 레지스터를 사용하고, 방랑자들 사이의 비격식 반말 투와 냉소적·운명론적 어조를 유지하세요.",
   "translate.contextTitle": "콘텍스트",
   "translate.continuityDesc": "자막 배치 간에 콘텍스트를 전달하여 문장의 흐름을 제어합니다.",
   "translate.continuityTitle": "번역 연속성",

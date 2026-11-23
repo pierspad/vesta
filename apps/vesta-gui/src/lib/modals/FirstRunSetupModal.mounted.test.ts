@@ -8,14 +8,20 @@ vi.mock("$lib/stores/whisperModelsStore.svelte", () => ({ whisperModelsStore: {
   whisperModels: [{ id: "small", name: "Small", size: "500 MB", downloaded: false }],
   vadModels: [], vadSelection: { customPath: null },
 } }));
-vi.mock("$lib/stores/ocrModelsStore.svelte", () => ({ ocrModelsStore: {
-  ocrModels: [
-    { id: "paddleocr-v4-mobile-multi", name: "PaddleOCR v4 Mobile (Multilingual)", size: "~11 MB", downloaded: false },
-    { id: "paddleocr-v4-mobile-cjk", name: "PaddleOCR v4 Mobile (CJK)", size: "~11 MB", downloaded: false },
-    { id: "paddleocr-v4-mobile-latin", name: "PaddleOCR v4 Mobile (Latin)", size: "~8 MB", downloaded: false },
-  ],
-  defaultOcrModel: "paddleocr-v4-mobile-multi",
-} }));
+vi.mock("$lib/stores/ocrModelsStore.svelte", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("$lib/stores/ocrModelsStore.svelte")>();
+  return {
+    ...actual,
+    ocrModelsStore: {
+      ocrModels: [
+        { id: "paddleocr-v4-mobile-multi", name: "PaddleOCR v4 Mobile (Multilingual)", size: "~11 MB", downloaded: false },
+        { id: "paddleocr-v4-mobile-cjk", name: "PaddleOCR v4 Mobile (CJK)", size: "~11 MB", downloaded: false },
+        { id: "paddleocr-v4-mobile-latin", name: "PaddleOCR v4 Mobile (Latin)", size: "~8 MB", downloaded: false },
+      ],
+      defaultOcrModel: "paddleocr-v4-mobile-multi",
+    },
+  };
+});
 const mounted: ReturnType<typeof mount>[] = [];
 afterEach(async () => {
   for (const component of mounted.splice(0)) await unmount(component);

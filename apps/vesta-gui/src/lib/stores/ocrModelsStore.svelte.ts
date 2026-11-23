@@ -21,6 +21,31 @@ export const DEFAULT_OCR_MODELS: OcrModel[] = [
   { id: "paddleocr-v4-mobile-latin", name: "PaddleOCR v4 Mobile (Latin)", size: "~8 MB", downloaded: false },
 ];
 
+export function ocrModelVisual(modelId: string): { accent: string; iconPath: string } {
+  if (modelId.includes("cjk")) {
+    return {
+      accent: "bg-amber-500/15 text-amber-300",
+      // Corner OCR brackets framing the East-Asian ideogram 文
+      iconPath:
+        "M4 7V5a1 1 0 0 1 1-1h2M20 7V5a1 1 0 0 0-1-1h-2M4 17v2a1 1 0 0 0 1 1h2M20 17v2a1 1 0 0 1-1 1h-2M12 6v2.5M7.5 8.5h9M9 8.5c.8 3.6 2.8 6.4 6.5 8.5M15 8.5c-.8 3.6-2.8 6.4-6.5 8.5",
+    };
+  }
+  if (modelId.includes("latin")) {
+    return {
+      accent: "bg-cyan-500/15 text-cyan-300",
+      // Corner OCR brackets framing Latin Aa typography
+      iconPath:
+        "M4 7V5a1 1 0 0 1 1-1h2M20 7V5a1 1 0 0 0-1-1h-2M4 17v2a1 1 0 0 0 1 1h2M20 17v2a1 1 0 0 1-1 1h-2M6.5 16l3-8 3 8M7.5 13.5h4M17.5 11.5v4.5M17.5 13.8a1.9 1.9 0 1 1-3.8 0 1.9 1.9 0 0 1 3.8 0z",
+    };
+  }
+  return {
+    accent: "bg-violet-500/15 text-violet-300",
+    // Multilingual globe with OCR scan meridians
+    iconPath:
+      "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z",
+  };
+}
+
 function showSnackbar(message: string, type: "error" | "success" = "success") {
   snackbar.show(message, type === "error" ? "error" : "success");
 }

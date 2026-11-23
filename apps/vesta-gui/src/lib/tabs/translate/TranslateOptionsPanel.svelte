@@ -120,7 +120,7 @@
       {/if}
     </div>
 
-    <details open={uiMode.expertMode} class="pt-3 border-t border-white/5">
+    <details open class="pt-3 border-t border-white/5">
       <summary id="translation-context-label" class="cursor-pointer text-sm text-gray-400 font-medium">
         <span class="inline-flex items-center gap-1.5 align-middle">
           <svg aria-hidden="true" class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,16 +131,21 @@
         </span>
       </summary>
       <div class="mt-3">
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <button
-            type="button"
-            onclick={onSuggestContext}
-            disabled={!fileInfo || !useTiers || contextLoading || isTranslating || aiStore.killSwitchActive}
-            class="btn-secondary px-3 py-1.5 text-xs disabled:opacity-40"
-          >
-            {t(contextLoading ? "translate.contextGenerating" : "translate.suggestContext")}
-          </button>
-        </div>
+        {#if !aiStore.killSwitchActive}
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <button
+              type="button"
+              onclick={onSuggestContext}
+              disabled={(!fileInfo && !titleContext.trim()) || !useTiers || contextLoading || isTranslating}
+              class="btn-secondary inline-flex items-center gap-1.5 border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-200 hover:bg-cyan-500/20 disabled:opacity-40"
+            >
+              <svg aria-hidden="true" class="w-3.5 h-3.5 text-cyan-300 shrink-0 {contextLoading ? 'animate-spin' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+              </svg>
+              <span>{t(contextLoading ? "translate.contextGenerating" : "translate.suggestContext")}</span>
+            </button>
+          </div>
+        {/if}
         {#if fileInfo}
           <p class="text-[11px] text-gray-400 mb-2">
             {getFileName(fileInfo.path)} · {t("translate.subtitleCoverage")}: {Math.floor(fileInfo.coverage_end_ms / 60000)}:{String(Math.floor(fileInfo.coverage_end_ms / 1000) % 60).padStart(2, "0")}
@@ -155,7 +160,7 @@
           class="input-modern w-full text-xs min-h-[4rem] resize-y"
         ></textarea>
         {#if contextError}<p class="mt-2 text-xs text-red-300" role="alert">{contextError}</p>{/if}
-        {#if contextDraft && contextDraftPath === inputPath}
+        {#if !aiStore.killSwitchActive && contextDraft && contextDraftPath === inputPath}
           <div class="mt-3 rounded-xl border border-cyan-500/25 bg-cyan-500/5 p-3">
             <label for="context-draft" class="block text-xs text-cyan-300 mb-2">{t("translate.contextDraft")}</label>
             <textarea id="context-draft" bind:value={contextDraft} rows="4" class="input-modern w-full text-xs resize-y"></textarea>

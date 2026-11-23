@@ -11,10 +11,23 @@
   let t = $derived($locale);
   let opening = $state(false);
   let copiedLogs = $state(false);
+  let copiedPath = $state(false);
   let copyTimer: ReturnType<typeof setTimeout> | null = null;
+  let copyPathTimer: ReturnType<typeof setTimeout> | null = null;
   onDestroy(() => {
     if (copyTimer) clearTimeout(copyTimer);
+    if (copyPathTimer) clearTimeout(copyPathTimer);
   });
+  async function handleCopyPath() {
+    if (!logs.path) return;
+    if (await writeClipboard(logs.path, t("supportLogs.copied"))) {
+      copiedPath = true;
+      if (copyPathTimer) clearTimeout(copyPathTimer);
+      copyPathTimer = setTimeout(() => {
+        copiedPath = false;
+      }, 2000);
+    }
+  }
   async function handleCopyLogs() {
     if (!logs.preview.length) return;
     if (await writeClipboard(logs.previewText, t("common.copied"))) {
@@ -65,9 +78,38 @@
     <div class="mt-4">
       <label for="support-log-path" class="mb-2 block text-xs font-medium text-gray-400">{t("supportLogs.path")}</label>
       <div class="flex items-center gap-2">
-      <input id="support-log-path" readonly value={logs.path ?? ""} class="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 py-2 font-mono text-xs text-gray-200" />
-      <button type="button" onclick={openFolder} disabled={opening || !logs.path} title={t("supportLogs.openFolder")} aria-label={t("supportLogs.openFolder")} class="btn-secondary shrink-0 p-2 disabled:opacity-40"><MediaIcon kind="folder" /></button>
-      <button type="button" disabled={!logs.path} title={t("supportLogs.copyPath")} aria-label={t("supportLogs.copyPath")} onclick={() => void writeClipboard(logs.path!, t("supportLogs.copied"))} class="btn-secondary p-2 shrink-0 disabled:opacity-40"><svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M9 9h11v11H9zM5 15H4V4h11v1" /></svg></button>
+        <div class="relative min-w-0 flex-1">
+          <input id="support-log-path" readonly value={logs.path ?? ""} class="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 pr-10 font-mono text-xs text-gray-200" />
+          <button
+            type="button"
+            disabled={!logs.path}
+            title={t("supportLogs.copyPath")}
+            aria-label={t("supportLogs.copyPath")}
+            onclick={handleCopyPath}
+            class="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-gray-900/80 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-200 border border-white/10 hover:border-cyan-500/30 transition-all flex items-center justify-center cursor-pointer opacity-75 hover:opacity-100 disabled:opacity-30 disabled:pointer-events-none"
+          >
+            {#if copiedPath}
+              <svg aria-hidden="true" class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+            {:else}
+              <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+                <path d="M9 9h11v11H9zM5 15H4V4h11v1" />
+              </svg>
+            {/if}
+          </button>
+        </div>
+        <button
+          type="button"
+          onclick={openFolder}
+          disabled={opening || !logs.path}
+          title={t("supportLogs.openFolder")}
+          aria-label={t("supportLogs.openFolder")}
+          class="btn-secondary shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs disabled:opacity-40"
+        >
+          <MediaIcon kind="folder" />
+          <span>{t("supportLogs.openFolder")}</span>
+        </button>
       </div>
     </div>
     <div class="mt-4">

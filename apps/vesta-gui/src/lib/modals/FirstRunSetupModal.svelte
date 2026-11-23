@@ -11,7 +11,7 @@
   import ExportFallbackSelector from "$lib/components/ExportFallbackSelector.svelte";
   import { loadMediaSettings, saveMediaSettings } from "$lib/utils/mediaSettings";
   import { whisperModelsStore } from "$lib/stores/whisperModelsStore.svelte";
-  import { ocrModelsStore } from "$lib/stores/ocrModelsStore.svelte";
+  import { ocrModelsStore, ocrModelVisual } from "$lib/stores/ocrModelsStore.svelte";
   import { fontStore } from "$lib/stores/fontStore.svelte";
   import type { ExportFormat, ExportFallbackFormat } from "$lib/stores/exportFormatStore.svelte";
   import * as vestaConfig from "$lib/config/vestaConfig";
@@ -267,15 +267,23 @@
           <div class="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-3 {wantsOcr ? '' : 'pointer-events-none opacity-45'}" role="radiogroup" aria-label={setupT("setup.localOcr")}>
             {#each ocrModelsStore.ocrModels as model (model.id)}
               {@const isSuggested = model.id === suggestedOcrModel}
-              <button type="button" role="radio" aria-checked={ocrModel === model.id} disabled={!wantsOcr} onclick={() => { ocrModel = model.id; ocrModelManuallyChosen = true; }} class="rounded-xl border p-3 text-left transition-colors {ocrModel === model.id ? 'border-cyan-400/60 bg-cyan-500/15 text-white' : 'border-white/10 bg-white/[0.035] text-gray-300 hover:border-white/20 hover:bg-white/[0.07]'}">
-                <div class="flex items-start justify-between gap-2">
-                  <p class="truncate text-xs font-bold">{model.name}</p>
-                  {#if isSuggested}
-                    <span class="shrink-0 rounded-full border border-emerald-400/35 bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300">{setupT("setup.suggested")}</span>
-                  {/if}
+              {@const visual = ocrModelVisual(model.id)}
+              <button type="button" role="radio" aria-checked={ocrModel === model.id} disabled={!wantsOcr} onclick={() => { ocrModel = model.id; ocrModelManuallyChosen = true; }} class="flex items-start gap-3 rounded-xl border p-3 text-left transition-colors {ocrModel === model.id ? 'border-cyan-400/60 bg-cyan-500/15 text-white' : 'border-white/10 bg-white/[0.035] text-gray-300 hover:border-white/20 hover:bg-white/[0.07]'}">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 {visual.accent}" aria-hidden="true">
+                  <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d={visual.iconPath} />
+                  </svg>
+                </span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="truncate text-xs font-bold">{model.name}</p>
+                    {#if isSuggested}
+                      <span class="shrink-0 rounded-full border border-emerald-400/35 bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300">{setupT("setup.suggested")}</span>
+                    {/if}
+                  </div>
+                  <p class="mt-1 text-[10px] text-gray-400">{model.size}</p>
+                  <p class="mt-0.5 text-[10px] {model.downloaded ? 'text-emerald-400' : 'text-amber-300/80'}">{model.downloaded ? setupT("setup.downloadedReady") : setupT("setup.willDownloadWhenSetupFinishes")}</p>
                 </div>
-                <p class="mt-1 text-[10px] text-gray-400">{model.size}</p>
-                <p class="mt-1 text-[10px] {model.downloaded ? 'text-emerald-400' : 'text-amber-300/80'}">{model.downloaded ? setupT("setup.downloadedReady") : setupT("setup.willDownloadWhenSetupFinishes")}</p>
               </button>
             {/each}
           </div>
@@ -311,7 +319,7 @@
                         <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                           {#if task.kind === "whisper"}<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>
                           {:else if task.kind === "vad"}<path d="M2 12h4l3-7 6 14 3-7h4"/>
-                          {:else if task.kind === "ocr"}<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6M7 17h4"/>
+                          {:else if task.kind === "ocr"}<path d={ocrModelVisual(ocrModel).iconPath}/>
                           {:else}<path d="m4 20 7-16h2l7 16M7 14h10"/>{/if}
                         </svg>
                       </span>
@@ -330,7 +338,7 @@
                           {#if task.kind === "media"}<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3zM7 5v14M17 5v14"/>
                           {:else if task.kind === "whisper"}<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>
                           {:else if task.kind === "vad"}<path d="M2 12h4l3-7 6 14 3-7h4"/>
-                          {:else if task.kind === "ocr"}<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6M7 17h4"/>
+                          {:else if task.kind === "ocr"}<path d={ocrModelVisual(ocrModel).iconPath}/>
                           {:else}<path d="m4 20 7-16h2l7 16M7 14h10"/>{/if}
                         </svg>
                       </span>

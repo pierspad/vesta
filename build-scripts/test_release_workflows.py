@@ -68,6 +68,7 @@ def main():
     release = (ROOT / '.github/workflows/release.yml').read_text(encoding='utf-8')
     build = (ROOT / '.github/workflows/build.yml').read_text(encoding='utf-8')
     arm64 = (ROOT / '.github/workflows/build-arm64.yml').read_text(encoding='utf-8')
+    aur = (ROOT / '.github/workflows/aur-publish.yml').read_text(encoding='utf-8')
     flatpak_manifest = (ROOT / 'build-scripts/com.vesta.desktop.flatpak.yml').read_text(encoding='utf-8')
 
     config = json.loads((ROOT / '.releaserc').read_text(encoding='utf-8'))
@@ -100,8 +101,14 @@ def main():
             'Flatpak manifest and CI workflow must target the supported GNOME 49 runtime')
     require('gh workflow run build-arm64.yml --ref "$ARM64_REF" -f release_tag="$RELEASE_TAG"' in release_job,
             'release job must trigger the non-blocking ARM64 workflow after upload')
+    require('gh workflow run aur-publish.yml --ref main -f release_tag="$RELEASE_TAG"' in release_job,
+            'release job must trigger aur-publish.yml with the exact release_tag after upload')
     require('gh release edit "$RELEASE_TAG" --prerelease=false --latest' in release_job,
             'release job must promote stable releases to latest only after binary assets are uploaded')
+    require('workflow_run:' not in aur
+            and 'Wait for active Build and Release run on main' in aur
+            and 'curl --silent --fail --location --head "$ASSET_URL"' in aur,
+            'aur-publish.yml must wait for active Build and Release runs on main and follow redirects when checking asset URL')
 
     require('Verify release tag matches source version' in release_job
             and 'TAG_VERSION="${RELEASE_TAG#v}"' in release_job

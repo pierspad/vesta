@@ -573,7 +573,7 @@ jobs:
                   fi
                 done
                 echo "Stable release ($RELEASE_TAG): triggering AUR publication workflow..."
-                gh workflow run "Publish to AUR" --ref main || echo "::warning::Failed to trigger AUR publication workflow"
+                gh workflow run aur-publish.yml --ref main -f release_tag="$RELEASE_TAG" || echo "::warning::Failed to trigger AUR publication workflow"
               else
                 echo "Prerelease ($RELEASE_TAG): skipping AUR publication."
               fi

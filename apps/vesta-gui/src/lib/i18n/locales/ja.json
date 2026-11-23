@@ -1351,7 +1351,7 @@
   "translate.contextDraft": "コンテキスト草案 — 適用前に確認",
   "translate.contextGenerating": "分析中…",
   "translate.contextOptional": "任意",
-  "translate.contextPlaceholder": "Detour (1945)：戦後アメリカを舞台にしたノワール・ロードムービー。運命論的でハードボイルドなトーンを保ち、当時のスラングと簡潔なセリフを使うこと。階級間の緊張、ヒッチハイク文化、道徳的に曖昧な登場人物への言及を残すこと。",
+  "translate.contextPlaceholder": "例 — Detour (1945)：戦後アメリカを舞台にしたノワール・ロードムービー。当時の俗語や簡潔な台詞を活かしたハードボイルドで口語的な文体（レジスター）を使用し、登場人物間のくだけた口調と冷소的・宿命論的なトーンを維持する。",
   "translate.contextTitle": "文脈",
   "translate.continuityDesc": "字幕バッチ間で文脈を渡すことにより、文の流れを制御します。",
   "translate.continuityTitle": "翻訳の連続性",

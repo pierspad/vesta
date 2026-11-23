@@ -163,7 +163,7 @@
   async function suggestContext() {
     if (contextLoading || isTranslating || aiStore.killSwitchActive) return;
     const tiersPayload = buildTiersPayload();
-    if (!tiersPayload || !inputPath) return;
+    if (!tiersPayload || (!inputPath && !titleContext.trim())) return;
     const request = ++contextRequest;
     const path = inputPath;
     const language = targetLang;
@@ -176,6 +176,9 @@
       if (!check.available) { requirements.pulse(["options"]); if (check.errorMsg) snackbar.show(check.errorMsg, "error"); return; }
       const draft = await suggestTranslationContext(path, language, context, tiersPayload);
       if (request === contextRequest && path === inputPath && !aiStore.killSwitchActive && !disposed) {
+        if (!titleContext.trim()) {
+          titleContext = draft.trim();
+        }
         contextDraft = draft;
         contextDraftPath = path;
       }
@@ -571,7 +574,11 @@
           highlightClass={requirements.classFor("options")}
           onSuggestContext={suggestContext}
           onApplyContext={() => {
-            titleContext = [titleContext.trim(), contextDraft.trim()].filter(Boolean).join("\n\n");
+            const cleanDraft = contextDraft.trim();
+            const cleanTitle = titleContext.trim();
+            titleContext = !cleanTitle || cleanTitle === cleanDraft
+              ? cleanDraft
+              : [cleanTitle, cleanDraft].filter(Boolean).join("\n\n");
             contextDraft = "";
           }}
         />

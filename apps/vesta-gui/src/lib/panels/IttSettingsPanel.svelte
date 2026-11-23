@@ -4,7 +4,7 @@
   import ProgressFill from "$lib/components/ProgressFill.svelte";
   import ApiKeysCard from "$lib/panels/ApiKeysCard.svelte";
   import TranslationTiers from "$lib/components/TranslationTiers.svelte";
-  import { ocrModelsStore } from "$lib/stores/ocrModelsStore.svelte";
+  import { ocrModelsStore, ocrModelVisual } from "$lib/stores/ocrModelsStore.svelte";
   import { ITT_TIERS_UPDATED_EVENT, loadIttTiers, saveIttTiers } from "$lib/config/ittTiers";
   import type { ApiKeyConfig } from "$lib/config/apiKeys";
 
@@ -116,6 +116,7 @@
 
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" role="radiogroup" aria-label={t("settings.ocrModelsTitle")}>
     {#each ocrStore.ocrModels as model (model.id)}
+      {@const visual = ocrModelVisual(model.id)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         onclick={() => ocrStore.handleModelClick(model)}
@@ -191,9 +192,9 @@
           {/if}
         </div>
 
-        <div class="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-violet-500/15 text-violet-200">
+        <div class="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 {visual.accent}">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10M4 18h6" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d={visual.iconPath} />
           </svg>
         </div>
         <div class="font-bold text-sm leading-snug">{model.name}</div>

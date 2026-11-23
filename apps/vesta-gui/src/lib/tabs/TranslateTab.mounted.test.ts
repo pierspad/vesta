@@ -41,6 +41,7 @@ vi.mock("$lib/config/vestaConfig", () => ({
 }));
 
 import TranslateTab from "./TranslateTab.svelte";
+import { aiStore } from "$lib/stores/aiStore.svelte";
 
 const mounted: ReturnType<typeof mount>[] = [];
 
@@ -187,5 +188,51 @@ describe("TranslateTab", () => {
     retryBtn.click();
     await settle();
     expect(target.textContent).toContain("429");
+  });
+
+  it("hides and restores the Suggest context AI button when AI Kill Switch is toggled", async () => {
+    mocks.invoke.mockImplementation(async (cmd: string) => {
+      if (cmd === "load_srt_for_translate") {
+        return {
+          path: "/subs/Detour.1945.en.srt",
+          subtitle_count: 10,
+          coverage_end_ms: 3600000,
+          preview_subtitles: [{ id: 1, text: "Give a guy a break." }],
+        };
+      }
+      if (cmd === "suggest_translation_context") {
+        return "Detour (1945): noir road movie set in post-war America. Use a colloquial, hard-boiled register.";
+      }
+      return null;
+    });
+
+    aiStore.killSwitchActive = false;
+    const target = document.createElement("div");
+    document.body.append(target);
+    mounted.push(mount(TranslateTab, { target, props: { active: true } }));
+    await settle();
+
+    mocks.onDrop?.(["/subs/Detour.1945.en.srt"]);
+    await settle();
+
+    const findSuggestBtn = () =>
+      Array.from(target.querySelectorAll<HTMLButtonElement>("button")).find((b) =>
+        b.textContent?.includes("Suggest context"),
+      );
+
+    expect(findSuggestBtn()).toBeDefined();
+    findSuggestBtn()!.click();
+    await settle();
+
+    const contextInput = target.querySelector<HTMLTextAreaElement>("#context-input");
+    expect(contextInput?.value).toContain("Detour (1945): noir road movie");
+
+    aiStore.killSwitchActive = true;
+    await settle();
+    expect(findSuggestBtn()).toBeUndefined();
+
+    aiStore.killSwitchActive = false;
+    await settle();
+    expect(findSuggestBtn()).toBeDefined();
   });
 });
