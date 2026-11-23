@@ -1,6 +1,6 @@
 [package]
 name = "vesta-extract-cli"
-version = "1.1.0"
+version = "1.1.1"
 edition.workspace = true
 rust-version.workspace = true
 description = "CLI tool for extracting and formatting SRT subtitle data"
