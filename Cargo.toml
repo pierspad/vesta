@@ -30,19 +30,19 @@ encoding_rs = "0.8"
 chardetng = "1"
 
 # Internal crates
-vesta-cli = { path = "./cli/vesta-cli", version = "1.1.0-dev.1" }
-vesta-download = { path = "./core/vesta-download", version = "1.1.0-dev.1" }
-vesta-parser = { path = "./core/vesta-parser", version = "1.1.0-dev.1" }
-vesta-apkg = { path = "./core/vesta-apkg", version = "1.1.0-dev.1" }
-vesta-extract = { path = "./lib/vesta-extract", version = "1.1.0-dev.1" }
-vesta-translate = { path = "./lib/vesta-translate", version = "1.1.0-dev.1" }
-vesta-sync = { path = "./lib/vesta-sync", version = "1.1.0-dev.1" }
-vesta-autosync = { path = "./lib/vesta-autosync", version = "1.1.0-dev.1" }
-vesta-flashcards = { path = "./lib/vesta-flashcards", version = "1.1.0-dev.1" }
-vesta-refine = { path = "./lib/vesta-refine", version = "1.1.0-dev.1" }
-vesta-transcribe = { path = "./lib/vesta-transcribe", version = "1.1.0-dev.1" }
-vesta-ankiconnect = { path = "./lib/vesta-ankiconnect", version = "1.1.0-dev.1" }
-vesta-ocr = { path = "./lib/vesta-ocr", version = "1.1.0-dev.1" }
+vesta-cli = { path = "./cli/vesta-cli", version = "1.1.0" }
+vesta-download = { path = "./core/vesta-download", version = "1.1.0" }
+vesta-parser = { path = "./core/vesta-parser", version = "1.1.0" }
+vesta-apkg = { path = "./core/vesta-apkg", version = "1.1.0" }
+vesta-extract = { path = "./lib/vesta-extract", version = "1.1.0" }
+vesta-translate = { path = "./lib/vesta-translate", version = "1.1.0" }
+vesta-sync = { path = "./lib/vesta-sync", version = "1.1.0" }
+vesta-autosync = { path = "./lib/vesta-autosync", version = "1.1.0" }
+vesta-flashcards = { path = "./lib/vesta-flashcards", version = "1.1.0" }
+vesta-refine = { path = "./lib/vesta-refine", version = "1.1.0" }
+vesta-transcribe = { path = "./lib/vesta-transcribe", version = "1.1.0" }
+vesta-ankiconnect = { path = "./lib/vesta-ankiconnect", version = "1.1.0" }
+vesta-ocr = { path = "./lib/vesta-ocr", version = "1.1.0" }
 
 [profile.dev]
 opt-level = 0
