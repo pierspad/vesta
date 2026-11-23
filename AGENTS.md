@@ -48,9 +48,8 @@ All 15 locale catalogs in `apps/vesta-gui/src/lib/i18n/locales/` (`ar`, `de`, `e
 
 ## Feature Scorecard & Continuous Audit
 
-Vesta tracks feature coverage (GUI, CLI, MCP, Docs, Unit Tests, Playwright, Smoke), reliability controls, performance opportunities, and verified bugs across 12 areas in [`scorecard/*.toml`](scorecard/features.toml):
+Vesta tracks feature coverage (GUI, CLI, MCP, Docs, Unit Tests, Playwright, Smoke), reliability controls, active performance optimizations, and open bugs across 12 areas in [`scorecard/*.toml`](scorecard/features.toml):
 - [`docs/SCORECARD.md`](docs/SCORECARD.md) — Auto-generated dashboard (`python3 build-scripts/generate_scorecard.py`, validated by `quality_check.py`).
-- [`docs/AUDIT_LOG.md`](docs/AUDIT_LOG.md) — Chronological audit wave history and prioritized **Wave 2 Resume Guide**.
 - **Queryable SQLite database (`build-scripts/scorecard_db.py`)**: Instead of reading large `scorecard/*.toml` files into context, query the tracked SQLite database at [`scorecard/scorecard.db`](scorecard/scorecard.db) (kept in sync with `scorecard/*.toml` via `python3 build-scripts/scorecard_db.py check` in CI and `quality_check.py`):
   - `python3 build-scripts/scorecard_db.py summary` — Compact status totals and per-area coverage counts.
   - `python3 build-scripts/scorecard_db.py open` — Non-fixed bugs & performance items (`--area`, `--severity`, `--no-include-deferred`).

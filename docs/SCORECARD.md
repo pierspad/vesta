@@ -1,56 +1,50 @@
 # Vesta Feature Scorecard & Audit Dashboard
 
 > **Auto-generated** by [`build-scripts/generate_scorecard.py`](../build-scripts/generate_scorecard.py) from [`scorecard/*.toml`](../scorecard/features.toml) · **Wave:** `wave-3-complete` · **Last Updated:** `2026-11-23`  
-> Do not edit manually; update `scorecard/*.toml` and re-run `python3 build-scripts/generate_scorecard.py`. See [`AUDIT_LOG.md`](./AUDIT_LOG.md) for chronological wave history and resumption pointers.
+> Do not edit manually; update `scorecard/*.toml` and re-run `python3 build-scripts/generate_scorecard.py`.
 
 ## Live Codebase & Test Metrics
 
 | Metric | Value | Source |
 |---|---|---|
 | Cargo workspace crates | 24 | `Cargo.toml` (`core/`, `lib/`, `cli/`, `apps/`) |
-| Rust production LOC (non-test) | 31,385 | `core/`, `lib/`, `cli/`, `apps/*/src-tauri/src/` |
-| Rust unit & integration `#[test]` cases | 617 | Workspace `*.rs` |
+| Rust production LOC (non-test) | 33,475 | `core/`, `lib/`, `cli/`, `apps/*/src-tauri/src/` |
+| Rust unit & integration `#[test]` cases | 635 | Workspace `*.rs` |
 | Rust prod `.unwrap()` / `.expect()` / `panic!()` / `unsafe` | 26 / 12 / 1 / 4 | Comment/test-stripped scan |
 | Registered Tauri IPC commands | 109 | `apps/vesta-gui/src-tauri/src/main.rs` |
 | Playwright mock handlers (`vesta-mock.mjs`) | 109/109 | `apps/vesta-gui/browser-tests/vesta-mock.mjs` |
 | IPC names referenced in Playwright specs | 109/109 | `apps/vesta-gui/browser-tests/*.spec.mjs` |
 | Vitest files / cases | 148 / 674 | `apps/vesta-gui/src/**/*.test.*` |
 | Playwright spec files / `test()` decls | 6 / 40 | `apps/vesta-gui/browser-tests/*.spec.mjs` |
-| MCP tools (`vesta-mcp`) | 18 | `cli/vesta-mcp/src/lib.rs` |
+| MCP tools (`vesta-mcp`) | 24 | `cli/vesta-mcp/src/lib.rs` |
 | Unified `vesta-cli` workflows | 9 | `cli/vesta-cli/src/lib.rs` |
 | Plugin SDK widget primitives | 23 | `PluginRenderer.svelte` |
 | Frontend localization catalogs | 15 | `apps/vesta-gui/src/lib/i18n/locales/*.json` |
 
 ## Executive Summary by Area
 
+> *Coverage denominators:* `GUI`, `CLI`, `MCP`, and `Playwright` count only applicable features (excluding `N/A`), whereas `Docs`, `Unit Tests`, `Smoke`, and `Verified` cover all 50 features.
+
 | Area | Features | GUI | CLI | MCP | Docs | Unit Tests | Playwright | Smoke | Verified | Open Findings |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Flashcards & APKG/TSV | 8 | 8/8 | 6/8 | 4/8 | 8/8 | 8/8 | 8/8 | 5/8 | 8/8 | 0 |
-| Extract & OCR | 5 | 5/5 | 5/5 | 4/5 | 5/5 | 5/5 | 5/5 | 2/5 | 5/5 | 0 |
-| Transcribe & VAD | 4 | 4/4 | 4/4 | 3/4 | 4/4 | 4/4 | 4/4 | 0/4 | 4/4 | 0 |
-| Translate (LLM) | 4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 0/4 | 4/4 | 0 |
-| Sync & Align | 3 | 3/3 | 1/3 | 1/3 | 3/3 | 3/3 | 3/3 | 1/3 | 3/3 | 0 |
-| Auto-Sync | 3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 0/3 | 3/3 | 0 |
-| Refine & AnkiConnect | 4 | 4/4 | 3/4 | 2/4 | 4/4 | 4/4 | 4/4 | 0/4 | 4/4 | 0 |
-| Plugins & Experimental | 4 | 4/4 | 1/4 | 1/4 | 4/4 | 4/4 | 4/4 | 3/4 | 4/4 | 0 |
-| GUI, Settings & i18n | 6 | 6/6 | 0/6 | 1/6 | 6/6 | 6/6 | 6/6 | 0/6 | 6/6 | 0 |
+| Flashcards & APKG/TSV | 8 | 8/8 | 8/8 | 8/8 | 8/8 | 8/8 | 8/8 | 8/8 | 8/8 | 0 |
+| Extract & OCR | 5 | 5/5 | 5/5 | 5/5 | 5/5 | 5/5 | 5/5 | 5/5 | 5/5 | 0 |
+| Transcribe & VAD | 4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 2/4 | 4/4 | 0 |
+| Translate (LLM) | 4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 0 |
+| Sync & Align | 3 | 3/3 | 1/1 | 1/1 | 3/3 | 3/3 | 3/3 | 1/3 | 3/3 | 0 |
+| Auto-Sync | 3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 2/3 | 3/3 | 0 |
+| Refine & AnkiConnect | 4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 0 |
+| Plugins & Experimental | 4 | 4/4 | 1/1 | 2/2 | 4/4 | 4/4 | 4/4 | 3/4 | 4/4 | 0 |
+| GUI, Settings & i18n | 6 | 6/6 | 1/1 | 2/2 | 6/6 | 6/6 | 6/6 | 0/6 | 6/6 | 0 |
 | Media Server, Net & Tools | 3 | 3/3 | 1/1 | 1/1 | 3/3 | 3/3 | 3/3 | 1/3 | 3/3 | 0 |
 | CLI & MCP | 2 | 0/0 | 1/1 | 1/1 | 2/2 | 2/2 | 0/0 | 2/2 | 2/2 | 0 |
 | Quality Gates, Docs & CI | 4 | 2/2 | 4/4 | 0/0 | 4/4 | 4/4 | 2/2 | 4/4 | 4/4 | 0 |
-| **Total** | **50** | **46/46** | **33/47** | **25/43** | **50/50** | **50/50** | **46/46** | **18/50** | **50/50** | **0** |
+| **Total** | **50** | **46/46** | **37/37** | **35/35** | **50/50** | **50/50** | **46/46** | **36/50** | **50/50** | **0** |
 
-## Audit Findings Summary (106 Verified Stage-1 Findings)
+## Findings Summary
 
-- **Bugs & Hardening (`bugs.toml`):** 98 total (98 fixed, 0 open/deferred)
-- **Performance (`performance.toml`):** 8 total (8 fixed, 0 open)
-- **Combined Progress:** 106/106 resolved, 0 remaining
-
-| Severity | Open / Deferred | Fixed | Total |
-|---|---:|---:|---:|
-| CRITICAL | 0 | 1 | 1 |
-| HIGH | 0 | 30 | 30 |
-| MEDIUM | 0 | 58 | 58 |
-| LOW | 0 | 17 | 17 |
+- **Bugs & Hardening (`bugs.toml`):** 0 open/deferred (0 total)
+- **Performance (`performance.toml`):** 0 open/deferred (0 total)
 
 ## Reliability & Security Controls
 
@@ -67,179 +61,65 @@
 | `REL-09` | GUI, Settings & i18n | Frontend async race guards, modal keyboard safety & AI kill switch reachability | Pass | `apps/vesta-gui/src/lib/{tabs,stores,modals}/` | Wave 1 fixed #14.3/#14.4/#14.5/#14.7; Wave 2 fixed #14.1 (ShortcutsTab active prop + mounted test), #14.2 (AI Kill Switch + aiStore tests), and #14.8 (apiKeyEditorStore); Wave 3 added reusable focusTrap Svelte action (focusTrap.ts + focusTrap.test.ts) on SupportModal, EpisodeMediaSettingsModal, and PathPreviewModal plus ExperimentalTab active prop (AUDIT-068, AUDIT-091). |
 | `REL-10` | Quality Gates, Docs & CI | Backend/Frontend IPC, Mock schema, Docs, Integration & i18n automated verification | Pass | `build-scripts/, apps/vesta-gui/browser-tests/vesta-mock.mjs, .github/workflows/ci.yml` | Wave 1 fixed #15.1-#15.8/#15.10-#15.15; Wave 2 added --locked flags in pre-push (AUDIT-080); Wave 3 expanded Playwright IPC coverage to 108/108 commands (ipc-coverage.spec.mjs), enforced mock & frontend invoke parity via browser_ipc_contract.py --check + test_browser_ipc_contract.py (AUDIT-078), wired check_library_integration.py/fmt/clippy/scorecard checks into quality_check.py (AUDIT-079), added webkit2gtk-4.1 headless guard in pre-push + test_git_hooks.py (AUDIT-080), and added CI browser Playwright job & contract/scorecard gates (AUDIT-081). |
 
-## Performance Optimization Tracker
+## Performance Tracker
 
-| ID | Ref | Severity | Status | Target | Summary | Verification |
-|---|---|---|---|---|---|---|
-| `PERF-001` | `#12.5` | HIGH | `fixed` | `lib/vesta-ocr/src/bitmap.rs:955-1006` | Spawns a sequential ffmpeg subprocess per cue (-ss ... -i ...) for VobSub/DVB/XSUB tracks and forces scale=1280:720 (distorting non-16:9 bitmaps). | Wave 3 added aspect-preserving ffprobe stream dimension probing (width/height 1..=4096), bounded parallel chunked FFmpeg cue rendering (Semaphore(2..=6) + JoinSet) with spawn_blocking PNG crop and ETXTBSY retry in lib/vesta-ocr/src/bitmap.rs, plus PGS RLE & mock parallel render unit tests verified via cargo test --locked -p vesta-ocr. |
-| `PERF-002` | `#12.6` | HIGH | `fixed` | `lib/vesta-ocr/src/local.rs:2745` | model.initializers.clone() deep-copies all ONNX model tensor weights on every line box inside run_graph(). | Refactored lib/vesta-ocr/src/local.rs (eval_node/run_graph) to borrow &model.initializers without per-inference HashMap cloning; verified with cargo test --locked -p vesta-ocr. |
-| `PERF-003` | `#10.16` | MEDIUM | `fixed` | `core/vesta-download/src/lib.rs:50-54` | Builds a fresh reqwest::Client on every download_to() call instead of sharing a LazyLock<reqwest::Client>. | Added shared LazyLock client with connect/read timeouts in core/vesta-download/src/lib.rs keeping download_to signature intact; verified via cargo test --locked -p vesta-download and check_doc_contracts.py. |
-| `PERF-004` | `#10.17` | MEDIUM | `fixed` | `lib/vesta-flashcards/src/{media.rs:83-96,generation/mod.rs:108,snapshot_batch.rs:163-167,jobs.rs:110-111}` | Sync video_has_audio spawns OS thread + nested Tokio runtime; build_matched_lines & snapshot copies run sync on async workers; sequential fallback snapshots & repeated codec string clones. | Wave 2 wrapped build_matched_lines in spawn_blocking (generation/mod.rs), bounded probe reads via AsyncReadExt::take (snapshot_batch.rs), and shared Arc<str> codec strings (jobs.rs); Wave 3 converted snapshot_batch::batch() file operations to tokio::fs and bounded-parallelized fallback extract_snapshot tasks (JoinSet + Semaphore(4)) while retaining deterministic ordering and try_video_has_audio for async callers; verified via cargo test --locked -p vesta-flashcards. |
-| `PERF-005` | `#12.17` | MEDIUM | `fixed` | `lib/vesta-ocr/src/hardcoded.rs:587` | analyze_roi_frame(&png_bytes) decodes PNG images and scans pixels synchronously inside the async Tokio loop. | Moved analyze_roi_frame(&png_bytes) onto tokio::task::spawn_blocking in lib/vesta-ocr/src/hardcoded.rs; verified via cargo test --locked -p vesta-ocr. |
-| `PERF-006` | `#12.22` | MEDIUM | `fixed` | `lib/vesta-autosync/src/normalization.rs:199-233` | CleanText::similarity re-allocates two Vec<char> and heap Levenshtein DP buffers per candidate in lib.rs:921 without threshold early-exit when token_score == 0.0. | Cached private chars: Vec<char> in CleanText, added stack-allocated [usize; 128] DP buffers and similarity_with_threshold early-exit in lib/vesta-autosync/src/{normalization.rs,lib.rs}; verified via cargo test --locked -p vesta-autosync. |
-| `PERF-007` | `#14.13` | MEDIUM | `fixed` | `apps/vesta-gui/src/lib/panels/SubtitleListPanel.svelte:109` | Unvirtualized {#each subtitles as sub (sub.id)} mounts thousands of DOM nodes for full movies. | Wave 3 implemented grid-aware virtual windowing (> 100 subtitles, ROW_STRIDE_PX = 96, VIRTUAL_OVERSCAN_ROWS = 4) and semantic theme tokens in SubtitleListPanel.svelte, verified with a 300-item scroll virtualization test in SubtitleListPanel.mounted.test.ts. |
-| `PERF-008` | `#14.14` | MEDIUM | `fixed` | `apps/vesta-gui/src/lib/panels/TranscriptionSegmentsPanel.svelte:9-16,38` | Unkeyed {#each segments as segment} forces full DOM node recreation plus unthrottled scroll $effect during streaming. | Wave 1 keyed {#each segments as segment, idx}; Wave 2 added requestAnimationFrame coalescing + effect cleanup cancellation in TranscriptionSegmentsPanel.svelte; verified via svelte-check and Vitest. |
+_No open performance optimizations queued._
 
 ## Full Feature Coverage Matrix
 
 | ID | Area | Feature | GUI | CLI | MCP | Docs | Unit | Playwright | Smoke | Audit |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `FC-01` | Flashcards & APKG/TSV | Single-episode flashcard generation (TSV & APKG) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
-| `FC-02` | Flashcards & APKG/TSV | Batch / series flashcard processing & per-episode media overrides | Yes | No | No | Yes | Yes | Yes | No | Verified |
+| `FC-02` | Flashcards & APKG/TSV | Batch / series flashcard processing & per-episode media overrides | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `FC-03` | Flashcards & APKG/TSV | Merge multiple .apkg decks into a unified deck | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
-| `FC-04` | Flashcards & APKG/TSV | Live card preview & on-demand audio/snapshot preview | Yes | Partial | Yes | Yes | Yes | Yes | Yes | Verified |
-| `FC-05` | Flashcards & APKG/TSV | Subtitle filtering, sentence combining & smart bilingual matching | Yes | Yes | Partial | Yes | Yes | Yes | Yes | Verified |
+| `FC-04` | Flashcards & APKG/TSV | Live card preview & on-demand audio/snapshot preview | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `FC-05` | Flashcards & APKG/TSV | Subtitle filtering, sentence combining & smart bilingual matching | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `FC-06` | Flashcards & APKG/TSV | Bilingual dueling subtitle export (.ass / .srt) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
-| `FC-07` | Flashcards & APKG/TSV | Dictionary lookup & auto/embedded Anki card fonts | Yes | Yes | No | Yes | Yes | Yes | No | Verified |
-| `FC-08` | Flashcards & APKG/TSV | Hardware video encoding, padding, resolution & audio track selection | Yes | Yes | No | Yes | Yes | Yes | Partial | Verified |
+| `FC-07` | Flashcards & APKG/TSV | Dictionary lookup & auto/embedded Anki card fonts | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `FC-08` | Flashcards & APKG/TSV | Hardware video encoding, padding, resolution & audio track selection | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `EX-01` | Extract & OCR | Subtitle parsing & inspection (SRT, ASS/SSA, VTT, LRC) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `EX-02` | Extract & OCR | Embedded subtitle track listing & text stream extraction | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
-| `EX-03` | Extract & OCR | Bitmap subtitle extraction & OCR (PGS, VobSub, DVB, XSUB) | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
-| `EX-04` | Extract & OCR | Hardcoded video subtitle ROI detection & crop preview | Yes | Yes | Partial | Yes | Yes | Yes | No | Verified |
-| `EX-05` | Extract & OCR | Hybrid local ONNX / Cloud Vision OCR & model management | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
-| `TR-01` | Transcribe & VAD | Cloud speech-to-text providers & word timestamps | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
+| `EX-03` | Extract & OCR | Bitmap subtitle extraction & OCR (PGS, VobSub, DVB, XSUB) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `EX-04` | Extract & OCR | Hardcoded video subtitle ROI detection & crop preview | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `EX-05` | Extract & OCR | Hybrid local ONNX / Cloud Vision OCR & model management | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `TR-01` | Transcribe & VAD | Cloud speech-to-text providers & word timestamps | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `TR-02` | Transcribe & VAD | Local Whisper inference backends & whisper-bench harness | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
 | `TR-03` | Transcribe & VAD | Silero VAD speech segmentation & audio chunking | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
-| `TR-04` | Transcribe & VAD | Whisper model & VAD download / uninstall lifecycle | Yes | Yes | No | Yes | Yes | Yes | No | Verified |
-| `TL-01` | Translate (LLM) | Tiered multi-provider LLM batch subtitle translation | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
-| `TL-02` | Translate (LLM) | Translation checkpoint resume & missing-cue repair | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
-| `TL-03` | Translate (LLM) | Translation context suggestion & language prompt specialization | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
-| `TL-04` | Translate (LLM) | Translation cancellation, path preview & CLI failure exit codes | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
+| `TR-04` | Transcribe & VAD | Whisper model & VAD download / uninstall lifecycle | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `TL-01` | Translate (LLM) | Tiered multi-provider LLM batch subtitle translation | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `TL-02` | Translate (LLM) | Translation checkpoint resume & missing-cue repair | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `TL-03` | Translate (LLM) | Translation context suggestion & language prompt specialization | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `TL-04` | Translate (LLM) | Translation cancellation, path preview & CLI failure exit codes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `SY-01` | Sync & Align | Manual subtitle time shift, speed scaling & anchor interpolation | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
-| `SY-02` | Sync & Align | Sync session persistence, autosave, file export & reset | Yes | No | No | Yes | Yes | Yes | No | Verified |
-| `SY-03` | Sync & Align | Dual-subtitle Align tab & companion subtitle suggestion | Yes | No | No | Yes | Yes | Yes | No | Verified |
+| `SY-02` | Sync & Align | Sync session persistence, autosave, file export & reset | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
+| `SY-03` | Sync & Align | Dual-subtitle Align tab & companion subtitle suggestion | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
 | `AS-01` | Auto-Sync | Voice-overlap auto-sync & consensus anchor estimation | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
-| `AS-02` | Auto-Sync | Cloud-transcribe guided auto-sync alignment | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
-| `AS-03` | Auto-Sync | Auto-sync cancellation, progress overlay & quality assessment | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
-| `RF-01` | Refine & AnkiConnect | Tiered LLM flashcard deck annotation (.apkg & .tsv) | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
-| `RF-02` | Refine & AnkiConnect | Manual card search, editing & per-card notes history | Yes | No | No | Yes | Yes | Yes | No | Verified |
-| `RF-03` | Refine & AnkiConnect | AnkiConnect connectivity ping & live .apkg import | Yes | Yes | No | Yes | Yes | Yes | No | Verified |
-| `RF-04` | Refine & AnkiConnect | Refine run cancellation, lock safety & summary diagnostics | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
-| `PL-01` | Plugins & Experimental | Plugin registry, archive/git install, README inspect & uninstall | Yes | No | No | Yes | Yes | Yes | Yes | Verified |
-| `PL-02` | Plugins & Experimental | Stdio JSON-RPC plugin host runtime & child lifecycle | Yes | No | Yes | Yes | Yes | Yes | Yes | Verified |
-| `PL-03` | Plugins & Experimental | Host widget tree SDK (23 PluginRenderer widgets & vesta_plugin.py) | Yes | Yes | Partial | Yes | Yes | Yes | Yes | Verified |
-| `PL-04` | Plugins & Experimental | Experimental plugins workspace & Playwright smoke integration | Yes | No | No | Yes | Yes | Yes | No | Verified |
-| `GS-01` | GUI, Settings & i18n | Persistent vesta_config.json, backup recovery & installation reset | Yes | No | Yes | Yes | Yes | Yes | No | Verified |
-| `GS-02` | GUI, Settings & i18n | API keys, custom endpoints & LLM/ITT tier configuration | Yes | Partial | Partial | Yes | Yes | Yes | No | Verified |
-| `GS-03` | GUI, Settings & i18n | 15-locale i18n parity, RTL (ar) layout & responsive UI | Yes | No | No | Yes | Yes | Yes | No | Verified |
-| `GS-04` | GUI, Settings & i18n | Keyboard shortcuts customization, overlay & modal accessibility | Yes | No | No | Yes | Yes | Yes | No | Verified |
-| `GS-05` | GUI, Settings & i18n | First-run setup wizard, auto-updater & CPU/RAM monitor | Yes | No | No | Yes | Yes | Yes | No | Verified |
-| `GS-06` | GUI, Settings & i18n | AI kill switch, support log redaction & notification inbox | Yes | No | No | Yes | Yes | Yes | No | Verified |
+| `AS-02` | Auto-Sync | Cloud-transcribe guided auto-sync alignment | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `AS-03` | Auto-Sync | Auto-sync cancellation, progress overlay & quality assessment | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `RF-01` | Refine & AnkiConnect | Tiered LLM flashcard deck annotation (.apkg & .tsv) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `RF-02` | Refine & AnkiConnect | Manual card search, editing & per-card notes history | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `RF-03` | Refine & AnkiConnect | AnkiConnect connectivity ping & live .apkg import | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `RF-04` | Refine & AnkiConnect | Refine run cancellation, lock safety & summary diagnostics | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `PL-01` | Plugins & Experimental | Plugin registry, archive/git install, README inspect & uninstall | Yes | N/A | N/A | Yes | Yes | Yes | Yes | Verified |
+| `PL-02` | Plugins & Experimental | Stdio JSON-RPC plugin host runtime & child lifecycle | Yes | N/A | Yes | Yes | Yes | Yes | Yes | Verified |
+| `PL-03` | Plugins & Experimental | Host widget tree SDK (23 PluginRenderer widgets & vesta_plugin.py) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `PL-04` | Plugins & Experimental | Experimental plugins workspace & Playwright smoke integration | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
+| `GS-01` | GUI, Settings & i18n | Persistent vesta_config.json, backup recovery & installation reset | Yes | N/A | Yes | Yes | Yes | Yes | No | Verified |
+| `GS-02` | GUI, Settings & i18n | API keys, custom endpoints & LLM/ITT tier configuration | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
+| `GS-03` | GUI, Settings & i18n | 15-locale i18n parity, RTL (ar) layout & responsive UI | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
+| `GS-04` | GUI, Settings & i18n | Keyboard shortcuts customization, overlay & modal accessibility | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
+| `GS-05` | GUI, Settings & i18n | First-run setup wizard, auto-updater & CPU/RAM monitor | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
+| `GS-06` | GUI, Settings & i18n | AI kill switch, support log redaction & notification inbox | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
 | `MS-01` | Media Server, Net & Tools | Local media HTTP server & stream:// custom URI protocol | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
 | `MS-02` | Media Server, Net & Tools | Sandboxed HTTP proxy fetch & redirect/SSRF guard (http_fetch) | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
 | `MS-03` | Media Server, Net & Tools | FFmpeg / ffprobe discovery, bundling & auto-download | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `CM-01` | CLI & MCP | Unified vesta-cli (8 workflows) & 8 standalone engine CLIs | N/A | Yes | N/A | Yes | Yes | N/A | Yes | Verified |
-| `CM-02` | CLI & MCP | vesta-mcp stdio Model Context Protocol server (18 tools) | N/A | N/A | Yes | Yes | Yes | N/A | Yes | Verified |
+| `CM-02` | CLI & MCP | vesta-mcp stdio Model Context Protocol server (24 tools) | N/A | N/A | Yes | Yes | Yes | N/A | Yes | Verified |
 | `QC-01` | Quality Gates, Docs & CI | Contract & manifest drift verification (check_doc_contracts.py) | N/A | Yes | N/A | Yes | Yes | N/A | Yes | Verified |
 | `QC-02` | Quality Gates, Docs & CI | Workspace dependency boundaries (check_library_integration.py) | N/A | Yes | N/A | Yes | Yes | N/A | Yes | Verified |
 | `QC-03` | Quality Gates, Docs & CI | 15-locale i18n parity & template hygiene gate (check-i18n.sh) | Yes | Yes | N/A | Yes | Yes | Yes | Yes | Verified |
 | `QC-04` | Quality Gates, Docs & CI | Pre-release quality gate (quality_check.py), Playwright E2E & CI | Yes | Yes | N/A | Yes | Yes | Yes | Yes | Verified |
 
-## Resolved Wave Findings
+## Open Findings
 
-| ID | Ref | Severity | Area | Target | Resolution |
-|---|---|---|---|---|---|
-| `AUDIT-001` | `#8.1` | CRITICAL | Plugins & Experimental | `apps/vesta-gui/src-tauri/src/plugins/mod.rs:384-390` | Added is_valid_plugin_id, registry check, canonical prefix containment in plugins/mod.rs::uninstall + unit test (cargo test -p vesta --lib). |
-| `AUDIT-002` | `#8.2` | HIGH | Media Server, Net & Tools | `apps/vesta-gui/src-tauri/src/media_stream.rs:12-38` | Added canonical MediaAllowlist validation to stream:// protocol handler in apps/vesta-gui/src-tauri/src/{main.rs,media_stream.rs}; verified via cargo test --locked -p vesta --lib. |
-| `AUDIT-003` | `#8.3` | HIGH | Media Server, Net & Tools | `apps/vesta-gui/src-tauri/src/main.rs:36-69,118-121` | Replaced UNIX_EPOCH+RandomState token with getrandom CSPRNG token, subtle::ConstantTimeEq comparison, restricted AllowOrigin, and canonical MediaAllowlist enforcement in main.rs/media_stream.rs; verified via cargo test --locked -p vesta --lib. |
-| `AUDIT-004` | `#8.4` | HIGH | Plugins & Experimental | `apps/vesta-gui/src-tauri/src/plugins/archive.rs:399-400` | Replaced raw byte slice with UTF-8 char-boundary truncate_readme helper in plugins/archive.rs + unit test (cargo test -p vesta --lib). |
-| `AUDIT-005` | `#8.5` | HIGH | Plugins & Experimental | `apps/vesta-gui/src-tauri/src/plugins/archive.rs:49-52,210-211,252-253,307` | Added streaming MAX_ARCHIVE_BYTES download cap and checked_add + Read::take decompression bounds in plugins/archive.rs + unit tests (cargo test -p vesta --lib). |
-| `AUDIT-006` | `#8.6` | HIGH | Plugins & Experimental | `apps/vesta-gui/src-tauri/src/plugins/archive.rs:71-75` | Added validate_git_clone_args (scheme + '-' rejection) and '--' separator in plugins/archive.rs::git_clone_fallback + unit test (cargo test -p vesta --lib). |
-| `AUDIT-007` | `#8.7` | HIGH | Plugins & Experimental | `apps/vesta-gui/src-tauri/src/plugins/runtime.rs:60-62,117-299` | Isolated plugin child environment via allowlist, enforced permissions.scopes, bounded stdout/stderr RPC reads, enabled kill_on_drop(true), switched is_alive() to try_wait(), and dropped processes lock across initialize in plugins/runtime.rs; verified via cargo test --locked -p vesta --lib. |
-| `AUDIT-008` | `#8.8` | HIGH | CLI & MCP | `cli/vesta-mcp/src/lib.rs:345-569` | Added validate_plugin_id, kill_on_drop(true), bounded read_bounded_rpc_line, 10s initialize timeout, and child kill+wait cleanup in cli/vesta-mcp/src/lib.rs + unit test (cargo test -p vesta-mcp). |
-| `AUDIT-009` | `#8.9` | HIGH | Media Server, Net & Tools | `apps/vesta-gui/src-tauri/src/commands/net.rs:10-39,98-120` | Excluded 169.254.0.0/16 & fe80::/10 in is_private_lan_ip and blocked public-to-local/private redirects in CLIENT_FOLLOW and CLIENT_FOLLOW_CUSTOM in commands/net.rs + unit test (cargo test -p vesta --lib). |
-| `AUDIT-010` | `#8.10` | HIGH | Transcribe & VAD | `apps/whisper-bench/src-tauri/src/workers.rs:115-141,160,171` | Added shared LazyLock timeout client and fail-closed parse_sha256_checksum verification in apps/whisper-bench/src-tauri/src/workers.rs + unit test (cargo test -p whisper-bench). |
-| `AUDIT-011` | `#10.1` | HIGH | Flashcards & APKG/TSV | `lib/vesta-flashcards/src/{merge_apkg.rs:85-97,export_apkg/model.rs:129}` | Stripped 'did' alongside 'mod' when comparing shared model definitions in lib/vesta-flashcards/src/merge_apkg.rs + unit test (cargo test -p vesta-flashcards). |
-| `AUDIT-012` | `#10.2` | HIGH | Flashcards & APKG/TSV | `lib/vesta-flashcards/src/export_apkg.rs:46-49,66-67,159` | Added atomic monotonic reserve_note_id_block and SHA-1 16-hex apkg_guid generation in lib/vesta-flashcards/src/export_apkg.rs + >1000-card collision unit test; verified via cargo test --locked -p vesta-flashcards. |
-| `AUDIT-013` | `#10.3` | HIGH | Flashcards & APKG/TSV | `lib/vesta-flashcards/src/media.rs:483-688,961-964` | Preserved all audio streams (-map 0:v:0 -map 0:a?) across all 7 encoders in lib/vesta-flashcards/src/media.rs::append_optimize_stream_args; verified via cargo test --locked -p vesta-flashcards. |
-| `AUDIT-014` | `#10.4` | HIGH | Flashcards & APKG/TSV | `lib/vesta-flashcards/src/export_tsv.rs:121-169` | Suppressed orphan [sound:...]/<img ...> tags in lib/vesta-flashcards/src/export_tsv.rs when real staging media directories lack those files + unit test (cargo test -p vesta-flashcards). |
-| `AUDIT-015` | `#10.5` | HIGH | Flashcards & APKG/TSV | `lib/vesta-flashcards/src/media.rs:786-796` | Added 120s timeout, kill_on_drop, and tokio::select! cancel+kill+wait to run_ffmpeg in lib/vesta-flashcards/src/media.rs; verified via cargo test --locked -p vesta-flashcards. |
-| `AUDIT-016` | `#12.1` | HIGH | Translate (LLM) | `lib/vesta-translate/src/lib.rs:539-548` | Added compute_resume_position in lib/vesta-translate/src/lib.rs to resume partial runs cleanly and skip completed runs + 5-case unit test (cargo test -p vesta-translate). |
-| `AUDIT-017` | `#12.2` | HIGH | Translate (LLM) | `lib/vesta-translate/src/language_info.rs:7-209` | Added case-insensitive ISO/full-name normalization + ko/nl/pl/tr/hi examples in lib/vesta-translate/src/{language_info.rs,prompts.rs} + unit tests (cargo test -p vesta-translate). |
-| `AUDIT-018` | `#12.3` | HIGH | Transcribe & VAD | `lib/vesta-transcribe/src/cloud.rs:93-103,369-376,484-493` | Parsed WAV durations and synthesized non-degenerate wordless fallback segments (instead of 0..0) plus checked read_json_checked in lib/vesta-transcribe/src/cloud.rs; verified via cargo test --locked -p vesta-transcribe. |
-| `AUDIT-019` | `#12.4` | HIGH | Auto-Sync | `lib/vesta-autosync/src/lib.rs:421,466-467,477,528-529` | Sorted local copies by start_ms and added finite >0.0 guards in lib/vesta-autosync/src/lib.rs + unit test (cargo test -p vesta-autosync). |
-| `AUDIT-020` | `#14.1` | HIGH | GUI, Settings & i18n | `apps/vesta-gui/src/lib/tabs/ShortcutsTab.svelte:90,231` | Passed active={active && activeSettingsSection === 'shortcuts'} from SettingsTab.svelte into ShortcutsTab.svelte with $effect listener teardown and added ShortcutsTab.mounted.test.ts verifying window keydown cleanup. |
-| `AUDIT-021` | `#14.2` | HIGH | GUI, Settings & i18n | `apps/vesta-gui/src/lib/stores/aiStore.svelte.ts:25-31` | Allowed activating aiStore.toggleKillSwitch() while hasActiveAiProcess is true, triggering active backend cancel IPC commands, removed disabled guard on SidebarToggle, and added aiStore.test.ts. |
-| `AUDIT-022` | `#14.3` | HIGH | Sync & Align | `apps/vesta-gui/src/lib/tabs/AlignTab.svelte:380-404` | Added post-await selection guard in AlignTab.svelte for tryAutoSelectSourceForTarget / tryAutoSelectTargetForSource (Vitest + npm run check). |
-| `AUDIT-023` | `#15.10` | HIGH | Quality Gates, Docs & CI | `build-scripts/update_project_info.sh:170,178` | Fixed paths in build-scripts/update_project_info.sh to src/lib/components/Sidebar.svelte and src/lib/tabs/SettingsTab.svelte. |
-| `AUDIT-024` | `#15.1` | HIGH | Quality Gates, Docs & CI | `apps/vesta-gui/browser-tests/vesta-mock.mjs:121` | Updated config_replace_all in apps/vesta-gui/browser-tests/vesta-mock.mjs to read args.values and verified in Playwright. |
-| `AUDIT-025` | `#15.2` | HIGH | Quality Gates, Docs & CI | `apps/vesta-gui/browser-tests/vesta-mock.mjs:343-344` | Updated refine_cards_llm_tiered in vesta-mock.mjs to emit refine-progress events + RefineRunSummary and added E2E test in extended-workflows.spec.mjs. |
-| `AUDIT-026` | `#15.3` | HIGH | Quality Gates, Docs & CI | `apps/vesta-gui/browser-tests/vesta-mock.mjs:398` | Added mock handlers for all 33 previously unmocked IPC commands in apps/vesta-gui/browser-tests/vesta-mock.mjs (106/106 backend IPC commands covered). |
-| `AUDIT-027` | `#15.4` | HIGH | Quality Gates, Docs & CI | `apps/vesta-gui/browser-tests/` | Wave 1 added extended-workflows.spec.mjs and settings-and-modals.spec.mjs; Wave 3 added apps/vesta-gui/browser-tests/ipc-coverage.spec.mjs exercising all remaining registered Tauri IPC commands (ipc_spec_referenced = 108/108, ipc_mocked = 108/108), verified via Playwright. |
-| `AUDIT-028` | `#14.15` | HIGH | GUI, Settings & i18n | `apps/vesta-gui/src/lib/tabs/` | Wave 2 added ShortcutsTab.mounted.test.ts; Wave 3 added TranscribeTab.mounted.test.ts, TranslateTab.mounted.test.ts, and RefineTab.mounted.test.ts under apps/vesta-gui/src/lib/tabs/, verified via Vitest. |
-| `AUDIT-029` | `#14.16` | HIGH | GUI, Settings & i18n | `apps/vesta-gui/src/lib/panels/` | Wave 3 added FlashcardsPanels.mounted.test.ts, WorkflowPanels.mounted.test.ts, and SettingsPanels.mounted.test.ts covering all 15 previously untested panels in apps/vesta-gui/src/lib/panels/, verified via Vitest. |
-| `AUDIT-030` | `#10.13` | MEDIUM | Flashcards & APKG/TSV | `core/vesta-apkg/src/lib.rs:103,142,211` | Added Read::take bounded ZIP extraction (4 GiB/file, 8 GiB total) and symlink skipping in core/vesta-apkg/src/lib.rs, plus checked SQLite ID math and 512 MiB extraction bounds in lib/vesta-flashcards/src/merge_apkg.rs; verified via cargo test --locked -p vesta-apkg -p vesta-flashcards. |
-| `AUDIT-031` | `#8.12` | MEDIUM | Media Server, Net & Tools | `apps/vesta-gui/src-tauri/src/main.rs:110-112,128-129` | Replaced unchecked bind/serve .expect/.unwrap with logged fallible Result handling in apps/vesta-gui/src-tauri/src/{main.rs,media_stream.rs}; verified via cargo test --locked -p vesta --lib. |
-| `AUDIT-032` | `#10.10` | MEDIUM | Flashcards & APKG/TSV | `lib/vesta-flashcards/src/parser.rs:65-70,321-322` | Replaced raw u64-to-i64 casts with i64::try_from and enforced end_ms >= start_ms in lib/vesta-flashcards/src/parser.rs; verified via cargo test --locked -p vesta-flashcards. |
-| `AUDIT-033` | `#12.20` | MEDIUM | Auto-Sync | `lib/vesta-autosync/src/{lib.rs:360,444,508,matching.rs:106,165,171,200,211}` | Replaced unchecked bounds arithmetic with saturating_sub/add and i128 linear interpolation, and precomputed target_time_ms-sorted anchors_by_target in lib/vesta-autosync/src/matching.rs + unit test; verified via cargo test --locked -p vesta-autosync. |
-| `AUDIT-034` | `#8.11` | MEDIUM | GUI, Settings & i18n | `apps/vesta-gui/src-tauri/src/commands/config.rs:138,154-156,200,285` | Made config_load_all, config_replace_all, and config_reset_installation async via spawn_blocking and added ensure_loaded_locked hydration guard before config_set/config_remove mutations in commands/config.rs + unit test; verified via cargo test --locked -p vesta --lib. |
-| `AUDIT-035` | `#8.13` | MEDIUM | Translate (LLM) | `apps/vesta-gui/src-tauri/src/commands/translate.rs:124-189` | Added State<'_, AppTranslateState> OperationGuard and tokio::select! cancellation around rate limiting and provider requests in commands/translate.rs::suggest_translation_context; verified via cargo test --locked -p vesta --lib. |
-| `AUDIT-036` | `#8.14` | MEDIUM | Transcribe & VAD | `apps/vesta-gui/src-tauri/src/commands/{transcribe.rs:120,172,extract.rs:358}` | Acquired OperationGuard across spawn_blocking uninstall calls in transcribe_uninstall_model, transcribe_uninstall_vad, and ocr_uninstall_model in commands/{transcribe.rs,extract.rs}; verified via cargo test --locked -p vesta --lib. |
-| `AUDIT-037` | `#8.15` | MEDIUM | Flashcards & APKG/TSV | `apps/vesta-gui/src-tauri/src/commands/flashcards/commands.rs:27-29,346-350` | Added atomic sequence suffix to save_temp_subtitles and wrapped flashcard_preview in tokio::task::spawn_blocking in commands/flashcards/commands.rs; verified via cargo test --locked -p vesta --lib. |
-| `AUDIT-038` | `#8.16` | MEDIUM | CLI & MCP | `cli/vesta-translate-cli/src/lib.rs:219-278,317-448` | Routed cli/vesta-translate-cli/src/lib.rs progress/warnings to stderr (eprintln!) and returned ExitCode::FAILURE when !missing_ids.is_empty(); verified via cargo test --locked -p vesta-translate-cli. |
-| `AUDIT-039` | `#8.17` | MEDIUM | CLI & MCP | `cli/vesta-translate-cli/src/lib.rs:75-101` | Moved ${VAR_NAME} expansion in cli/vesta-translate-cli/src/lib.rs to single-pass post-parse Config string fields so env values cannot inject TOML keys/tables + unit test; verified via cargo test --locked -p vesta-translate-cli. |
-| `AUDIT-040` | `#8.18` | MEDIUM | CLI & MCP | `cli/{vesta-transcribe-cli/src/lib.rs:182-186,vesta-extract-cli/src/lib.rs:51-88}` | Added Ctrl-C CancellationToken + exit 130 handling to vesta-transcribe Command::Download and tokio::select! SIGINT cancellation to cli/vesta-extract-cli/src/lib.rs; verified via cargo test --locked -p vesta-transcribe-cli -p vesta-extract-cli. |
-| `AUDIT-041` | `#10.6` | MEDIUM | Flashcards & APKG/TSV | `lib/vesta-flashcards/src/{media.rs:448,691,717,739,execution/video.rs:14}` | Added child.wait().await after kill, early cancellation guards, and cancellable probe_video_stream / detect_h264_encoder variants in lib/vesta-flashcards/src/media.rs; verified via cargo test --locked -p vesta-flashcards. |
-| `AUDIT-042` | `#10.7` | MEDIUM | Extract & OCR | `lib/vesta-extract/src/embedded.rs:122-157` | Switched lib/vesta-extract/src/embedded.rs from open NamedTempFile path to tempdir_in(parent), added create_dir_all(parent), and rejected symlink output overwrites; verified via cargo test --locked -p vesta-extract. |
-| `AUDIT-043` | `#10.8` | MEDIUM | Refine & AnkiConnect | `lib/vesta-ankiconnect/src/lib.rs:30,38,66` | Added configurable 120s timeout for import_package, non-2xx HTTP status body diagnostics, and protocol unit tests in lib/vesta-ankiconnect/src/lib.rs; verified via cargo test --locked -p vesta-ankiconnect. |
-| `AUDIT-044` | `#10.9` | MEDIUM | Flashcards & APKG/TSV | `lib/vesta-flashcards/src/{export_tsv.rs:175,export_apkg.rs:133,148}` | Wave 1 sanitized TSV deck_name tags in export_tsv.rs; Wave 2 sanitized 0x1f field separators in lib/vesta-flashcards/src/export_apkg.rs + unit test; verified via cargo test --locked -p vesta-flashcards. |
-| `AUDIT-045` | `#10.11` | MEDIUM | Extract & OCR | `core/vesta-parser/src/lib.rs:216` | Stripped trailing positioning coordinates after SRT end timestamps in core/vesta-parser/src/lib.rs and lib/vesta-flashcards/src/parser.rs + unit tests; verified via cargo test --locked -p vesta-parser -p vesta-flashcards. |
-| `AUDIT-046` | `#10.12` | MEDIUM | Flashcards & APKG/TSV | `lib/vesta-flashcards/src/{filters.rs:102,166-172,matcher.rs:97-100}` | Preserved original ASS style checks before tag stripping, retained secondary subs2 text in combine_sentences, and compared text/start timing in combine_consecutive_repeats across filters.rs/matcher.rs; verified via cargo test --locked -p vesta-flashcards. |
-| `AUDIT-047` | `#10.14` | MEDIUM | Flashcards & APKG/TSV | `lib/vesta-flashcards/src/{media.rs:945,dueling.rs:262-266}` | Rounded H.264 clip dimensions to even ints in lib/vesta-flashcards/src/media.rs and fixed bare-relative target_subs_path parent fallback ('.') in dueling.rs; verified via cargo test --locked -p vesta-flashcards. |
-| `AUDIT-048` | `#12.7` | MEDIUM | Translate (LLM) | `lib/vesta-translate/src/translator.rs:960` | Restricted try_legacy_parsing header detection in lib/vesta-translate/src/translator.rs to line starts rather than arbitrary substring matches + unit test; verified via cargo test --locked -p vesta-translate. |
-| `AUDIT-049` | `#12.8` | MEDIUM | Translate (LLM) | `lib/vesta-translate/src/translator.rs:900-906` | Replaced find('[')..=rfind(']') with balanced JSON array extraction scanning past prose brackets in lib/vesta-translate/src/translator.rs + unit test; verified via cargo test --locked -p vesta-translate. |
-| `AUDIT-050` | `#12.9` | MEDIUM | Translate (LLM) | `lib/vesta-translate/src/translator.rs:111,523-531` | Removed outer-quote trimming from extract_gemini_text so raw Gemini generate_response/vision output keeps verbatim quotes while translation parsing trims uniformly; verified via cargo test --locked -p vesta-translate. |
-| `AUDIT-051` | `#12.10` | MEDIUM | Refine & AnkiConnect | `lib/vesta-refine/src/lib.rs:73-74` | Normalized blank/whitespace api_url and model strings back to provider defaults in lib/vesta-refine/src/lib.rs; verified via cargo test --locked -p vesta-refine. |
-| `AUDIT-052` | `#12.11` | MEDIUM | Refine & AnkiConnect | `lib/vesta-refine/src/cards.rs:463-467,538-540` | Replaced CR/LF and control-tab sequences in save_apkg_to_tsv and sanitized 0x1f separators in save_apkg_to_apkg in lib/vesta-refine/src/cards.rs; verified via cargo test --locked -p vesta-refine. |
-| `AUDIT-053` | `#12.12` | MEDIUM | Transcribe & VAD | `lib/vesta-transcribe/src/cloud.rs:419,443,453-464` | Prevented AssemblyAI poll timeout underflow using remaining.is_zero() and surfaced HTTP error response bodies in read_json_checked in lib/vesta-transcribe/src/cloud.rs; verified via cargo test --locked -p vesta-transcribe. |
-| `AUDIT-054` | `#12.13` | MEDIUM | Transcribe & VAD | `lib/vesta-transcribe/src/pipeline.rs:448` | Used eq_ignore_ascii_case('custom') in lib/vesta-transcribe/src/pipeline.rs; verified via cargo test --locked -p vesta-transcribe. |
-| `AUDIT-055` | `#12.14` | MEDIUM | Transcribe & VAD | `lib/vesta-transcribe/src/transcribe.rs:125-126,377-378` | Wired cancel_token into Silero VAD processing and clamped negative/inverted spans in spans_ms_to_sample_ranges in lib/vesta-transcribe/src/transcribe.rs + unit tests; verified via cargo test --locked -p vesta-transcribe. |
-| `AUDIT-056` | `#12.15` | MEDIUM | Extract & OCR | `lib/vesta-ocr/src/local.rs:984-993` | Validated broadcast_shapes first and gated eval_binary_f32 scalar fast-paths on matching broadcast total length in lib/vesta-ocr/src/local.rs + unit test; verified via cargo test --locked -p vesta-ocr. |
-| `AUDIT-057` | `#12.16` | MEDIUM | Extract & OCR | `lib/vesta-ocr/src/{model.rs:110,hardcoded.rs:560,568,584,620}` | Wave 2 required meta.len() > 0 in list_models_in (model.rs) and added child.wait().await + stderr_task.abort() on cancel/limit in hardcoded.rs; Wave 3 added compute_stream_start_offset_ms, stream/format start_time probing, setpts=PTS-STARTPTS, filter, cue timestamp offsetting, and ETXTBSY retry + tests in hardcoded.rs; verified via cargo test --locked -p vesta-ocr. |
-| `AUDIT-058` | `#12.18` | MEDIUM | Sync & Align | `lib/vesta-sync/src/interpolator.rs:118-150` | Replaced greedy forward-then-reverse auto-anchor filtering with span-bounded longest non-decreasing subsequence (LNDS) selection between manual anchors in lib/vesta-sync/src/interpolator.rs + unit test; verified via cargo test --locked -p vesta-sync. |
-| `AUDIT-059` | `#12.19` | MEDIUM | Auto-Sync | `lib/vesta-autosync/src/lib.rs:758-763` | Filtered degenerate end_ms <= start_ms segments and clamped minor overshoot instead of aborting entire cloud auto-sync runs in lib/vesta-autosync/src/lib.rs; verified via cargo test --locked -p vesta-autosync. |
-| `AUDIT-060` | `#12.21` | MEDIUM | Auto-Sync | `lib/vesta-autosync/src/lib.rs:253-270,448-452` | Expanded guided sample anchor exclusion to full span [pos - 10, pos + dur + 5] and preserved silent attempt-0 WAV buffer without duplicate ffmpeg extraction in lib/vesta-autosync/src/lib.rs; verified via cargo test --locked -p vesta-autosync. |
-| `AUDIT-061` | `#14.4` | MEDIUM | Sync & Align | `apps/vesta-gui/src/lib/tabs/AlignTab.svelte:119,463-481` | Added empty sourceSubs guard in AlignTab.svelte::saveSource() so alignSave no-ops when no subtitle lines are loaded. |
-| `AUDIT-062` | `#14.5` | MEDIUM | Translate (LLM) | `apps/vesta-gui/src/lib/tabs/TranslateTab.svelte:185` | Guarded contextLoading = false with if (request === contextRequest) in TranslateTab.svelte::suggestContext(). |
-| `AUDIT-063` | `#14.6` | MEDIUM | Plugins & Experimental | `apps/vesta-gui/src/lib/components/PluginRenderer.svelte:379-382` | Routed copyPath through writeClipboard(path, t('common.copied')) in PluginRenderer.svelte (removing raw navigator.clipboard access and raw filesystem path toast). |
-| `AUDIT-064` | `#14.7` | MEDIUM | Translate (LLM) | `apps/vesta-gui/src/lib/modals/PathPreviewModal.svelte:79-87` | Allowed Escape key propagation in PathPreviewModal.svelte (if (e.key !== 'Escape') e.stopPropagation()) + Playwright regression test in extended-workflows.spec.mjs. |
-| `AUDIT-065` | `#14.9` | MEDIUM | Plugins & Experimental | `apps/vesta-gui/src/lib/components/PluginRenderer.svelte:843-852` | Wave 3 replaced native <select> in PluginRenderer.svelte with <SearchableSelect> and added a regression test in PluginRenderer.mounted.test.ts; verified via Vitest and svelte-check. |
-| `AUDIT-066` | `#14.10` | MEDIUM | GUI, Settings & i18n | `apps/vesta-gui/src/lib/tabs/TranslateTab.svelte:529-534` | Wave 3 migrated hardcoded palette classes in TranslateTab.svelte, SubtitleListPanel.svelte, and TranslationPreviewPanel.svelte to semantic theme CSS variables (--bg, --text, --muted, --border, --accent, --accent-text, --done, --danger); verified via svelte-check and Vitest. |
-| `AUDIT-067` | `#14.11` | MEDIUM | GUI, Settings & i18n | `apps/vesta-gui/src/lib/panels/SubtitleListPanel.svelte:117,119` | Replaced physical text-left/border-l/ml-auto classes with RTL-logical text-start/border-s/ms-auto in SubtitleListPanel.svelte, TranslationPreviewPanel.svelte, SubtitlePreviewModal.svelte, and PluginContextMenu.svelte. |
-| `AUDIT-068` | `#14.12` | MEDIUM | GUI, Settings & i18n | `apps/vesta-gui/src/lib/modals/{SupportModal.svelte:29,EpisodeMediaSettingsModal.svelte:70,PathPreviewModal.svelte:74}` | Wave 3 added reusable focusTrap Svelte action (apps/vesta-gui/src/lib/actions/focusTrap.ts + focusTrap.test.ts) with focus restoration and wired it into SupportModal.svelte, EpisodeMediaSettingsModal.svelte, and PathPreviewModal.svelte; verified via Vitest. |
-| `AUDIT-069` | `#14.18` | MEDIUM | Sync & Align | `apps/vesta-gui/src/lib/tabs/AlignTab.svelte:281-297,473` | Wave 3 added SubtitleEntry and async parse_subtitle_file / save_subtitle_file Tauri IPC commands backed by core/vesta-parser (apps/vesta-gui/src-tauri/src/commands/info.rs + main.rs) and migrated AlignTab.svelte, vesta-mock.mjs, and AlignTab mounted tests off regex SRT parsing and direct writeTextFile; verified via cargo test --locked -p vesta --lib, Vitest, and Playwright. |
-| `AUDIT-070` | `#10.15` | MEDIUM | Flashcards & APKG/TSV | `docs/modules/vesta-flashcards.md:28,97-99` | Updated docs/modules/vesta-flashcards.md to match actual LRC routing, list_audio_tracks signature, and vendored runtime layout (check_doc_contracts.py pass). |
-| `AUDIT-071` | `#15.11` | MEDIUM | CLI & MCP | `.cursorrules:78,216` | Updated .cursorrules MCP tool count and listing to all 12 vesta-mcp tools (including list_embedded_subtitles and ocr_subtitles). |
-| `AUDIT-072` | `#15.12` | MEDIUM | Quality Gates, Docs & CI | `.cursorrules:67-79` | Updated .cursorrules to include lib/vesta-ocr (9 lib crates) and all 8 standalone CLIs + vesta-cli/vesta-mcp (10 CLI crates). |
-| `AUDIT-073` | `#15.13` | MEDIUM | CLI & MCP | `cli/vesta-cli/README.md:3,13` | Updated cli/vesta-cli/README.md to document all 8 workflows including the ocr subcommand (check_doc_contracts.py pass). |
-| `AUDIT-074` | `#15.5` | MEDIUM | Quality Gates, Docs & CI | `apps/vesta-gui/browser-tests/vesta-mock.mjs:168` | Updated cancel_translation mock in vesta-mock.mjs to return boolean true matching Rust backend. |
-| `AUDIT-075` | `#15.6` | MEDIUM | Quality Gates, Docs & CI | `apps/vesta-gui/browser-tests/vesta-mock.mjs:374-383` | Updated flashcard_preview mock items in vesta-mock.mjs to include duration_ms and actor fields. |
-| `AUDIT-076` | `#15.7` | MEDIUM | Quality Gates, Docs & CI | `apps/vesta-gui/browser-tests/vesta-mock.mjs:396,422-430` | Updated flashcard_cancel and browserFixture.complete() in vesta-mock.mjs to return complete FlashcardResult fields. |
-| `AUDIT-077` | `#14.17` | MEDIUM | GUI, Settings & i18n | `apps/vesta-gui/src/lib/stores/` | Wave 2 added Vitest suites for aiStore, autoSyncStore, cpuRamStore, ocrModelsStore, and uiModeStore; Wave 3 added generationStore.test.ts and ankiStore.test.ts under apps/vesta-gui/src/lib/stores/; verified via Vitest. |
-| `AUDIT-078` | `#15.9` | MEDIUM | Quality Gates, Docs & CI | `build-scripts/browser_ipc_contract.py:32-36` | Wave 3 added --check mode to build-scripts/browser_ipc_contract.py validating vesta-mock handler coverage (108/108) and static frontend literal invoke argument key parity against Rust command signatures, plus 3 unit tests in test_browser_ipc_contract.py. |
-| `AUDIT-079` | `#15.16` | MEDIUM | Quality Gates, Docs & CI | `build-scripts/quality_check.py:19-31` | Wave 3 integrated browser_ipc_contract.py --check, test_browser_ipc_contract.py, check_library_integration.py, cargo fmt --all --check, and cargo clippy --locked --workspace --all-targets -- -D warnings into build-scripts/quality_check.py. |
-| `AUDIT-080` | `#15.17` | MEDIUM | Quality Gates, Docs & CI | `build-scripts/pre-push:60,67` | Wave 2 added --locked to cargo clippy and cargo test in build-scripts/pre-push; Wave 3 added CARGO_SCOPE_ARGS with Linux pkg-config webkit2gtk-4.1 detection excluding vesta and whisper-bench when WebKitGTK is absent + hook regression test in build-scripts/test_git_hooks.py. |
-| `AUDIT-081` | `#15.18` | MEDIUM | Quality Gates, Docs & CI | `.github/workflows/ci.yml` | Wave 3 added browser_ipc_contract.py --check, test_browser_ipc_contract.py, generate_scorecard.py --check, and test_scorecard.py to the tauri-versions job and added the dedicated browser Playwright E2E job (ubuntu-22.04, npm run test:browser) in .github/workflows/ci.yml; verified via test_release_workflows.py and test_ci_apt.py. |
-| `AUDIT-082` | `#8.19` | LOW | GUI, Settings & i18n | `apps/vesta-gui/src-tauri/src/commands/updates.rs:152-158` | Added URL-parsed scheme/host/port/userinfo/query/fragment/tag-prefix checks via validate_installer_url in commands/updates.rs + unit tests; verified via cargo test --locked -p vesta --lib. |
-| `AUDIT-083` | `#8.20` | LOW | Transcribe & VAD | `apps/whisper-bench/src-tauri/src/{main.rs:524,sample.rs:31-38}` | Guarded wall > 0.0 before dividing realtime_factor in apps/whisper-bench/src-tauri/src/main.rs and added shared LazyLock HTTP client with timeouts + zip/download size bounds in sample.rs; verified via cargo test --locked -p whisper-bench. |
-| `AUDIT-084` | `#8.21` | LOW | GUI, Settings & i18n | `apps/vesta-gui/src-tauri/src/commands/{translate.rs:346-348,flashcards/commands.rs:170-172}` | Returned the actual operation.cancel() boolean in cancel_translation and flashcard_cancel commands; verified via cargo test --locked -p vesta --lib. |
-| `AUDIT-085` | `#8.22` | LOW | CLI & MCP | `cli/{vesta-mcp/src/lib.rs:216,vesta-flashcards-cli/src/lib.rs:107-363}` | Added 6 missing engine tools to vesta-mcp (18 total: extract_embedded_subtitle, sync_subtitles, autosync_subtitles, refine_flashcards, export_dueling_subtitles, merge_apkg) and added parity flags + merge subcommand to vesta-flashcards-cli, with integration tests and docs/contracts synced. |
-| `AUDIT-086` | `#8.23` | LOW | Refine & AnkiConnect | `cli/vesta-refine-cli/src/lib.rs:223` | Replaced .expect('annotation update lock poisoned') with unwrap_or_else(PoisonError::into_inner) in cli/vesta-refine-cli/src/lib.rs (workers.rs unwraps were resolved in Wave 1 AUDIT-010); verified via cargo test --locked -p vesta-refine-cli. |
-| `AUDIT-087` | `#10.18` | LOW | Flashcards & APKG/TSV | `lib/vesta-flashcards/src/snapshot_batch.rs:233-234,286-287` | Replaced unchecked indexing and .last().unwrap() with .first()/.last() Option handling in lib/vesta-flashcards/src/snapshot_batch.rs; verified via cargo test --locked -p vesta-flashcards. |
-| `AUDIT-088` | `#12.23` | LOW | Sync & Align | `lib/vesta-sync/src/engine.rs:163-176` | Added .max(start) clamping to end timestamp in lib/vesta-sync/src/engine.rs::get_synced_info_for; verified via cargo test --locked -p vesta-sync. |
-| `AUDIT-089` | `#12.24` | LOW | Auto-Sync | `lib/vesta-autosync/src/consensus.rs:261-278` | Switched reference LinearModel bounds in lib/vesta-autosync/src/consensus.rs::extract_constrained_consensus from unsorted existing_anchors to sorted prior.anchors(); verified via cargo test --locked -p vesta-autosync. |
-| `AUDIT-090` | `#14.8` | LOW | GUI, Settings & i18n | `apps/vesta-gui/src/lib/stores/apiKeyEditorStore.svelte.ts:117-118` | Removed premature 'if (this.editKeyId) return;' in apiKeyEditorStore.svelte.ts::selectProvider so custom keys can switch providers while builtin endpoints remain protected + test in apiKeyEditorStore.test.ts. |
-| `AUDIT-091` | `#14.19` | LOW | Plugins & Experimental | `apps/vesta-gui/src/lib/tabs/ExperimentalTab.svelte:11,52` | Wave 3 added the active prop to ExperimentalTab.svelte (wired in App.svelte) and replaced hardcoded amber/indigo/rose Tailwind palette colors with semantic theme CSS variables; verified via svelte-check and Vitest. |
-| `AUDIT-092` | `#14.20` | LOW | Sync & Align | `apps/vesta-gui/src/lib/tabs/AlignTab.svelte:6,8` | Removed unused listen and onDestroy imports from AlignTab.svelte. |
-| `AUDIT-093` | `#12.25` | LOW | Quality Gates, Docs & CI | `docs/modules/{vesta-refine,vesta-ocr,vesta-transcribe,vesta-sync,vesta-autosync,vesta-translate}.md` | Aligned parameter, field, return-type, and deprecation notes across docs/modules/{vesta-refine,vesta-ocr,vesta-transcribe,vesta-sync,vesta-autosync,vesta-translate}.md (check_doc_contracts.py pass). |
-| `AUDIT-094` | `#15.14` | LOW | Flashcards & APKG/TSV | `cli/vesta-flashcards-cli/README.md:14` | Documented the dueling subcommand in cli/vesta-flashcards-cli/README.md and docs/CLI.md. |
-| `AUDIT-095` | `#15.15` | LOW | Translate (LLM) | `apps/vesta-gui/src-tauri/src/commands/translate.rs:351,359,370` | Translated Italian doc comments and error message to English in apps/vesta-gui/src-tauri/src/commands/translate.rs. |
-| `AUDIT-096` | `#15.8` | LOW | Quality Gates, Docs & CI | `apps/vesta-gui/browser-tests/vesta-mock.mjs:114-115` | Updated config_load_all mock in vesta-mock.mjs to return { entries, recovered_backup_path } ConfigLoadResult shape. |
-| `AUDIT-097` | `#10.19` | LOW | Flashcards & APKG/TSV | `lib/vesta-ankiconnect/, lib/vesta-flashcards/` | Wave 2 added AnkiConnect protocol mock tests (vesta-ankiconnect), >1000-card collision test (export_apkg.rs), and trailing SRT coordinate tests (vesta-parser); Wave 3 added multi_audio_track_clip_and_optimize_preserve_audio_selection (lib/vesta-flashcards/src/media.rs) and merge_apkg_combines_distinct_decks_and_note_types (lib/vesta-flashcards/src/merge_apkg.rs), verified via cargo test --locked -p vesta-flashcards. |
-| `AUDIT-098` | `#12.26` | LOW | Translate (LLM) | `lib/vesta-translate/, lib/vesta-transcribe/, lib/vesta-ocr/` | Wave 3 added repair_missing_tiered_repairs_missing_entries_and_persists_checkpoint (lib/vesta-translate/src/lib.rs), vad_speech_spans_respects_cancellation_and_reports_missing_model (lib/vesta-transcribe/src/transcribe.rs), onnx_eval_layer_norm_and_pad_edge_cover_attributes_and_modes (lib/vesta-ocr/src/local.rs), and PGS RLE (0x40/0xC0) & mock parallel render tests (lib/vesta-ocr/src/bitmap.rs); verified via cargo test across vesta-translate, vesta-transcribe, and vesta-ocr. |
-
-## Open Critical & High Findings
-
-Full 98-item bug/doc/test tracker lives in [`scorecard/bugs.toml`](../scorecard/bugs.toml).
-
-_All critical and high findings resolved!_
+_No open bugs._

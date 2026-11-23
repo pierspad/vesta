@@ -260,7 +260,11 @@ def load_and_validate(repo_root: pathlib.Path) -> tuple[dict[str, dict[str, Any]
             errors.append(f"{path.name}: expected schema_version = 1")
         if not DATE_RE.match(str(doc.get("last_updated", ""))):
             errors.append(f"{path.name}: invalid or missing last_updated YYYY-MM-DD")
-        if not isinstance(doc.get("item"), list) or not doc["item"]:
+        items = doc.get("item")
+        if not isinstance(items, list):
+            errors.append(f"{path.name}: must define [[item]] entries or item = []")
+            continue
+        if key in {"features", "reliability"} and not items:
             errors.append(f"{path.name}: must define non-empty [[item]] entries")
             continue
         parsed[key] = doc
@@ -393,8 +397,7 @@ def render_scorecard_md(parsed: dict[str, dict[str, Any]], m: CodebaseMetrics) -
         "",
         f"> **Auto-generated** by [`build-scripts/generate_scorecard.py`](../build-scripts/generate_scorecard.py) "
         f"from [`scorecard/*.toml`](../scorecard/features.toml) · **Wave:** `{wave}` · **Last Updated:** `{last_updated}`  ",
-        "> Do not edit manually; update `scorecard/*.toml` and re-run `python3 build-scripts/generate_scorecard.py`. "
-        "See [`AUDIT_LOG.md`](./AUDIT_LOG.md) for chronological wave history and resumption pointers.",
+        "> Do not edit manually; update `scorecard/*.toml` and re-run `python3 build-scripts/generate_scorecard.py`.",
         "",
         "## Live Codebase & Test Metrics",
         "",
@@ -415,6 +418,9 @@ def render_scorecard_md(parsed: dict[str, dict[str, Any]], m: CodebaseMetrics) -
         f"| Frontend localization catalogs | {m.locales} | `apps/vesta-gui/src/lib/i18n/locales/*.json` |",
         "",
         "## Executive Summary by Area",
+        "",
+        f"> *Coverage denominators:* `GUI`, `CLI`, `MCP`, and `Playwright` count only applicable features (excluding `N/A`), "
+        f"whereas `Docs`, `Unit Tests`, `Smoke`, and `Verified` cover all {len(features)} features.",
         "",
         "| Area | Features | GUI | CLI | MCP | Docs | Unit Tests | Playwright | Smoke | Verified | Open Findings |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -459,31 +465,43 @@ def render_scorecard_md(parsed: dict[str, dict[str, Any]], m: CodebaseMetrics) -
         f"| **{sum(total_open_by_area.values())}** |"
     )
 
-    # Audit findings status summary
+    # Findings status summary
     all_findings = [*bugs, *perf]
-    fixed_cnt = sum(1 for x in all_findings if x["status"] == "fixed")
-    open_cnt = len(all_findings) - fixed_cnt
+    open_bugs = [b for b in bugs if b["status"] != "fixed"]
+    open_perf = [p for p in perf if p["status"] != "fixed"]
+    fixed_bugs_cnt = len(bugs) - len(open_bugs)
+    fixed_perf_cnt = len(perf) - len(open_perf)
     lines.extend(
         [
             "",
-            "## Audit Findings Summary (106 Verified Stage-1 Findings)",
+            "## Findings Summary",
             "",
-            f"- **Bugs & Hardening (`bugs.toml`):** {len(bugs)} total "
-            f"({sum(1 for b in bugs if b['status'] == 'fixed')} fixed, "
-            f"{sum(1 for b in bugs if b['status'] != 'fixed')} open/deferred)",
-            f"- **Performance (`performance.toml`):** {len(perf)} total "
-            f"({sum(1 for p in perf if p['status'] == 'fixed')} fixed, "
-            f"{sum(1 for p in perf if p['status'] != 'fixed')} open)",
-            f"- **Combined Progress:** {fixed_cnt}/{len(all_findings)} resolved, {open_cnt} remaining",
-            "",
-            "| Severity | Open / Deferred | Fixed | Total |",
-            "|---|---:|---:|---:|",
+            f"- **Bugs & Hardening (`bugs.toml`):** {len(open_bugs)} open/deferred"
+            + (
+                f", {fixed_bugs_cnt} fixed ({len(bugs)} total)"
+                if fixed_bugs_cnt
+                else f" ({len(bugs)} total)"
+            ),
+            f"- **Performance (`performance.toml`):** {len(open_perf)} open/deferred"
+            + (
+                f", {fixed_perf_cnt} fixed ({len(perf)} total)"
+                if fixed_perf_cnt
+                else f" ({len(perf)} total)"
+            ),
         ]
     )
-    for sev in ("critical", "high", "medium", "low"):
-        s_items = [x for x in all_findings if x["severity"] == sev]
-        s_fixed = sum(1 for x in s_items if x["status"] == "fixed")
-        lines.append(f"| {sev.upper()} | {len(s_items) - s_fixed} | {s_fixed} | {len(s_items)} |")
+    if all_findings:
+        lines.extend(
+            [
+                "",
+                "| Severity | Open / Deferred | Fixed | Total |",
+                "|---|---:|---:|---:|",
+            ]
+        )
+        for sev in ("critical", "high", "medium", "low"):
+            s_items = [x for x in all_findings if x["severity"] == sev]
+            s_fixed = sum(1 for x in s_items if x["status"] == "fixed")
+            lines.append(f"| {sev.upper()} | {len(s_items) - s_fixed} | {s_fixed} | {len(s_items)} |")
 
     # Reliability controls
     lines.extend(
@@ -501,21 +519,28 @@ def render_scorecard_md(parsed: dict[str, dict[str, Any]], m: CodebaseMetrics) -
             f"| {_badge(r['status'])} | `{_md_escape(r['target'])}` | {_md_escape(r['notes'])} |"
         )
 
-    # Performance backlog
+    # Performance tracker
     lines.extend(
         [
             "",
-            "## Performance Optimization Tracker",
+            "## Performance Tracker",
             "",
-            "| ID | Ref | Severity | Status | Target | Summary | Verification |",
-            "|---|---|---|---|---|---|---|",
         ]
     )
-    for p in perf:
-        lines.append(
-            f"| `{p['id']}` | `{p['audit_ref']}` | {p['severity'].upper()} | `{p['status']}` "
-            f"| `{_md_escape(p['target'])}` | {_md_escape(p['summary'])} | {_md_escape(p['verification'])} |"
+    if perf:
+        lines.extend(
+            [
+                "| ID | Ref | Severity | Status | Target | Summary | Verification |",
+                "|---|---|---|---|---|---|---|",
+            ]
         )
+        for p in perf:
+            lines.append(
+                f"| `{p['id']}` | `{p['audit_ref']}` | {p['severity'].upper()} | `{p['status']}` "
+                f"| `{_md_escape(p['target'])}` | {_md_escape(p['summary'])} | {_md_escape(p['verification'])} |"
+            )
+    else:
+        lines.append("_No open performance optimizations queued._")
 
     # Full Feature Coverage Matrix
     lines.extend(
@@ -535,57 +560,28 @@ def render_scorecard_md(parsed: dict[str, dict[str, Any]], m: CodebaseMetrics) -
             f"| {_badge(f['audit_status'])} |"
         )
 
-    # Fixed highlights
-    fixed_items = [b for b in bugs if b["status"] == "fixed"]
+    # Open findings
     lines.extend(
         [
             "",
-            "## Resolved Wave Findings",
+            "## Open Findings",
             "",
         ]
     )
-    if fixed_items:
+    if open_bugs:
         lines.extend(
             [
-                "| ID | Ref | Severity | Area | Target | Resolution |",
-                "|---|---|---|---|---|---|",
+                "| ID | Ref | Severity | Status | Area | Target | Summary |",
+                "|---|---|---|---|---|---|---|",
             ]
         )
-        for b in fixed_items:
+        for b in open_bugs:
             lines.append(
-                f"| `{b['id']}` | `{b['audit_ref']}` | {b['severity'].upper()} | {AREA_LABELS[b['area']]} "
-                f"| `{_md_escape(b['target'])}` | {_md_escape(b['resolution'])} |"
+                f"| `{b['id']}` | `{b['audit_ref']}` | {b['severity'].upper()} | `{b['status']}` "
+                f"| {AREA_LABELS[b['area']]} | `{_md_escape(b['target'])}` | {_md_escape(b['summary'])} |"
             )
     else:
-        lines.append("_No findings marked `fixed` yet in `scorecard/bugs.toml`._")
-
-    # Open Critical & High backlog
-    open_crit_high = [
-        b for b in bugs if b["status"] != "fixed" and b["severity"] in {"critical", "high"}
-    ]
-    lines.extend(
-        [
-            "",
-            "## Open Critical & High Findings",
-            "",
-            "Full 98-item bug/doc/test tracker lives in [`scorecard/bugs.toml`](../scorecard/bugs.toml).",
-            "",
-        ]
-    )
-    if open_crit_high:
-        lines.extend(
-            [
-                "| ID | Ref | Severity | Area | Target | Summary |",
-                "|---|---|---|---|---|---|",
-            ]
-        )
-        for b in open_crit_high:
-            lines.append(
-                f"| `{b['id']}` | `{b['audit_ref']}` | {b['severity'].upper()} | {AREA_LABELS[b['area']]} "
-                f"| `{_md_escape(b['target'])}` | {_md_escape(b['summary'])} |"
-            )
-    else:
-        lines.append("_All critical and high findings resolved!_")
+        lines.append("_No open bugs._")
 
     lines.append("")
     return "\n".join(lines)

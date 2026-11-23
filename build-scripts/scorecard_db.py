@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Iterator
+import contextlib
 import datetime
 import fnmatch
 import json
@@ -259,13 +261,17 @@ def _serialize_toml(
     lines = [
         f"schema_version = {int(meta['schema_version'])}",
         f"last_updated = {_toml_str(str(meta['last_updated']))}",
-        f"audit_wave = {_toml_str(str(meta['audit_wave']))}",
     ]
-    for item in items:
-        lines.append("")
-        lines.append("[[item]]")
-        for field in fields:
-            lines.append(f"{field} = {_toml_str(str(item[field]))}")
+    if meta.get("audit_wave"):
+        lines.append(f"audit_wave = {_toml_str(str(meta['audit_wave']))}")
+    if not items:
+        lines.append("item = []")
+    else:
+        for item in items:
+            lines.append("")
+            lines.append("[[item]]")
+            for field in fields:
+                lines.append(f"{field} = {_toml_str(str(item[field]))}")
     lines.append("")
     return "\n".join(lines)
 
@@ -484,11 +490,15 @@ def ensure_db(repo_root: pathlib.Path, *, force: bool = False) -> pathlib.Path:
     return db_file
 
 
-def _connect_ro(db_file: pathlib.Path) -> sqlite3.Connection:
+@contextlib.contextmanager
+def _connect_ro(db_file: pathlib.Path) -> Iterator[sqlite3.Connection]:
     conn = sqlite3.connect(f"file:{db_file}?mode=ro", uri=True)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA query_only = ON")
-    return conn
+    try:
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA query_only = ON")
+        yield conn
+    finally:
+        conn.close()
 
 
 def _print_table(headers: list[str], rows: list[tuple[Any, ...]]) -> None:
@@ -506,6 +516,22 @@ def _print_table(headers: list[str], rows: list[tuple[Any, ...]]) -> None:
         print(fmt.format(*row))
 
 
+def _fetch_meta_summary(conn: sqlite3.Connection) -> sqlite3.Row | None:
+    """Return canonical wave and latest update date across all meta rows."""
+    return conn.execute(
+        """
+        SELECT
+            COALESCE(
+                (SELECT audit_wave FROM meta WHERE source = 'features' AND audit_wave != ''),
+                (SELECT audit_wave FROM meta WHERE audit_wave != '' LIMIT 1),
+                ''
+            ) AS audit_wave,
+            MAX(last_updated) AS last_updated
+        FROM meta
+        """
+    ).fetchone()
+
+
 def _cmd_sync(args: argparse.Namespace) -> int:
     db_file = ensure_db(args.repo_root, force=True)
     with _connect_ro(db_file) as conn:
@@ -513,9 +539,7 @@ def _cmd_sync(args: argparse.Namespace) -> int:
             table: conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
             for table in ("features", "reliability", "performance", "bugs")
         }
-        wave_row = conn.execute(
-            "SELECT audit_wave, MAX(last_updated) AS last_updated FROM meta"
-        ).fetchone()
+        wave_row = _fetch_meta_summary(conn)
     payload = {
         "db_path": str(db_file),
         "audit_wave": wave_row["audit_wave"] if wave_row else "",
@@ -574,9 +598,7 @@ def _cmd_check(args: argparse.Namespace) -> int:
 def _cmd_summary(args: argparse.Namespace) -> int:
     db_file = ensure_db(args.repo_root)
     with _connect_ro(db_file) as conn:
-        wave_row = conn.execute(
-            "SELECT audit_wave, MAX(last_updated) AS last_updated FROM meta"
-        ).fetchone()
+        wave_row = _fetch_meta_summary(conn)
         bugs_by_status = dict(
             conn.execute("SELECT status, COUNT(*) FROM bugs GROUP BY status").fetchall()
         )
