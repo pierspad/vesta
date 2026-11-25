@@ -21,6 +21,7 @@ This index links to all actively maintained reference manuals and guides.
 | [Library Integration](library-integration.md) | Dependencies, feature flags, and validation for external consumers. |
 | [Provider Compatibility](API_COMPATIBILITY.md) | Public HTTP contracts and endpoint references for cloud STT and LLM integrations. |
 | [Maintenance](MAINTENANCE.md) | Architectural boundaries, persistence contracts, and dependency advisories. |
+| [Software Engineering Blueprint](guide_to_create_good_software.md) | Reusable architecture, 6-zone UI shell, i18n gates, hash-verified feature DB, and CI/release playbook distilled from Vesta. |
 
 ## Quality & Benchmarks
 

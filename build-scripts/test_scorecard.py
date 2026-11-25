@@ -145,7 +145,7 @@ class ScorecardTests(unittest.TestCase):
         self.assertEqual(metrics.workspace_crates, 24)
         self.assertEqual(metrics.ipc_total, 109)
         self.assertEqual(metrics.mcp_tools, 24)
-        self.assertEqual(metrics.plugin_widgets, 23)
+        self.assertEqual(metrics.plugin_widgets, 26)
         self.assertEqual(metrics.locales, 15)
         md = render_scorecard_md(parsed, metrics)
         self.assertIn("# Vesta Feature Scorecard & Audit Dashboard", md)
@@ -257,9 +257,7 @@ class ScorecardTests(unittest.TestCase):
 
             rc, out, _ = run_cli("gaps", "--dim", "smoke", "--json")
             self.assertEqual(rc, 0)
-            smoke_gaps = json.loads(out)
-            self.assertGreater(len(smoke_gaps), 0)
-            self.assertTrue(all(item["smoke"] in ("partial", "no") for item in smoke_gaps))
+            self.assertEqual(json.loads(out), [])
 
             rc, out, _ = run_cli("show", "FC-01", "--json")
             self.assertEqual(rc, 0)

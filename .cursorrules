@@ -1,264 +1,112 @@
 # Agent & LLM Instructions — Vesta Engineering Conventions
 
-> **Purpose.** This file is the canonical engineering guide for **Vesta** (`com.vesta.desktop`):
-> a modular Rust Cargo workspace (`core/*`, `lib/*`, `cli/*`, `apps/vesta-gui`, `apps/whisper-bench`)
-> built with **Tauri v2 + Svelte 5 (Runes) + TypeScript + Tailwind CSS v4**.
-> Read alongside [`AGENTS.md`](AGENTS.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), and
-> [`docs/QUALITY.md`](docs/QUALITY.md). Treat every rule below as mandatory unless explicitly overridden.
+> **Canonical Reference for Vesta (`com.vesta.desktop`)** — a modular Rust Cargo workspace (`core/*`, `lib/*`, `cli/*`, `apps/vesta-gui`, `apps/whisper-bench`) built with **Tauri v2 + Svelte 5 (Runes) + TypeScript + Tailwind CSS v4**.
+> Read alongside [`AGENTS.md`](AGENTS.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), and [`docs/QUALITY.md`](docs/QUALITY.md).
 
 ---
 
 ## 0. Golden Rules
 
-1. **Never hardcode colors.** Use the semantic CSS variables in `apps/vesta-gui/src/app.css` (`--bg`, `--surface`, `--surface-2`, `--surface-3`, `--text`, `--muted`, `--border`, `--accent`, `--accent-strong`, `--accent-text`, `--done`, `--danger`, `--control-*`, `--glass-*`) or Tailwind tokens mapped to them.
-2. **No raw browser defaults.** Never use native `<select>`, unstyled `<input type="checkbox">`, raw system scrollbars where custom ones apply, or unguarded native file dialogs. Use shared components (`SearchableSelect.svelte`, `ConfirmDialog.svelte`, `AppContextMenu.svelte`, `AppTooltip.svelte`, `dialogGuard.ts`).
+1. **Never hardcode colors.** Use semantic CSS tokens in `apps/vesta-gui/src/app.css` (`--bg`, `--surface`, `--surface-2`, `--surface-3`, `--text`, `--muted`, `--border`, `--accent`, `--accent-strong`, `--accent-text`, `--done`, `--danger`, `--control-*`, `--glass-*`).
+2. **No raw browser defaults.** Never use native `<select>`, unstyled `<input type="checkbox">`, raw scrollbars where custom ones apply, or unguarded native file dialogs. Use `SearchableSelect.svelte`, `ConfirmDialog.svelte`, `AppContextMenu.svelte`, `AppTooltip.svelte`, and `dialogGuard.ts` (`guardedOpen` / `guardedSave`).
 3. **One source of truth per concern.**
    - Version → [`build-scripts/PKGBUILD`](build-scripts/PKGBUILD) `pkgver` (propagated by `build-scripts/update_project_info.sh`).
    - Heavy domain logic → pure Rust crates in `core/*` and `lib/*` (never duplicated in Tauri handlers or Svelte).
-   - Persisted UI state/settings → [`apps/vesta-gui/src/lib/config/vestaConfig.ts`](apps/vesta-gui/src/lib/config/vestaConfig.ts) (never raw `localStorage`).
-   - Translations → `apps/vesta-gui/src/lib/i18n/locales/en.json` + lazy-loaded per-language JSONs (15 languages).
-   - Code/doc alignment → [`docs/contracts_manifest.json`](docs/contracts_manifest.json) checked by `build-scripts/check_doc_contracts.py`.
-4. **Keep engines decoupled from Tauri and GUI.** `core/*` and `lib/*` crates must remain headless-ready, callback/cancellation-driven, and consumable by `cli/*`, `vesta-mcp`, and `apps/vesta-gui/src-tauri`.
-5. **Commit language & style.** Write all commit subjects, bodies, Rust errors, logs, and code comments in **English** using Conventional Commits (§14).
-6. **Verify before declaring done.** Run the appropriate verification gates (`quality_check.py`, `check_doc_contracts.py`, `cargo clippy`, `npm run check`, `npm test`, i18n checks — see §16).
-7. **Accessibility and RTL are mandatory.** Keyboard handlers on all custom controls, visible focus states, logical CSS properties where layout direction matters, and `dir="rtl"` support for Arabic (`ar`).
+   - Persisted UI state → [`apps/vesta-gui/src/lib/config/vestaConfig.ts`](apps/vesta-gui/src/lib/config/vestaConfig.ts) (never raw `localStorage`).
+   - Translations → `apps/vesta-gui/src/lib/i18n/locales/en.json` + lazy-loaded per-language JSON catalogs (15 locales).
+   - Code/doc contracts → [`docs/contracts_manifest.json`](docs/contracts_manifest.json) checked by `build-scripts/check_doc_contracts.py`.
+   - Feature & audit tracking → `scorecard/*.toml` + [`scorecard/scorecard.db`](scorecard/scorecard.db) managed via `build-scripts/scorecard_db.py`.
+4. **Keep engines decoupled from Tauri and GUI.** `core/*` and `lib/*` must remain headless, callback/cancellation-driven, and directly consumable by `cli/*`, `vesta-mcp`, and `apps/vesta-gui/src-tauri`.
+5. **English code & commits.** Write all commit messages, Rust errors, logs, and code comments in **English** using Conventional Commits (§12).
+6. **Accessibility & RTL.** Keyboard handlers on all custom controls, visible focus states, logical CSS properties (`ps-*`, `pe-*`, `ms-*`, `me-*`, `border-e`, `inset-inline-*`), and `dir="rtl"` support for Arabic (`ar`).
 
 ---
 
-## 1. Tech Stack & Frontend Conventions
+## 1. Tech Stack & Svelte 5 Conventions
 
-### 1.1 Backend & Frameworks
-- **Workspace**: Rust edition `2024`, `rust-version = "1.99"`, resolver `"3"`.
-- **Desktop shell**: **Tauri v2** (`tauri 2.12`) in `apps/vesta-gui/src-tauri` (GPL-3.0-only).
-- **Frontend**: **Svelte 5** (`^5.55`) + **TypeScript** (`^6.0`) + **Vite 8** (`port: 5175`, `strictPort: true`).
-  - Note `svelteVirtualCssFallback()` in `apps/vesta-gui/vite.config.ts` — keep it intact so HMR/cold virtual `<style>` modules never fall back to raw `.svelte` source under `@tailwindcss/vite`.
-- **CSS**: **Tailwind CSS v4** (`@import "tailwindcss";` in `apps/vesta-gui/src/app.css`) combined with semantic CSS variables and shared semantic utility classes (`.glass-card`, `.btn-primary`, `.btn-secondary`, `.btn-icon`, `.btn-compact`, `.btn-success`, `.btn-danger`, `.input-modern`, `.vesta-context-menu`, `.searchable-select-*`, `.progress-modern*`).
-
-### 1.2 Svelte 5 Runes & Module Conventions
-- Use **Svelte 5 runes** (`$state`, `$derived`, `$props()`, `$effect`) and snippets (`{#snippet}`) consistently across components and `*.svelte.ts` stores. Do not mix Svelte 4 `export let` / `$:` syntax with runes in the same file.
-- Frontend orchestration and pure workflow logic belong in `apps/vesta-gui/src/lib/workflows/*.ts` (with unit tests `*.test.ts` and injected IPC callbacks) rather than bloating `.svelte` templates.
-- All Tauri IPC calls go through `$lib/services/tauriClient.ts` (`invokeCommand`) so support logging, error normalization, and test mocking stay centralized.
-- **Static AST guard (`npm run check:patterns`)**: `apps/vesta-gui/scripts/check-code-patterns.mjs` parses `.ts` and `.svelte` scripts and rejects `debugger` statements, `new Promise(async ...)`, and `array.forEach(async ...)`. Never introduce those patterns.
+- **Workspace**: Rust edition `2024`, `rust-version = "1.99"`, resolver `"3"`. `.cargo/config.toml` sets `WHISPER_DONT_GENERATE_BINDINGS = "1"` and uses `clang` + `mold` on `x86_64-unknown-linux-gnu`.
+- **Desktop shell**: **Tauri v2** (`tauri 2.12`, GPL-3.0-only) in `apps/vesta-gui/src-tauri`.
+- **Frontend**: **Svelte 5** (`^5.55`) + **TypeScript** (`^6.0`) + **Vite 8** (`port: 5175`, `strictPort: true`; keep `svelteVirtualCssFallback()` intact in `vite.config.ts`) + **Tailwind CSS v4**.
+- **Runes only**: Use `$state`, `$derived`, `$props()`, `$effect`, and `{#snippet}` consistently across `.svelte` and `*.svelte.ts` modules. Do not mix legacy Svelte 4 `export let` / `$:` syntax with runes.
+- **Thin components**: Extract workflow sequencing into `apps/vesta-gui/src/lib/workflows/*.ts` with injected IPC callbacks and `*.test.ts` unit tests. Route all Tauri calls through `$lib/services/tauriClient.ts` (`invokeCommand`).
+- **Static AST guard (`npm run check:patterns`)**: `apps/vesta-gui/scripts/check-code-patterns.mjs` rejects `debugger`, `new Promise(async ...)`, and `array.forEach(async ...)`.
 
 ---
 
-## 2. Design Tokens & CSS Architecture (`apps/vesta-gui/src/app.css`)
+## 2. Design Tokens & Scroll Performance (`apps/vesta-gui/src/app.css`)
 
-Vesta uses a dark-first glassmorphic theme driven by CSS custom properties in `:root` (`color-scheme: dark;`):
-- **Core surfaces & text**: `--bg` (`--color-gray-950`), `--surface` (`--color-gray-800`), `--surface-2` (`--color-gray-900`), `--surface-3` (`--color-gray-700`), `--text` (`--color-gray-100`), `--muted` (`--color-gray-400`), `--border` (`--glass-border`).
-- **Accents & status**: `--accent` (`--color-indigo-500`), `--accent-strong` (`--color-indigo-600`), `--accent-text` (`--color-white`), `--done` (`--color-emerald-300`), `--danger` (`--color-red-400`).
-- **Controls & menus**: `--control-bg`, `--control-hover-bg`, `--control-focus-bg`, `--control-border`, `--control-focus-border`, `--control-menu-bg` (opaque `#18212e` so dropdown lists never bleed into background content), `--control-option-hover`, `--control-option-highlight`, `--control-option-selected`.
-- **Glass & gradients**: `--glass-bg`, `--glass-border`, `--shadow`, `--shadow-glow`, `--gradient-primary`, `--gradient-secondary`, `--gradient-success`, `--gradient-dark`.
-- **Scroll performance in Settings**: Inside `.settings-scroll`, `.glass-card` deliberately disables `backdrop-filter` and sets `contain: layout paint style` + `content-visibility: auto` to prevent Chromium continuous repainting during scroll. Preserve this optimization.
+- Shared semantic classes: `.glass-card`, `.btn-primary`, `.btn-secondary`, `.btn-icon` (`2rem×2rem`), `.btn-compact`, `.btn-success`, `.btn-danger`, `.input-modern`, `.vesta-context-menu`, `.searchable-select-*`, `.progress-modern*`.
+- Dropdowns use opaque `--control-menu-bg` (`#18212e`) so lists never bleed into underlying content.
+- Inside `.settings-scroll`, `.glass-card` disables `backdrop-filter` and applies `contain: layout paint style` + `content-visibility: auto` to prevent continuous compositor repaints while scrolling. Preserve this rule.
 
 ---
 
-## 3. Repository & Directory Architecture
+## 3. Repository Layout
 
 ```text
 vesta/
-├─ Cargo.toml                           # [workspace] members: core/*, lib/*, cli/*, apps/vesta-gui/src-tauri, apps/whisper-bench/src-tauri
-├─ Cargo.lock                           # committed; kept in sync at release
-├─ .cargo/config.toml                   # sets WHISPER_DONT_GENERATE_BINDINGS = "1"
-├─ core/                                # Foundational zero-UI crates
-│  ├─ vesta-parser/                       # SRT parser/writer, auto-charset detection, atomic persistence
-│  ├─ vesta-apkg/                         # Native Anki .apkg ZIP + SQLite collection builder/extractor
-│  └─ vesta-download/                     # Cancellable downloads & atomic publication
-├─ lib/                                 # Headless domain engines (CancellationToken + callbacks, zero Tauri deps)
-│  ├─ vesta-flashcards/                   # Anki deck compiler & bounded FFmpeg media export
-│  ├─ vesta-translate/                    # Multi-tier LLM translator with failover
-│  ├─ vesta-transcribe/                   # Local Whisper (whisper-rs) + Silero/WebRTC VAD + cloud STT
-│  ├─ vesta-autosync/                     # VAD + Whisper speech auto-alignment
-│  ├─ vesta-extract/                      # Media & subtitle track extractor
-│  ├─ vesta-ocr/                          # Bitmap & hardcoded ROI subtitle OCR
-│  ├─ vesta-refine/                       # LLM deck annotation & enrichment
-│  ├─ vesta-sync/                         # Anchor-based retiming engine & undo history
-│  └─ vesta-ankiconnect/                  # AnkiConnect HTTP client
-├─ cli/                                 # Headless CLIs + stdio MCP server
-│  ├─ vesta-cli/                        # Unified CLI dispatcher
-│  ├─ vesta-mcp/                        # Local stdio MCP server (rmcp, 18 tools)
-│  └─ vesta-*-cli/                      # 8 per-engine CLIs
+├─ Cargo.toml                     # Workspace: core/*, lib/*, cli/*, apps/*/src-tauri
+├─ core/                          # Foundational zero-UI crates (vesta-parser, vesta-apkg, vesta-download)
+├─ lib/                           # Headless engines (flashcards, translate, transcribe, autosync, extract, ocr, refine, sync, ankiconnect)
+├─ cli/                           # vesta-cli (unified), vesta-mcp (stdio MCP, 24 tools), 8 vesta-*-cli crates
 ├─ apps/
-│  ├─ vesta-gui/                        # Tauri v2 + Svelte 5 desktop app (`vesta`, Vite port 5175)
-│  │  ├─ package.json                   # frontend deps & scripts (`check`, `test`, `check:patterns`, `check:i18n`, `test:dev-css`)
-│  │  ├─ scripts/                       # i18n audit/split/merge, check-code-patterns, check-dev-css
-│  │  ├─ src/
-│  │  │  ├─ main.ts                     # startup sequence (hydrates vestaConfig -> initI18n -> mounts App)
-│  │  │  ├─ App.svelte                  # outer shell, lazy tab loaders, global shortcut & drag/drop handling
-│  │  │  ├─ app.css                     # Tailwind v4 + design tokens + shared component classes
-│  │  │  └─ lib/
-│  │  │     ├─ components/              # Sidebar, FooterActions, SearchableSelect, Snackbar, ShortcutOverlay, AppContextMenu, PluginRenderer, …
-│  │  │     ├─ config/vestaConfig.ts    # synchronous cache + serialized Tauri disk persistence
-│  │  │     ├─ i18n/                    # index.ts + locales/*.json (15 languages)
-│  │  │     ├─ modals/                  # ConfirmDialog, FirstRunSetupModal, FlashcardsPreviewModal, SupportModal, …
-│  │  │     ├─ panels/                  # Modular feature & settings panels
-│  │  │     ├─ services/                # tauriClient, tauriHttp, pluginClient, modelCatalog, modelDiscovery, …
-│  │  │     ├─ stores/                  # *.svelte.ts runes stores (snackbarStore, uiModeStore, aiStore, ankiStore, supportLogStore, …)
-│  │  │     ├─ tabs/                    # Lazy-loaded tabs (Flashcards, Refine, Translate, Sync, Align, Transcribe, Extract, Experimental, Settings, Plugins, ShortcutsTab)
-│  │  │     ├─ types/                   # Shared TS types
-│  │  │     ├─ utils/                   # dialogGuard, shortcuts, shortcutSearch, supportLog, tabLoader, windowLifecycle, …
-│  │  │     └─ workflows/               # Pure/testable frontend workflow orchestration + *.test.ts
-│  │  └─ src-tauri/                     # Tauri composition root (`commands/`, `plugins/`, `media_stream.rs`, `media_range.rs`, `state.rs`)
-│  └─ whisper-bench/                    # Whisper.cpp & VAD benchmarking utility
-├─ vendor/whisper-rs-sys-0.15.0/        # Patched FFI crate pinned via [patch.crates-io]
-├─ build-scripts/                       # quality_check.py, check_doc_contracts.py, check-i18n.sh, PKGBUILD, update_project_info.sh, AUR scripts
-├─ docs/                                # ARCHITECTURE.md, QUALITY.md, MCP.md, PLUGINS.md, CLI.md, contracts_manifest.json, modules/*.md
-└─ .github/workflows/                   # ci.yml, bindgen-drift-check.yml, release.yml, build.yml, build-arm64.yml, aur-publish.yml, whisper-bench.yml
+│  ├─ vesta-gui/                  # Tauri v2 + Svelte 5 desktop app (`vesta`)
+│  │  ├─ scripts/                 # i18n audit/scanner, AST code-pattern & UI contract checks, dev-CSS check
+│  │  ├─ src/                     # main.ts, App.svelte, app.css, lib/{components,config,i18n,modals,panels,services,stores,tabs,types,utils,workflows}
+│  │  └─ src-tauri/               # Tauri commands, plugin stdio host, loopback media server, updater
+│  └─ whisper-bench/              # Whisper.cpp & VAD hardware benchmark utility
+├─ vendor/whisper-rs-sys-0.15.0/  # Patched FFI crate pinned via [patch.crates-io]
+├─ scorecard/                     # features/reliability/performance/bugs/impact_map TOMLs + tracked scorecard.db
+├─ build-scripts/                 # quality_check.py, check_doc_contracts.py, scorecard_db.py, check-i18n.sh, PKGBUILD, git hooks
+└─ docs/                          # Reference manuals, contracts_manifest.json, SCORECARD.md, modules/*.md
 ```
 
 ---
 
-## 4. Startup Invariant, Shell & Tab Layout
+## 4. Startup Invariant, 6-Zone Shell & Tab Lifecycle
 
-### 4.1 Critical Startup Order (`apps/vesta-gui/src/main.ts`)
-Many Svelte 5 stores (`aiStore`, `ankiStore`, `uiMode`, `i18n`, …) are module-level singletons whose `$state(vestaConfig.getItem(...))` runs at **module evaluation time**.
-- `main.ts` MUST `await hydrateVestaConfig()` **before** dynamically importing `$lib/i18n` (`await initI18n()`) and `./App.svelte`.
-- **Never** convert `./App.svelte` or store/i18n imports in `main.ts` into static top-level imports, or singleton stores will initialize against an empty config cache.
-
-### 4.2 Outer Shell & Lazy Tabs (`apps/vesta-gui/src/App.svelte`)
-- Outer `<main>` uses `flex h-screen min-w-[460px] min-h-[520px] bg-gray-900 text-gray-100`, containing `Sidebar.svelte` and a `flex-1 overflow-hidden relative` workspace container.
-- Built-in tabs: `flashcards` and `extract` are eager; `refine`, `translate`, `sync`, `align`, `transcribe`, `experimental`, `settings`, and `plugins` (which also handles dynamic `plugin:<id>` routes) are lazy-loaded via `tabLoaders` + `createTabLoader` and preloaded via `preloadTabs` / sidebar hover.
-- Loaded tabs stay mounted and toggle visibility via `class:hidden={activeTab !== ...}` to preserve in-progress state across tab switches.
-
-### 4.3 Workspace & Footer Band (`FooterActions.svelte`)
-- Standard full-height tabs use a `.tab-layout flex flex-col h-full` structure with a single inner scroll container (`min-h-0 flex-1 overflow-y-auto`) and a fixed bottom action band via **`FooterActions.svelte`** (`h-[92px]` or `min-h-[92px]` when `wrap` is true, `border-t border-white/10 bg-gray-900`, `left`/`center`/`right`/`background` snippets).
-- **Never** re-implement bespoke tab footer bars when `FooterActions.svelte` fits, and **never** let the outer `<main>` window scroll.
-- Every flex/grid parent wrapping a scrollable child must keep `min-w-0` / `min-h-0` (or `overflow-hidden`) to prevent double scrollbars or squashed layouts.
+- **Startup hydration (`src/main.ts`)**: Singleton stores read `vestaConfig.getItem(...)` at module evaluation time. `main.ts` MUST `await hydrateVestaConfig()` **before** dynamically importing `$lib/i18n` (`await initI18n()`) and `./App.svelte`. Never convert those into static top-level imports.
+- **Outer shell (`App.svelte` & `Sidebar.svelte`)**:
+  - Fixed viewport `flex h-screen min-w-[460px] min-h-[520px]` — the outer window never scrolls.
+  - Collapsible sidebar (`w-[18rem]` ↔ `w-20`) with responsive hysteresis (`1300px` collapse / `1490px` expand unless overridden by user preference); opening **Settings** swaps the sidebar nav in-place to Settings sections with a back header to `lastActiveMainTab`.
+  - Bottom-left attribution dock (`h-[92px]`): author avatar, version/inbox button (`NotificationInbox.svelte`), license, sponsor modal (`SupportModal.svelte`), and GitHub link (7 clicks on the brand logo within 4s unlocks `experimental`).
+- **Persistent lazy tabs**: `flashcards` and `extract` load eagerly; `refine`, `translate`, `sync`, `align`, `transcribe`, `experimental`, `settings`, and `plugins` (`plugin:<id>`) load via `createTabLoader` + idle/hover preloading and remain mounted (`class:hidden={activeTab !== ...}`) so running jobs survive tab switches.
+- **Tab layout & footer (`FooterActions.svelte`)**: Full-height tabs use `.tab-layout flex flex-col h-full` with one `min-h-0 flex-1 overflow-y-auto` scroll body and `FooterActions.svelte` (`h-[92px]`, matching the sidebar footer border). Always set `min-w-0` / `min-h-0` on flex/grid wrappers around scroll containers.
 
 ---
 
-## 5. UI/UX Harmony, Components & Easy/Expert Mode
+## 5. Persistence, Easy/Expert Mode, Shortcuts, Snackbars & Dialogs
 
-- **Buttons**: `.btn-primary`, `.btn-secondary`, `.btn-icon` (2rem×2rem), `.btn-compact`, `.btn-success`, `.btn-danger`.
-- **Inputs & Selects**: `.input-modern` for text/number fields; **`SearchableSelect.svelte`** (`.searchable-select-input` / `.searchable-select-dropdown`) for all styled dropdowns — never raw `<select>`.
-- **Context Menus & Tooltips**: **`AppContextMenu.svelte`** (`.vesta-context-menu`) and **`AppTooltip.svelte`** (`viewportTooltip.ts`).
-- **Feedback & Empty States**: `EmptyState.svelte`, `LoadingSpinner.svelte`, `ProgressFill.svelte`, `ConfirmDialog.svelte`.
-- **Easy vs Expert Mode (`stores/uiModeStore.svelte.ts`)**: `uiMode.expertMode` / `uiMode.easyMode` controls progressive disclosure across tabs. When disabling Expert mode, back up affected settings (e.g. export format) and restore clean Easy defaults (`.apkg`, `n-1` CPU cores, minimal decisions).
-- **Modals & Accessibility**: Modals trap/manage focus, close on `Escape`, stop click propagation on the inner card over the backdrop, and provide full keyboard navigation (`Enter`/`Space` on `role="button"` toggle cards).
-- **RTL**: Support Arabic (`ar`) with logical properties (`margin/padding/border-inline-start|end`, `inset-inline-start|end`) rather than physical left/right offsets where directional mirroring matters.
+- **Config (`$lib/config/vestaConfig.ts`)**: Synchronous in-memory reads backed by serialized atomic writes to `vesta_config.json`. Call `await vestaConfig.flush()` before reloads or onboarding completion.
+- **Easy vs Expert Mode (`uiModeStore.svelte.ts`)**: Disabling Expert mode backs up advanced overrides and restores safe Easy defaults (`.apkg`, `n-1` CPU workers, minimal controls).
+- **Shortcuts (`utils/shortcuts.ts` + `ShortcutsTab.svelte`)**: Ignore global shortcuts when focus is inside `INPUT`, `TEXTAREA`, or `contentEditable` (`isInputActive`). Register every user-facing shortcut in `defaultShortcuts` with localized descriptions and scope-aware conflict checks.
+- **Snackbars (`snackbarStore.svelte.ts`)**: Minimum durations enforced by severity (`1700ms` default, `3500ms` warning, `5000ms` error), duplicate coalescing, bounded queue (`8`), hover/focus pause.
+- **Native Dialog Guard (`utils/dialogGuard.ts`)**: Always call `guardedOpen` / `guardedSave` instead of `@tauri-apps/plugin-dialog` directly; handle `null` when another dialog is in flight.
 
 ---
 
-## 6. Configuration Persistence (`$lib/config/vestaConfig.ts`)
+## 6. Localization (15 Locales, Lazy Chunks)
 
-- All user preferences and persisted UI flags go through `vestaConfig.getItem` / `setItem` / `removeItem` / `flush`.
-- `vestaConfig` hydrates an in-memory cache from Tauri at startup and serializes writes through `config_set` / `config_remove` / `config_replace_all` on disk (`vesta_config.json`), keeping reads synchronous for Svelte 5 stores while remaining crash-safe.
-- Call `await vestaConfig.flush()` before reloading or completing critical setup/import flows.
-
----
-
-## 7. i18n & Localization (15 Languages, On-Demand Chunks)
-
-- **Supported languages (15)**: `ar` (RTL), `zh`, `nl`, `en`, `fr`, `de`, `hi`, `it`, `ja`, `ko`, `pl`, `pt`, `ru`, `es`, `tr` in `apps/vesta-gui/src/lib/i18n/locales/*.json`.
-- **Lazy chunk loading (`apps/vesta-gui/src/lib/i18n/index.ts`)**: Only `en.json` is statically bundled in the main JS chunk; all other locales are loaded on demand via `import.meta.glob('./locales/*.json')` and merged as `{ ...en, ...dict }`, guaranteeing fallback to English rather than raw keys.
-- **Store API**: Use `let t = $derived($locale);` in Svelte components, with `{{paramName}}` interpolation. When `currentLanguage` is `'ar'`, set `document.documentElement.dir = 'rtl'` (else `'ltr'`).
-- **Strict audit gates**:
-  - `bash build-scripts/check-i18n.sh`
-  - `npm run check:i18n` (in `apps/vesta-gui`)
-  - `python3 apps/vesta-gui/scripts/check_missing_translations.py --fail-on-issues`
-  - Keep all 15 locale JSON files in sync whenever adding or renaming keys in `en.json`.
+- **Locales**: `ar` (RTL), `de`, `en`, `es`, `fr`, `hi`, `it`, `ja`, `ko`, `nl`, `pl`, `pt`, `ru`, `tr`, `zh` in `apps/vesta-gui/src/lib/i18n/locales/*.json`.
+- **Bundle split**: Only `en.json` is statically bundled; other locales load on demand via `import.meta.glob('./locales/*.json')` merged over `en`.
+- **Usage**: `let t = $derived($locale);` with `{{param}}` (or `{param}`) interpolation. Update all 15 locale files in the same task and verify with `bash build-scripts/check-i18n.sh`.
 
 ---
 
-## 8. Keyboard Shortcuts Engine & `ShortcutsTab.svelte`
+## 7. Whisper, OCR, MCP & Declarative Plugins
 
-- Defaults, normalization, formatting, conflict detection (`shortcutsShareScope`), and reserved-key checks (`isReservedShortcut`) live in `apps/vesta-gui/src/lib/utils/shortcuts.ts` (`defaultShortcuts`, persisted via `vestaConfig`).
-- Global key listeners must ignore events coming from `INPUT`, `TEXTAREA`, or `contentEditable` elements (`isInputActive` in `utils/keyboardFocus.ts`).
-- `ShortcutsTab.svelte` provides category filtering, per-row rebind/reset, reset-all confirmation, and dual-mode search (`text` vs live `keys` capture via `utils/shortcutSearch.ts`). Always register new user-facing shortcuts in `defaultShortcuts` with localized `description` keys and show them in `ShortcutOverlay.svelte` / `ShortcutsTab.svelte`.
-
----
-
-## 9. Snackbars & Notifications (`stores/snackbarStore.svelte.ts` + `Snackbar.svelte`)
-
-- Use the singleton `snackbar` from `$lib/stores/snackbarStore.svelte`.
-- Default duration is `SNACKBAR_DEFAULT_DURATION = 1700` ms, automatically raised to a minimum of `3500` ms for `warning` and `5000` ms for `error`.
-- Concurrent messages coalesce duplicates and queue up to `SNACKBAR_MAX_PENDING = 8`; hovering/focusing pauses the timer via `pause(reason)` / `resume(reason)`.
+- **Whisper (`lib/vesta-transcribe` + `vendor/whisper-rs-sys-0.15.0`)**: Pinned via `[patch.crates-io]` to link split GGML static archives (`whisper`, `ggml`, `ggml-base`, `ggml-cpu`), guarded by `bindgen-drift-check.yml`. Optional GPU features (`vulkan`, `cuda`, `rocm`, `sycl`) are mutually exclusive build targets (Linux desktop enables `vulkan`) and always fall back cleanly to CPU at runtime.
+- **Offline & Vision OCR (`lib/vesta-ocr`)**: Pure-Rust PaddleOCR v4 ONNX (`LocalOcrBackend`, unaffected by AI Kill Switch) + Vision LLM failover (`CompositeOcrBackend`) for bitmap tracks (PGS/VobSub/DVB/XSUB) and burned-in video ROIs.
+- **MCP Server (`cli/vesta-mcp`)**: `rmcp` over stdio exposing 24 tools (documented in [`docs/MCP.md`](docs/MCP.md)) with canonicalized `--read-root` / `--output-root` isolation and server-side provider profiles. Also embedded in `vesta-cli mcp` / `vesta mcp`.
+- **Plugin SDK (`docs/PLUGINS.md`)**: Out-of-process JSON-RPC 2.0 stdio plugins rendered through Vesta's 26-widget schema (`PluginRenderer.svelte`) and validated with `docs/examples/plugin-hello/vesta_plugin.py`.
 
 ---
 
-## 10. Native Dialog Guard (`$lib/utils/dialogGuard.ts`)
+## 8. Versioning, CI/CD & Verification Gates
 
-- Never call `@tauri-apps/plugin-dialog`'s `open` or `save` directly (concurrent calls can freeze or crash native dialog portals).
-- Always use `guardedOpen` / `guardedSave`, which enforce an in-flight lock, record `dialog.open` / `dialog.done` / `dialog.error` support telemetry, and return `null` if a dialog is already open. Callers must handle `null` gracefully.
-
----
-
-## 11. Sidebar, Attribution Dock, Inbox & Support (`Sidebar.svelte`)
-
-- Bottom-left footer (`h-[92px]`) displays:
-  - Cached local avatar (`src/assets/avatar.png` → `https://pierspad.com`)
-  - Current version button (opens `NotificationInbox.svelte`, combining settings action notices and update availability via `updateCheckerStore.svelte.ts`)
-  - License link (`GPL-3.0`)
-  - Sponsor/Support button (`SupportModal.svelte`) and GitHub repository icon link (`https://github.com/pierspad/vesta`)
-- Collapsed sidebar centers the repo icon cleanly. Clicking the brand logo 7 times within 4 seconds unlocks the `experimental` tab (`vesta-experimental-unlocked` in `vestaConfig`).
-
----
-
-## 12. Whisper Integration (`lib/vesta-transcribe` + `vendor/whisper-rs-sys-0.15.0`)
-
-- Audio/speech transcription is centralized in `lib/vesta-transcribe` (shared by `vesta-transcribe-cli`, `vesta-autosync`, `vesta-mcp`, and `apps/vesta-gui`). Never duplicate Whisper FFI/model logic in Tauri commands or other crates.
-- **Vendored build fix (`vendor/whisper-rs-sys-0.15.0/`)**:
-  - Pinned via `[patch.crates-io]` in root `Cargo.toml` so `whisper-rs-sys` explicitly links all split GGML static libraries (`whisper`, `ggml`, `ggml-base`, `ggml-cpu`).
-  - `.cargo/config.toml` sets `WHISPER_DONT_GENERATE_BINDINGS = "1"`, and `.github/workflows/bindgen-drift-check.yml` guards against bindgen drift. Re-verify link directives and bindings if bumping `whisper-rs`.
-- **GPU offload & fallback**:
-  - `vesta-transcribe` exposes optional Cargo features `vulkan`, `cuda`, `rocm`, `sycl`.
-  - Linux desktop builds in `apps/vesta-gui/src-tauri/Cargo.toml` enable `vulkan` by default (`vesta-transcribe/vulkan`, `vesta-autosync/vulkan`); runtime selection (`TranscriptionConfig::use_gpu`) still falls back safely to CPU if no usable Vulkan device exists.
-- **Module responsibilities in `lib/vesta-transcribe/src/`**:
-  - `audio.rs` / `audio/`: FFmpeg extraction to 16 kHz mono `pcm_s16le` WAV, draining stderr asynchronously to prevent pipe deadlocks, respecting `CancellationToken`.
-  - `model.rs`: Whisper/VAD model catalog, `.partial` atomic downloads, throttled progress callbacks.
-  - `transcribe.rs` & `webrtc.rs`: `whisper.cpp` inference + Silero/WebRTC VAD span segmentation, physical-core thread defaults, centisecond→millisecond timestamp conversion.
-  - `cloud.rs` & `pipeline.rs`: Cloud STT endpoints and unified transcription orchestration.
-
----
-
-## 13. Headless Engines, MCP, Plugin SDK & Contract Enforcement
-
-- **Pure domain crates**: `core/*` and `lib/*` accept `CancellationToken` + progress/diagnostic callbacks and never import Tauri or initialize global loggers.
-- **MCP server (`cli/vesta-mcp`)**: Uses `rmcp` over stdio exposing the 18 documented tools (`get_configuration`, `inspect_subtitles`, `preview_flashcards`, `generate_flashcards`, `export_dueling_subtitles`, `merge_apkg`, `translate_subtitles`, `transcribe_media`, `list_embedded_subtitles`, `extract_embedded_subtitle`, `sync_subtitles`, `autosync_subtitles`, `refine_flashcards`, `ocr_subtitles`, `get_job`, `cancel_job`, `list_plugins`, `call_plugin`) with path-root and credential isolation.
-- **Declarative Plugin SDK**: Subprocess JSON-RPC stdio plugins rendered by `PluginRenderer.svelte` and validated with `docs/examples/plugin-hello/vesta_plugin.py` (`init`, `validate`, `test`).
-- **Contract verification (`build-scripts/check_doc_contracts.py`)**: Keep `docs/contracts_manifest.json` and `docs/**/*.md` synchronized whenever modifying:
-  1. Tauri IPC commands (`apps/vesta-gui/src-tauri/src/main.rs` / `commands/`)
-  2. MCP tools (`cli/vesta-mcp/src/lib.rs` vs `docs/MCP.md`)
-  3. CLI crates and subcommand flags (`cli/*/src/*.rs` vs `docs/modules/*.md`)
-  4. Plugin SDK widget builders (`PluginRenderer.svelte` vs `vesta_plugin.py` and `docs/PLUGINS.md`)
-  5. Public Rust API signatures/fields in `core/*` and `lib/*` vs `docs/modules/*.md`
-  6. Markdown links and heading anchors across docs
-
----
-
-## 14. Versioning & Release-Notes Governance
-
-- **Single source of truth**: `build-scripts/PKGBUILD` `pkgver`. Never hand-edit version numbers or create git tags manually.
-- `build-scripts/update_project_info.sh` propagates `pkgver` to `apps/vesta-gui/package.json`, `tauri.conf.json`, `Cargo.toml` (`[workspace.package]` & internal path pins), `.desktop`/Flatpak manifests, and `Cargo.lock`.
-- `build-scripts/check_internal_crate_versions.sh` enforces full consistency across workspace crates and `Cargo.lock`.
-- **Commit style**: English Conventional Commits (`feat:`, `fix:`, `perf:`, `refactor:`, `docs:`, `test:`, `chore:`, `ci:`, `build:`). Keep subjects clear for end-user release notes (generated by `semantic-release`). Keep bodies empty or at most 1–3 concise lines explaining non-obvious root causes or tradeoffs — no AI-style multi-bullet dumps.
-
----
-
-## 15. CI, Build & Release Workflows (`.github/workflows/`)
-
-- **`ci.yml`**: Runs on push (`main`, `dev`) and PRs — checks Tauri version compatibility, release workflow tests, doc contracts, frontend (`check`, `test`, `test:dev-css`, `check:i18n`, `build`), strict `cargo clippy --locked --workspace --all-targets -- -D warnings`, workspace tests, and internal crate versions (with `sccache`).
-- **`bindgen-drift-check.yml`**: Verifies vendored `whisper-rs-sys` bindings stay valid.
-- **`release.yml`**: Runs `semantic-release` automatically on `main` (stable) and only via manual dispatch on `dev` (prerelease), updates `PKGBUILD` + project versions + `Cargo.lock`, tags, creates the release, dispatches `build.yml`, and backmerges `main` → `dev`.
-- **`build.yml` & `build-arm64.yml`**: Build Linux `.deb`, `.rpm`, Arch, Flatpak, Windows x64/ARM64 installers (with `smoke-windows-arm64`), and macOS ARM64 `.dmg`.
-- **`aur-publish.yml`**: Publishes stable releases to AUR (`vesta-bin`) via `build-scripts/ci-push-aur.sh`.
-- **`whisper-bench.yml`**: Tracks Whisper/VAD benchmarks via `apps/whisper-bench`.
-
----
-
-## 16. Verification Gates & Definition of Done
-
-Before considering work complete:
-1. **Frontend changes** (in `apps/vesta-gui`):
-   - `npm run check` (`svelte-check`)
-   - `npm test` (runs `test:merge`, `test:glob`, `check:patterns` AST gate, and `vitest run`)
-   - `npm run test:dev-css`
-   - If UI strings changed: update `en.json` and all 14 other locales, then run `npm run check:i18n` and `bash ../../build-scripts/check-i18n.sh`
-2. **Rust / IPC / CLI / MCP / Plugin changes** (from repo root):
-   - `cargo fmt --all --check`
-   - `cargo clippy --locked --workspace --all-targets -- -D warnings` (or targeted crates while iterating, full workspace before finish)
-   - `python3 build-scripts/check_doc_contracts.py` (run `--report` to inspect drift; `--update` only after intentional documented API/IPC/CLI/MCP/SDK updates)
-   - `python3 build-scripts/check_library_integration.py`
-3. **Full pre-PR / pre-release gate**:
-   - `python3 build-scripts/quality_check.py` (fast headless gate)
-   - `python3 build-scripts/quality_check.py --desktop --smoke` (full gate including native `vesta` crate and synthetic FFmpeg/APKG smoke test)
+- **Versioning**: `build-scripts/PKGBUILD` (`pkgver`) is the sole source of truth; never bump versions or tags manually. `release.yml` runs `semantic-release` automatically on push to `main` (stable `vX.Y.Z`) and `dev` (prerelease `vX.Y.Z-dev.N`) after exact-SHA `ci.yml` succeeds, propagating versions via `update_project_info.sh`, dispatching `build.yml`, and backmerging `main` → `dev`.
+- **Commits**: English Conventional Commits (`feat:`, `fix:`, `perf:`, `refactor:`, `docs:`, `test:`, `chore:`, `ci:`, `build:`), clear release-note subjects, 0–3 line bodies.
+- **Definition of Done**:
+  1. **Frontend** (`apps/vesta-gui`): `npm run check`, `npm test`, `npm run test:dev-css`, and `bash ../../build-scripts/check-i18n.sh` when UI copy changes.
+  2. **Rust & Contracts** (repo root): `cargo fmt --all --check`, `cargo clippy --locked --workspace --all-targets -- -D warnings`, `python3 build-scripts/check_doc_contracts.py`, `python3 build-scripts/browser_ipc_contract.py --check`, `python3 build-scripts/check_library_integration.py`.
+  3. **Scorecard & Gate**: Keep `docs/SCORECARD.md` (`generate_scorecard.py`) and `scorecard/scorecard.db` (`scorecard_db.py sync`) current; run `python3 build-scripts/quality_check.py` (or `--desktop --smoke` before release).

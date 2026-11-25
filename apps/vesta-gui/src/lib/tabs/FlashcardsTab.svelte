@@ -1137,7 +1137,7 @@
     isDraggingOver = false;
   }}
 >
-  <div class="flex-1 overflow-hidden overflow-x-hidden p-6 flashcards-scroll min-h-0 flex flex-col gap-4 {generationStore.isBusy ? 'pointer-events-none opacity-60 select-none' : ''}">
+  <div class="flex-1 overflow-hidden overflow-x-hidden p-6 flashcards-scroll min-h-0 flex flex-col {generationStore.isBusy ? 'pointer-events-none opacity-60 select-none' : ''}">
   {#if isDraggingOver && !editingEpisode}
     <div
       class="absolute inset-0 z-50 bg-violet-500/10 border-violet-400/80 text-violet-400 border-2 border-dashed rounded-2xl flex items-center justify-center pointer-events-none"

@@ -55,6 +55,42 @@
     ),
   );
 
+  type JsonTokenKind = "key" | "string" | "punctuation" | "other";
+
+  interface JsonToken {
+    kind: JsonTokenKind;
+    text: string;
+  }
+
+  const JSON_TOKEN_CLASS: Record<Exclude<JsonTokenKind, "other">, string> = {
+    key: "text-sky-300",
+    string: "text-emerald-300",
+    punctuation: "text-amber-300",
+  };
+
+  function tokenizeJson(json: string): JsonToken[] {
+    const tokens: JsonToken[] = [];
+    const tokenRegex = /"(?:\\.|[^"\\])*"|[{}\[\]:,]|\s+|[^\s"{}\[\]:,]+|./g;
+    let match: RegExpExecArray | null;
+    while ((match = tokenRegex.exec(json)) !== null) {
+      const text = match[0];
+      if (text.startsWith('"')) {
+        let nextIdx = tokenRegex.lastIndex;
+        while (nextIdx < json.length && /\s/.test(json[nextIdx])) {
+          nextIdx++;
+        }
+        tokens.push({ kind: json[nextIdx] === ":" ? "key" : "string", text });
+      } else if (/^[{}\[\]:,]$/.test(text)) {
+        tokens.push({ kind: "punctuation", text });
+      } else {
+        tokens.push({ kind: "other", text });
+      }
+    }
+    return tokens;
+  }
+
+  let mcpConfigTokens = $derived(tokenizeJson(mcpConfigJson));
+
   onMount(() => {
     let mounted = true;
     void invokeCommand<McpCliInfo>("get_mcp_cli_info")
@@ -114,8 +150,8 @@
 </script>
 
 <section id="settings-mcp-card" class="glass-card p-5 mb-6 flex flex-col gap-4" aria-label={t("settings.mcp.title")}>
-  <div class="flex flex-wrap items-start justify-between gap-3">
-    <div class="flex items-start gap-3 min-w-0 flex-1">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3 min-w-0 flex-1">
       <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-300">
         <svg aria-hidden="true" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -158,8 +194,11 @@
 
   <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
     <div class="flex flex-col gap-1.5 min-w-0">
-      <label for="mcp-read-root" class="text-xs font-medium text-gray-300">
-        {t("settings.mcp.readRootLabel")}
+      <label for="mcp-read-root" class="flex items-center gap-1.5 text-xs font-medium text-gray-300">
+        <svg aria-hidden="true" class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+        <span>{t("settings.mcp.readRootLabel")}</span>
       </label>
       <div class="flex gap-2 min-w-0">
         <input
@@ -173,16 +212,22 @@
         <button
           type="button"
           onclick={() => pickFolder("read")}
-          class="btn-secondary shrink-0 px-3 py-1.5 text-xs cursor-pointer"
+          class="btn-secondary shrink-0 px-3 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer"
         >
+          <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
           {t("settings.mcp.browseFolder")}
         </button>
       </div>
     </div>
 
     <div class="flex flex-col gap-1.5 min-w-0">
-      <label for="mcp-output-root" class="text-xs font-medium text-gray-300">
-        {t("settings.mcp.outputRootLabel")}
+      <label for="mcp-output-root" class="flex items-center gap-1.5 text-xs font-medium text-gray-300">
+        <svg aria-hidden="true" class="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+        </svg>
+        <span>{t("settings.mcp.outputRootLabel")}</span>
       </label>
       <div class="flex gap-2 min-w-0">
         <input
@@ -196,15 +241,18 @@
         <button
           type="button"
           onclick={() => pickFolder("output")}
-          class="btn-secondary shrink-0 px-3 py-1.5 text-xs cursor-pointer"
+          class="btn-secondary shrink-0 px-3 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer"
         >
+          <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
           {t("settings.mcp.browseFolder")}
         </button>
       </div>
     </div>
   </div>
 
-  <pre class="overflow-x-auto rounded-xl border border-white/10 bg-black/35 p-3.5 text-xs font-mono text-gray-200 leading-relaxed select-all">{mcpConfigJson}</pre>
+  <pre class="overflow-x-auto rounded-xl border border-white/10 bg-black/35 p-3.5 text-xs font-mono text-gray-200 leading-relaxed select-all">{#each mcpConfigTokens as token}{#if token.kind === "other"}{token.text}{:else}<span class={JSON_TOKEN_CLASS[token.kind]}>{token.text}</span>{/if}{/each}</pre>
 
   <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
     <p class="text-gray-400 leading-relaxed">{t("settings.mcp.hint")}</p>

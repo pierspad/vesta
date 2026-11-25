@@ -200,9 +200,17 @@
 
       <!-- Preview Button -->
       {#if !generationStore.result}
-        <div class="relative group">
+        {@const previewBlocked = !canRunFlashcards && !generationStore.isProcessing}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <div
+          class="relative group {previewBlocked ? 'cursor-help' : ''}"
+          onclick={() => {
+            if (previewBlocked) onPromptMissingRequirements();
+          }}
+        >
           <button
-            class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-800/40 text-gray-300 disabled:text-gray-600 rounded-xl font-bold text-sm transition-all border border-white/10 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed cursor-pointer disabled:border-white/5"
+            class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-800/40 text-gray-300 disabled:text-gray-500 rounded-xl font-bold text-sm transition-all border border-white/10 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:border-white/5 disabled:opacity-50 {previewBlocked ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
             disabled={!canRunFlashcards || generationStore.isProcessing}
             onclick={onPreview}
           >

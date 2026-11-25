@@ -85,9 +85,9 @@ def main():
     require('cancel-in-progress: false' in release,
             'release runs must not cancel an active release')
     trigger = release.split('concurrency:', 1)[0]
-    require('      - main\n' in trigger and '      - dev\n' not in trigger
+    require('      - main\n' in trigger and '      - dev\n' in trigger
             and '  workflow_dispatch:' in trigger,
-            'stable releases must run on main pushes; dev prereleases must be manually dispatched')
+            'release.yml must trigger automatically on main (stable) and dev (prerelease) pushes, plus workflow_dispatch')
     scorecard_check = run_block(release, 'Validate generated scorecard')
     require('generate_scorecard.py --check' in scorecard_check
             and 'scorecard_db.py check' in scorecard_check

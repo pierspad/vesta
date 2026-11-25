@@ -11,6 +11,7 @@
     isSaving: boolean;
     onOverwrite: () => void;
     onSaveAs: (ext: "apkg" | "tsv") => void;
+    onBlockedSave?: (kind: "overwrite" | "apkg" | "tsv") => void;
   }
 
   let {
@@ -22,19 +23,30 @@
     isSaving,
     onOverwrite,
     onSaveAs,
+    onBlockedSave,
   }: Props = $props();
 
   let t = $derived($locale);
+  let overwriteBlocked = $derived(!operationBusy && !hasCards);
+  let apkgBlocked = $derived(!operationBusy && (!hasCards || fileExtension === "TSV"));
+  let tsvBlocked = $derived(!operationBusy && !hasCards);
 </script>
 
 <FooterActions>
   {#snippet left()}
     <div class="flex flex-1 min-w-0 items-center gap-3 max-[960px]:basis-full">
-      <div class="relative group shrink-0">
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <div
+        class="relative group shrink-0 {overwriteBlocked ? 'cursor-help' : ''}"
+        onclick={() => {
+          if (overwriteBlocked) onBlockedSave?.("overwrite");
+        }}
+      >
         <button
           onclick={onOverwrite}
           disabled={operationBusy || !hasCards}
-          class="min-w-[155px] justify-center px-3 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:bg-rose-600/40 text-white disabled:opacity-55 rounded-xl font-bold text-sm transition-all shadow-lg shadow-rose-950/30 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] cursor-pointer border border-rose-500/10"
+          class="min-w-[155px] justify-center px-3 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:bg-rose-600/40 text-white disabled:opacity-50 rounded-xl font-bold text-sm transition-all shadow-lg shadow-rose-950/30 disabled:shadow-none flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] border border-rose-500/20 disabled:border-white/10 {overwriteBlocked ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
         >
           {#if isSaving}
             <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
@@ -61,11 +73,18 @@
   {/snippet}
   {#snippet right()}
     <div class="flex max-w-full flex-wrap items-center gap-2">
-      <div class="relative group">
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <div
+        class="relative group {apkgBlocked ? 'cursor-help' : ''}"
+        onclick={() => {
+          if (apkgBlocked) onBlockedSave?.("apkg");
+        }}
+      >
         <button
           onclick={() => onSaveAs("apkg")}
           disabled={operationBusy || !hasCards || fileExtension === "TSV"}
-          class="min-w-[135px] justify-center px-3 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 disabled:opacity-55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed cursor-pointer"
+          class="min-w-[135px] justify-center px-3 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/40 disabled:opacity-50 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 disabled:shadow-none flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed border border-emerald-500/20 disabled:border-white/10 {apkgBlocked ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
         >
           {#if isSaving}
             <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
@@ -85,11 +104,18 @@
         </div>
       </div>
 
-      <div class="relative group">
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <div
+        class="relative group {tsvBlocked ? 'cursor-help' : ''}"
+        onclick={() => {
+          if (tsvBlocked) onBlockedSave?.("tsv");
+        }}
+      >
         <button
           onclick={() => onSaveAs("tsv")}
           disabled={operationBusy || !hasCards}
-          class="min-w-[135px] justify-center px-3 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-cyan-600/55 disabled:opacity-55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-cyan-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed cursor-pointer"
+          class="min-w-[135px] justify-center px-3 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-cyan-600/40 disabled:opacity-50 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-cyan-950/20 disabled:shadow-none flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed border border-cyan-500/20 disabled:border-white/10 {tsvBlocked ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
         >
           {#if isSaving}
             <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">

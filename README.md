@@ -110,6 +110,7 @@ Tests, linters, Playwright checks, and release gates live in [CONTRIBUTING.md](C
 | [Architecture](docs/ARCHITECTURE.md) · [Modules](docs/modules/README.md) | Workspace crates, pipelines, media lifecycle, and Rust APIs |
 | [Library integration](docs/library-integration.md) · [Providers](docs/API_COMPATIBILITY.md) | Downstream embedding, Whisper patch, and HTTP endpoints |
 | [Quality](docs/QUALITY.md) · [Maintenance](docs/MAINTENANCE.md) · [Setup](docs/SETUP_TESTING.md) | Pre-release gates, invariants, dependency notes, and installer checks |
+| [Engineering Blueprint](docs/guide_to_create_good_software.md) | Reusable Rust/UI architecture, i18n gates, hash-verified feature DB, and CI/CD playbook |
 | [Scorecard](docs/SCORECARD.md) | Feature matrix, live metrics, reliability controls, and active findings |
 | [Benchmarks](docs/BENCHMARK_REPORT.md) | Methodology, reproduction steps, and native A/B measurements |
 

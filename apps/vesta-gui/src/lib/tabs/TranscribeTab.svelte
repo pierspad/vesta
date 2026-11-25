@@ -32,6 +32,7 @@
   import { languages as allLanguages } from "$lib/config/languages";
   import PathPreviewModal from "$lib/modals/PathPreviewModal.svelte";
   import { createSnackbarNotifier } from "$lib/stores/snackbarStore.svelte";
+  import { guidanceStore } from "$lib/stores/guidanceStore.svelte";
   import ConfirmDialog from "$lib/modals/ConfirmDialog.svelte";
   import { aiStore } from "$lib/stores/aiStore.svelte";
   import * as vestaConfig from "$lib/config/vestaConfig";
@@ -333,6 +334,23 @@
     return true;
   }
 
+  function handleBlockedStart() {
+    if (localWhisperOperation.busy || aiStore.killSwitchActive) return;
+    if (!inputPath || !outputPath) {
+      requirements.pulse(["files"]);
+      showSnackbar(t("transcribe.selectFilesFirst"));
+      return;
+    }
+    if (!canStart) {
+      requirements.pulse(["model"]);
+      showSnackbar(transcribeBlockedReason, "info", undefined, "settings");
+      const hasTiers = effectiveTiers.flatMap((tier) => tier.entries).length > 0;
+      const hasLocalConfigured = effectiveTiers.flatMap((tier) => tier.entries).some((e) => e.provider === "local" || e.provider === "local_whisper");
+      const targetId = !hasTiers ? "transcribe-tiers" : hasLocalConfigured ? "whisper-models" : "transcribe-tiers";
+      guidanceStore.guideToSettings({ sourceTab: "transcribe", section: "whisper", targetId });
+    }
+  }
+
   let transcriptionCancelled = false;
 
   async function startTranscription() {
@@ -346,7 +364,11 @@
     if (!canStart) {
       requirements.pulse(["model"]);
       error = transcribeBlockedReason;
-      showSnackbar(transcribeBlockedReason);
+      showSnackbar(transcribeBlockedReason, "info", undefined, "settings");
+      const hasTiers = effectiveTiers.flatMap((tier) => tier.entries).length > 0;
+      const hasLocalConfigured = effectiveTiers.flatMap((tier) => tier.entries).some((e) => e.provider === "local" || e.provider === "local_whisper");
+      const targetId = !hasTiers ? "transcribe-tiers" : hasLocalConfigured ? "whisper-models" : "transcribe-tiers";
+      guidanceStore.guideToSettings({ sourceTab: "transcribe", section: "whisper", targetId });
       return;
     }
 
@@ -555,6 +577,7 @@
     onCancel={cancelTranscription}
     onReset={resetTranscription}
     onStart={startTranscription}
+    onBlockedStart={handleBlockedStart}
   />
 
   <PathPreviewModal

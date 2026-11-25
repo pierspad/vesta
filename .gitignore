@@ -56,7 +56,6 @@ config.toml
 !/core/.directory
 !/docs/.directory
 !/lib/.directory
-!/plugins/.directory
 
 # Generated/test artifacts
 __pycache__/
@@ -78,10 +77,6 @@ Test_Subs/**/*.srt
 !Test_Subs/SERIE_TV/Detour-en_parte*.srt
 !Test_Subs/SERIE_TV/Detour-it_parte*.srt
 !Test_Subs/fixtures/*.srt
-commit-plan-continued.sh
-commit-plan-final.sh
-commit-plan.sh
-REFACTOR-PLAN.md
 apps/vesta-gui/reports/
 apps/vesta-gui/scripts/translation_chunks/
 !Test_Subs/fixtures/detour/*.srt

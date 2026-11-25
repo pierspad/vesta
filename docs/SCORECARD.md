@@ -8,38 +8,38 @@
 | Metric | Value | Source |
 |---|---|---|
 | Cargo workspace crates | 24 | `Cargo.toml` (`core/`, `lib/`, `cli/`, `apps/`) |
-| Rust production LOC (non-test) | 33,314 | `core/`, `lib/`, `cli/`, `apps/*/src-tauri/src/` |
-| Rust unit & integration `#[test]` cases | 637 | Workspace `*.rs` |
+| Rust production LOC (non-test) | 33,439 | `core/`, `lib/`, `cli/`, `apps/*/src-tauri/src/` |
+| Rust unit & integration `#[test]` cases | 640 | Workspace `*.rs` |
 | Rust prod `.unwrap()` / `.expect()` / `panic!()` / `unsafe` | 26 / 12 / 1 / 4 | Comment/test-stripped scan |
 | Registered Tauri IPC commands | 109 | `apps/vesta-gui/src-tauri/src/main.rs` |
 | Playwright mock handlers (`vesta-mock.mjs`) | 109/109 | `apps/vesta-gui/browser-tests/vesta-mock.mjs` |
 | IPC names referenced in Playwright specs | 109/109 | `apps/vesta-gui/browser-tests/*.spec.mjs` |
-| Vitest files / cases | 148 / 677 | `apps/vesta-gui/src/**/*.test.*` |
+| Vitest files / cases | 149 / 688 | `apps/vesta-gui/src/**/*.test.*` |
 | Playwright spec files / `test()` decls | 6 / 40 | `apps/vesta-gui/browser-tests/*.spec.mjs` |
 | MCP tools (`vesta-mcp`) | 24 | `cli/vesta-mcp/src/lib.rs` |
 | Unified `vesta-cli` workflows | 9 | `cli/vesta-cli/src/lib.rs` |
-| Plugin SDK widget primitives | 23 | `PluginRenderer.svelte` |
+| Plugin SDK widget primitives | 26 | `PluginRenderer.svelte` |
 | Frontend localization catalogs | 15 | `apps/vesta-gui/src/lib/i18n/locales/*.json` |
 
 ## Executive Summary by Area
 
-> *Coverage denominators:* `GUI`, `CLI`, `MCP`, and `Playwright` count only applicable features (excluding `N/A`), whereas `Docs`, `Unit Tests`, `Smoke`, and `Verified` cover all 50 features.
+> *Coverage denominators:* `GUI`, `CLI`, `MCP`, `Playwright`, and `Smoke` count only applicable features (excluding `N/A`), whereas `Docs`, `Unit Tests`, and `Verified` cover all 50 features.
 
 | Area | Features | GUI | CLI | MCP | Docs | Unit Tests | Playwright | Smoke | Verified | Open Findings |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | Flashcards & APKG/TSV | 8 | 8/8 | 8/8 | 8/8 | 8/8 | 8/8 | 8/8 | 8/8 | 8/8 | 0 |
 | Extract & OCR | 5 | 5/5 | 5/5 | 5/5 | 5/5 | 5/5 | 5/5 | 5/5 | 5/5 | 0 |
-| Transcribe & VAD | 4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 2/4 | 4/4 | 0 |
+| Transcribe & VAD | 4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 2/2 | 4/4 | 0 |
 | Translate (LLM) | 4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 0 |
-| Sync & Align | 3 | 3/3 | 1/1 | 1/1 | 3/3 | 3/3 | 3/3 | 1/3 | 3/3 | 0 |
-| Auto-Sync | 3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 2/3 | 3/3 | 0 |
+| Sync & Align | 3 | 3/3 | 1/1 | 1/1 | 3/3 | 3/3 | 3/3 | 1/1 | 3/3 | 0 |
+| Auto-Sync | 3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 0 |
 | Refine & AnkiConnect | 4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 | 0 |
-| Plugins & Experimental | 4 | 4/4 | 1/1 | 2/2 | 4/4 | 4/4 | 4/4 | 3/4 | 4/4 | 0 |
-| GUI, Settings & i18n | 6 | 6/6 | 1/1 | 2/2 | 6/6 | 6/6 | 6/6 | 0/6 | 6/6 | 0 |
-| Media Server, Net & Tools | 3 | 3/3 | 1/1 | 1/1 | 3/3 | 3/3 | 3/3 | 1/3 | 3/3 | 0 |
+| Plugins & Experimental | 4 | 4/4 | 1/1 | 2/2 | 4/4 | 4/4 | 4/4 | 3/3 | 4/4 | 0 |
+| GUI, Settings & i18n | 6 | 6/6 | 1/1 | 2/2 | 6/6 | 6/6 | 6/6 | 1/1 | 6/6 | 0 |
+| Media Server, Net & Tools | 3 | 3/3 | 1/1 | 1/1 | 3/3 | 3/3 | 3/3 | 1/1 | 3/3 | 0 |
 | CLI & MCP | 2 | 0/0 | 1/1 | 1/1 | 2/2 | 2/2 | 0/0 | 2/2 | 2/2 | 0 |
 | Quality Gates, Docs & CI | 4 | 2/2 | 4/4 | 0/0 | 4/4 | 4/4 | 2/2 | 4/4 | 4/4 | 0 |
-| **Total** | **50** | **46/46** | **37/37** | **35/35** | **50/50** | **50/50** | **46/46** | **36/50** | **50/50** | **0** |
+| **Total** | **50** | **46/46** | **37/37** | **35/35** | **50/50** | **50/50** | **46/46** | **38/38** | **50/50** | **0** |
 
 ## Findings Summary
 
@@ -83,17 +83,17 @@ _No open performance optimizations queued._
 | `EX-04` | Extract & OCR | Hardcoded video subtitle ROI detection & crop preview | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `EX-05` | Extract & OCR | Hybrid local ONNX / Cloud Vision OCR & model management | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `TR-01` | Transcribe & VAD | Cloud speech-to-text providers & word timestamps | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
-| `TR-02` | Transcribe & VAD | Local Whisper inference backends & whisper-bench harness | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
-| `TR-03` | Transcribe & VAD | Silero VAD speech segmentation & audio chunking | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
+| `TR-02` | Transcribe & VAD | Local Whisper inference backends & whisper-bench harness | Yes | Yes | Yes | Yes | Yes | Yes | N/A | Verified |
+| `TR-03` | Transcribe & VAD | Silero VAD speech segmentation & audio chunking | Yes | Yes | Yes | Yes | Yes | Yes | N/A | Verified |
 | `TR-04` | Transcribe & VAD | Whisper model & VAD download / uninstall lifecycle | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `TL-01` | Translate (LLM) | Tiered multi-provider LLM batch subtitle translation | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `TL-02` | Translate (LLM) | Translation checkpoint resume & missing-cue repair | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `TL-03` | Translate (LLM) | Translation context suggestion & language prompt specialization | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `TL-04` | Translate (LLM) | Translation cancellation, path preview & CLI failure exit codes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `SY-01` | Sync & Align | Manual subtitle time shift, speed scaling & anchor interpolation | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
-| `SY-02` | Sync & Align | Sync session persistence, autosave, file export & reset | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
-| `SY-03` | Sync & Align | Dual-subtitle Align tab & companion subtitle suggestion | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
-| `AS-01` | Auto-Sync | Voice-overlap auto-sync & consensus anchor estimation | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
+| `SY-02` | Sync & Align | Sync session persistence, autosave, file export & reset | Yes | N/A | N/A | Yes | Yes | Yes | N/A | Verified |
+| `SY-03` | Sync & Align | Dual-subtitle Align tab & companion subtitle suggestion | Yes | N/A | N/A | Yes | Yes | Yes | N/A | Verified |
+| `AS-01` | Auto-Sync | Voice-overlap auto-sync & consensus anchor estimation | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `AS-02` | Auto-Sync | Cloud-transcribe guided auto-sync alignment | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `AS-03` | Auto-Sync | Auto-sync cancellation, progress overlay & quality assessment | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
 | `RF-01` | Refine & AnkiConnect | Tiered LLM flashcard deck annotation (.apkg & .tsv) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
@@ -103,17 +103,17 @@ _No open performance optimizations queued._
 | `PL-01` | Plugins & Experimental | Plugin registry, archive/git install, README inspect & uninstall | Yes | N/A | N/A | Yes | Yes | Yes | Yes | Verified |
 | `PL-02` | Plugins & Experimental | Stdio JSON-RPC plugin host runtime & child lifecycle | Yes | N/A | Yes | Yes | Yes | Yes | Yes | Verified |
 | `PL-03` | Plugins & Experimental | Host widget tree SDK (23 PluginRenderer widgets & vesta_plugin.py) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
-| `PL-04` | Plugins & Experimental | Experimental plugins workspace & Playwright smoke integration | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
-| `GS-01` | GUI, Settings & i18n | Persistent vesta_config.json, backup recovery & installation reset | Yes | N/A | Yes | Yes | Yes | Yes | No | Verified |
-| `GS-02` | GUI, Settings & i18n | API keys, custom endpoints & LLM/ITT tier configuration | Yes | Yes | Yes | Yes | Yes | Yes | No | Verified |
-| `GS-03` | GUI, Settings & i18n | 15-locale i18n parity, RTL (ar) layout & responsive UI | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
-| `GS-04` | GUI, Settings & i18n | Keyboard shortcuts customization, overlay & modal accessibility | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
-| `GS-05` | GUI, Settings & i18n | First-run setup wizard, auto-updater & CPU/RAM monitor | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
-| `GS-06` | GUI, Settings & i18n | AI kill switch, support log redaction & notification inbox | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
-| `MS-01` | Media Server, Net & Tools | Local media HTTP server & stream:// custom URI protocol | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
-| `MS-02` | Media Server, Net & Tools | Sandboxed HTTP proxy fetch & redirect/SSRF guard (http_fetch) | Yes | N/A | N/A | Yes | Yes | Yes | No | Verified |
+| `PL-04` | Plugins & Experimental | Experimental plugins workspace & Playwright smoke integration | Yes | N/A | N/A | Yes | Yes | Yes | N/A | Verified |
+| `GS-01` | GUI, Settings & i18n | Persistent vesta_config.json, backup recovery & installation reset | Yes | N/A | Yes | Yes | Yes | Yes | N/A | Verified |
+| `GS-02` | GUI, Settings & i18n | API keys, custom endpoints & LLM/ITT tier configuration | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
+| `GS-03` | GUI, Settings & i18n | 15-locale i18n parity, RTL (ar) layout & responsive UI | Yes | N/A | N/A | Yes | Yes | Yes | N/A | Verified |
+| `GS-04` | GUI, Settings & i18n | Keyboard shortcuts customization, overlay & modal accessibility | Yes | N/A | N/A | Yes | Yes | Yes | N/A | Verified |
+| `GS-05` | GUI, Settings & i18n | First-run setup wizard, auto-updater & CPU/RAM monitor | Yes | N/A | N/A | Yes | Yes | Yes | N/A | Verified |
+| `GS-06` | GUI, Settings & i18n | AI kill switch, support log redaction & notification inbox | Yes | N/A | N/A | Yes | Yes | Yes | N/A | Verified |
+| `MS-01` | Media Server, Net & Tools | Local media HTTP server & stream:// custom URI protocol | Yes | N/A | N/A | Yes | Yes | Yes | N/A | Verified |
+| `MS-02` | Media Server, Net & Tools | Sandboxed HTTP proxy fetch & redirect/SSRF guard (http_fetch) | Yes | N/A | N/A | Yes | Yes | Yes | N/A | Verified |
 | `MS-03` | Media Server, Net & Tools | FFmpeg / ffprobe discovery, bundling & auto-download | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Verified |
-| `CM-01` | CLI & MCP | Unified vesta-cli (8 workflows) & 8 standalone engine CLIs | N/A | Yes | N/A | Yes | Yes | N/A | Yes | Verified |
+| `CM-01` | CLI & MCP | Unified vesta-cli (9 workflows) & 8 standalone engine CLIs | N/A | Yes | N/A | Yes | Yes | N/A | Yes | Verified |
 | `CM-02` | CLI & MCP | vesta-mcp stdio Model Context Protocol server (24 tools) | N/A | N/A | Yes | Yes | Yes | N/A | Yes | Verified |
 | `QC-01` | Quality Gates, Docs & CI | Contract & manifest drift verification (check_doc_contracts.py) | N/A | Yes | N/A | Yes | Yes | N/A | Yes | Verified |
 | `QC-02` | Quality Gates, Docs & CI | Workspace dependency boundaries (check_library_integration.py) | N/A | Yes | N/A | Yes | Yes | N/A | Yes | Verified |

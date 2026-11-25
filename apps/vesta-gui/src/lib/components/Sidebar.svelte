@@ -8,6 +8,7 @@
   import packageJson from "../../../package.json";
   import { locale } from "$lib/i18n";
   import { aiStore } from "$lib/stores/aiStore.svelte";
+  import { guidanceStore } from "$lib/stores/guidanceStore.svelte";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import { updateCheckerStore } from "$lib/stores/updateCheckerStore.svelte";
   import {
@@ -179,7 +180,7 @@
       <div class="flex items-center gap-3 w-full {collapsed ? 'justify-center' : ''}">
         <button
           onclick={() => onTabChange("settings")} onmouseenter={() => onTabPreload?.("settings")} onfocus={() => onTabPreload?.("settings")}
-          class="brand-settings-toggle-btn text-gray-400 hover:text-white transition-all duration-100 ease-out focus:outline-none flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 relative shrink-0 cursor-pointer"
+          class="brand-settings-toggle-btn text-gray-400 hover:text-white transition-all duration-100 ease-out focus:outline-none flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 relative shrink-0 cursor-pointer {guidanceStore.isSettingsButtonPulsing ? 'requirement-pulse' : ''}"
           title={t("nav.settings")}
         >
           <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -237,7 +238,7 @@
         <button
           class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {settingsSection === 'llm'
             ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/22 border-indigo-500/30 bg-clip-padding'
-            : 'text-gray-400 hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/20'}"
+            : 'text-gray-400 hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/20'} {guidanceStore.isSectionPulsing('llm') ? 'requirement-pulse' : ''}"
           onclick={() => settingsSection = "llm"}
           title={collapsed ? t("settings.section.llm") : undefined}
         >
@@ -259,7 +260,7 @@
         <button
           class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {settingsSection === 'whisper'
             ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white shadow-lg shadow-cyan-500/22 border-cyan-500/30 bg-clip-padding'
-            : 'text-gray-400 hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/20'}"
+            : 'text-gray-400 hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/20'} {guidanceStore.isSectionPulsing('whisper') ? 'requirement-pulse' : ''}"
           onclick={() => settingsSection = "whisper"}
           title={collapsed ? t("settings.section.whisper") : undefined}
         >
@@ -281,7 +282,7 @@
         <button
           class="w-full flex gap-3.5 items-center {collapsed ? 'px-2 justify-center' : 'px-3.5'} h-[60px] rounded-xl transition-all duration-100 ease-out border border-transparent cursor-pointer {settingsSection === 'itt'
             ? 'bg-gradient-to-r from-violet-600 to-violet-700 text-white shadow-lg shadow-violet-500/22 border-violet-500/30 bg-clip-padding'
-            : 'text-gray-400 hover:bg-violet-500/10 hover:text-violet-400 hover:border-violet-500/20'}"
+            : 'text-gray-400 hover:bg-violet-500/10 hover:text-violet-400 hover:border-violet-500/20'} {guidanceStore.isSectionPulsing('itt') ? 'requirement-pulse' : ''}"
           onclick={() => settingsSection = "itt"}
           title={collapsed ? t("settings.section.itt") : undefined}
         >

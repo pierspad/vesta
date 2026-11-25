@@ -6,10 +6,12 @@ over JSON-RPC 2.0 stdio.
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import sys
-from typing import Any, Callable, Dict, List, Optional, Union
+import tempfile
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 
 def _apply_options(node: Dict[str, Any], options: Dict[str, Any]) -> Dict[str, Any]:
@@ -47,6 +49,34 @@ def Row(
         node["separator"] = separator
     if id:
         node["id"] = id
+    return _apply_options(node, options)
+
+
+def Card(
+    children: List[Dict[str, Any]],
+    *,
+    title: Optional[str] = None,
+    subtitle: Optional[str] = None,
+    icon: Optional[str] = None,
+    accent: Optional[str] = None,
+    id: Optional[str] = None,
+    visible: bool = True,
+    **options: Any,
+) -> Dict[str, Any]:
+    """Build a glass-styled card container widget."""
+    node: Dict[str, Any] = {"type": "card", "children": children}
+    if id:
+        node["id"] = id
+    if title is not None:
+        node["title"] = title
+    if subtitle is not None:
+        node["subtitle"] = subtitle
+    if icon is not None:
+        node["icon"] = icon
+    if accent is not None:
+        node["accent"] = accent
+    if not visible and "hidden" not in options:
+        node["hidden"] = True
     return _apply_options(node, options)
 
 
@@ -124,8 +154,23 @@ def TextArea(id: str, label: str, **options: Any) -> Dict[str, Any]:
     return _apply_options({"type": "textArea", "id": id, "label": label}, options)
 
 
-def PathInput(id: str, *, pickerType: str = "folder", **options: Any) -> Dict[str, Any]:
-    return _apply_options({"type": "pathInput", "id": id, "pickerType": pickerType}, options)
+def PathInput(
+    id: str,
+    *,
+    pickerType: str = "folder",
+    clearable: Optional[bool] = None,
+    compact: bool = False,
+    default_dir: Optional[str] = None,
+    **options: Any,
+) -> Dict[str, Any]:
+    node: Dict[str, Any] = {"type": "pathInput", "id": id, "pickerType": pickerType}
+    if clearable is not None:
+        node["clearable"] = clearable
+    if compact:
+        node["compact"] = True
+    if default_dir is not None:
+        node["defaultDir"] = default_dir
+    return _apply_options(node, options)
 
 
 def PasswordInput(
@@ -367,11 +412,18 @@ def ExternalLink(
 def ListWidget(
     items: List[Dict[str, Any]],
     id: Optional[str] = None,
+    *,
+    image_aspect: Optional[str] = None,
+    layout: Optional[str] = None,
     **options: Any,
 ) -> Dict[str, Any]:
     node: Dict[str, Any] = {"type": "list", "items": items}
     if id:
         node["id"] = id
+    if image_aspect is not None:
+        node["imageAspect"] = image_aspect
+    if layout is not None:
+        node["layout"] = layout
     return _apply_options(node, options)
 
 
@@ -393,6 +445,8 @@ def Image(
     *,
     width: Optional[int] = None,
     height: Optional[int] = None,
+    aspect: Optional[str] = None,
+    fit: Optional[str] = None,
     id: Optional[str] = None,
     **options: Any,
 ) -> Dict[str, Any]:
@@ -403,8 +457,78 @@ def Image(
         node["width"] = width
     if height is not None:
         node["height"] = height
+    if aspect is not None:
+        node["aspect"] = aspect
+    if fit is not None:
+        node["fit"] = fit
     if id:
         node["id"] = id
+    return _apply_options(node, options)
+
+
+def MediaPlayer(
+    src: Optional[str],
+    *,
+    kind: str = "video",
+    poster: Optional[str] = None,
+    title: Optional[str] = None,
+    caption: Optional[str] = None,
+    loop: bool = False,
+    muted: bool = False,
+    height: Optional[Union[int, str]] = None,
+    id: Optional[str] = None,
+    visible: bool = True,
+    **options: Any,
+) -> Dict[str, Any]:
+    """Build an inline video or audio player widget."""
+    node: Dict[str, Any] = {
+        "type": "mediaPlayer",
+        "kind": kind,
+        "loop": loop,
+        "muted": muted,
+    }
+    if src is not None:
+        node["src"] = src
+    if poster is not None:
+        node["poster"] = poster
+    if title is not None:
+        node["title"] = title
+    if caption is not None:
+        node["caption"] = caption
+    if height is not None:
+        node["height"] = height
+    if id:
+        node["id"] = id
+    if not visible and "hidden" not in options:
+        node["hidden"] = True
+    return _apply_options(node, options)
+
+
+def Pagination(
+    id: str,
+    *,
+    page: int = 1,
+    total_pages: int = 1,
+    total_items: Optional[int] = None,
+    page_size: Optional[int] = None,
+    disabled: bool = False,
+    visible: bool = True,
+    **options: Any,
+) -> Dict[str, Any]:
+    """Build a pagination control widget emitting `change` events with the selected page."""
+    node: Dict[str, Any] = {
+        "type": "pagination",
+        "id": id,
+        "page": page,
+        "totalPages": total_pages,
+        "disabled": disabled,
+    }
+    if total_items is not None:
+        node["totalItems"] = total_items
+    if page_size is not None:
+        node["pageSize"] = page_size
+    if not visible and "hidden" not in options:
+        node["hidden"] = True
     return _apply_options(node, options)
 
 
@@ -455,18 +579,66 @@ def Settings(
     return _apply_options(node, options)
 
 
+def Footer(
+    left: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None,
+    center: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None,
+    right: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None,
+) -> Dict[str, List[Dict[str, Any]]]:
+    """Build a sticky footer bar dictionary omitting empty or None slots."""
+    footer: Dict[str, List[Dict[str, Any]]] = {}
+    for slot_name, slot_val in (("left", left), ("center", center), ("right", right)):
+        if slot_val:
+            footer[slot_name] = [slot_val] if isinstance(slot_val, dict) else list(slot_val)
+    return footer
+
+
+def Response(
+    root: Optional[Dict[str, Any]],
+    *,
+    footer: Optional[Dict[str, Any]] = None,
+    screen: Optional[str] = None,
+    snackbar: Optional[Union[Dict[str, Any], str]] = None,
+    patch_values: Optional[Dict[str, Any]] = None,
+    scroll_top: bool = False,
+) -> Dict[str, Any]:
+    """Build a structured UI response dict for `render` and `event` handlers."""
+    res: Dict[str, Any] = {}
+    if root is not None:
+        res["root"] = root
+    if footer is not None:
+        res["footer"] = footer
+    if screen is not None:
+        res["screen"] = screen
+    if snackbar is not None:
+        res["snackbar"] = snackbar
+    if patch_values is not None:
+        res["patch"] = {"values": patch_values}
+    if scroll_top:
+        res["scrollTop"] = True
+    return res
+
+
 # Main Plugin Class
 
 class VestaPlugin:
+    @staticmethod
+    def _parse_scopes_env() -> List[str]:
+        raw = os.environ.get("VESTA_PLUGIN_SCOPES", "")
+        return [s.strip() for s in raw.split(",") if s.strip()] if raw else []
+
     def __init__(self):
         self.plugin_id = os.environ.get("VESTA_PLUGIN_ID", "unknown")
         self.data_dir = os.environ.get("VESTA_DATA_DIR", "./data")
+        self.downloads_dir: Optional[str] = os.environ.get("VESTA_DOWNLOADS_DIR") or None
+        self.scopes: List[str] = self._parse_scopes_env()
+        self.host: Dict[str, Any] = {}
         self.locale = "en"
         self.expert_mode = False
         self.settings: Dict[str, Any] = {}
 
         self._render_handlers: Dict[str, Callable[[Dict[str, Any]], Any]] = {}
         self._event_handlers: Dict[str, Callable[[str, str, str, Dict[str, Any]], Any]] = {}
+        self._prefix_event_handlers: List[Tuple[str, Callable[[str, str, str, Dict[str, Any]], Any]]] = []
         self._init_handler: Optional[Callable[[Dict[str, Any]], None]] = None
         self._req_id = 1000
         self._inbox: List[Dict[str, Any]] = []
@@ -481,12 +653,83 @@ class VestaPlugin:
             return func
         return decorator
 
-    def on_event(self, widget_id: Optional[str] = None):
+    def on_event(self, widget_id: Optional[str] = None, *, prefix: Optional[str] = None):
+        """Register an event handler for an exact widget ID, a `prefix`, or `\"*\"`."""
         def decorator(func: Callable[[str, str, str, Dict[str, Any]], Any]):
-            key = widget_id if widget_id else "*"
-            self._event_handlers[key] = func
+            if prefix is not None:
+                if not prefix:
+                    raise ValueError("prefix must be a non-empty string")
+                self._prefix_event_handlers = [
+                    (p, h) for p, h in self._prefix_event_handlers if p != prefix
+                ]
+                self._prefix_event_handlers.append((prefix, func))
+                self._prefix_event_handlers.sort(key=lambda item: len(item[0]), reverse=True)
+            else:
+                key = widget_id if widget_id else "*"
+                self._event_handlers[key] = func
             return func
         return decorator
+
+    def _resolve_event_handler(
+        self, widget_id: str
+    ) -> Optional[Callable[[str, str, str, Dict[str, Any]], Any]]:
+        exact = self._event_handlers.get(widget_id)
+        if exact is not None:
+            return exact
+        for pfx, handler in self._prefix_event_handlers:
+            if widget_id.startswith(pfx):
+                return handler
+        return self._event_handlers.get("*")
+
+    def _state_path(self, filename: str) -> str:
+        if not filename or os.path.isabs(filename):
+            raise ValueError(f"State filename must be a relative path: {filename!r}")
+        base_dir = os.path.abspath(self.data_dir)
+        target = os.path.abspath(os.path.join(base_dir, filename))
+        if os.path.commonpath([base_dir, target]) != base_dir or target == base_dir:
+            raise ValueError(f"State filename escapes plugin data_dir: {filename!r}")
+        return target
+
+    def load_state(self, filename: str = "state.json", default: Any = None) -> Any:
+        """Load JSON state from `filename` inside `self.data_dir`, returning `default` if absent or invalid."""
+        target = self._state_path(filename)
+        if not os.path.isfile(target):
+            return copy.deepcopy(default) if isinstance(default, (dict, list)) else default
+        try:
+            with open(target, "r", encoding="utf-8") as fh:
+                return json.load(fh)
+        except Exception:
+            return copy.deepcopy(default) if isinstance(default, (dict, list)) else default
+
+    def save_state(self, data: Any, filename: str = "state.json") -> str:
+        """Atomically persist JSON-serializable `data` to `filename` inside `self.data_dir`."""
+        target = self._state_path(filename)
+        parent = os.path.dirname(target)
+        os.makedirs(parent, exist_ok=True)
+        tmp_path: Optional[str] = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                "w",
+                encoding="utf-8",
+                dir=parent,
+                prefix=f".{os.path.basename(target)}.",
+                suffix=".tmp",
+                delete=False,
+            ) as fh:
+                tmp_path = fh.name
+                json.dump(data, fh, indent=2, ensure_ascii=False)
+                fh.write("\n")
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp_path, target)
+            tmp_path = None
+            return target
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
     def notify(self, msg: str, level: str = "info"):
         self._send_notification("ui.notify", {"level": level, "msg": msg})
@@ -503,12 +746,15 @@ class VestaPlugin:
         screen: str = "main",
         root: Optional[Dict[str, Any]] = None,
         patch: Optional[Dict[str, Any]] = None,
+        footer: Optional[Dict[str, Any]] = None,
     ):
         params: Dict[str, Any] = {"screen": screen}
         if root is not None:
             params["root"] = root
         if patch is not None:
             params["patch"] = patch
+        if footer is not None:
+            params["footer"] = footer
         self._send_notification("ui.update", params)
 
     def open_in_flashcards(self, video_path: str, subtitle_path: str):
@@ -607,6 +853,33 @@ class VestaPlugin:
         if "expertMode" in params:
             self.expert_mode = bool(params["expertMode"])
 
+    def _apply_initialize(self, params: Dict[str, Any]):
+        self.data_dir = params.get("dataDir", self.data_dir)
+        self.settings = params.get("settings", {})
+        permissions = params.get("permissions")
+        if isinstance(permissions, dict):
+            dl_dir = permissions.get("downloadsDir")
+            self.downloads_dir = (
+                dl_dir if isinstance(dl_dir, str) and dl_dir else (os.environ.get("VESTA_DOWNLOADS_DIR") or None)
+            )
+            scopes = permissions.get("scopes")
+            if isinstance(scopes, list):
+                self.scopes = [str(s) for s in scopes if str(s).strip()]
+            else:
+                self.scopes = self._parse_scopes_env()
+        elif isinstance(permissions, list):
+            self.scopes = [str(s) for s in permissions if str(s).strip()]
+            self.downloads_dir = os.environ.get("VESTA_DOWNLOADS_DIR") or None
+        else:
+            self.downloads_dir = os.environ.get("VESTA_DOWNLOADS_DIR") or None
+            self.scopes = self._parse_scopes_env()
+
+        host = params.get("host")
+        if isinstance(host, dict):
+            self.host = host
+
+        self._sync_context(params)
+
     def run(self):
         """Runs the JSON-RPC dispatch loop over stdin and stdout."""
         while True:
@@ -619,9 +892,7 @@ class VestaPlugin:
             params = req.get("params", {})
 
             if method == "initialize":
-                self.data_dir = params.get("dataDir", self.data_dir)
-                self.settings = params.get("settings", {})
-                self._sync_context(params)
+                self._apply_initialize(params)
                 if self._init_handler:
                     try:
                         self._init_handler(params)
@@ -654,7 +925,7 @@ class VestaPlugin:
                 event_type = params.get("type", "click")
                 values = params.get("values", {})
 
-                handler = self._event_handlers.get(widget_id) or self._event_handlers.get("*")
+                handler = self._resolve_event_handler(widget_id)
                 if handler:
                     try:
                         res = handler(screen, widget_id, event_type, values)
@@ -697,6 +968,7 @@ class VestaPlugin:
 VALID_WIDGET_TYPES = {
     "column",
     "row",
+    "card",
     "heading",
     "text",
     "textInput",
@@ -714,6 +986,8 @@ VALID_WIDGET_TYPES = {
     "list",
     "table",
     "image",
+    "mediaPlayer",
+    "pagination",
     "progress",
     "fileOutput",
     "divider",
@@ -762,8 +1036,8 @@ def validate_manifest(plugin_dir: str) -> List[str]:
     return errors
 
 
-def validate_widget_tree(node: Any, path: str = "root") -> List[str]:
-    """Recursively validate a declarative widget tree returned by `render`."""
+def validate_widget(node: Any, path: str = "root") -> List[str]:
+    """Recursively validate a declarative widget node and its children."""
     errors: List[str] = []
     if not isinstance(node, dict):
         return [f"{path}: widget node must be a dict"]
@@ -776,7 +1050,51 @@ def validate_widget_tree(node: Any, path: str = "root") -> List[str]:
             errors.append(f"{path}.children: must be a list")
         else:
             for idx, child in enumerate(children):
-                errors.extend(validate_widget_tree(child, f"{path}.children[{idx}]"))
+                errors.extend(validate_widget(child, f"{path}.children[{idx}]"))
+    return errors
+
+
+def validate_widget_tree(node: Any, path: str = "root") -> List[str]:
+    """Recursively validate a declarative widget tree returned by `render`."""
+    return validate_widget(node, path)
+
+
+def validate_ui_response(response: Any, *, require_root: bool = True) -> List[str]:
+    """Validate a `render` or `event` UI response object including `root`, `footer` slots, and `patch.insert`."""
+    errors: List[str] = []
+    if not isinstance(response, dict):
+        return ["UI response must be a dict"]
+
+    root = response.get("root")
+    if root is not None:
+        errors.extend(validate_widget(root, "root"))
+    elif require_root and "patch" not in response:
+        errors.append("UI response missing 'root' widget tree")
+
+    if "footer" in response and response["footer"] is not None:
+        footer = response["footer"]
+        if not isinstance(footer, dict):
+            errors.append("footer: must be a dict")
+        else:
+            valid_slots = ("left", "center", "right")
+            for key in footer:
+                if key not in valid_slots:
+                    errors.append(f"footer.{key}: unknown footer slot (expected left, center, or right)")
+            for slot in valid_slots:
+                if slot in footer and footer[slot] is not None:
+                    slot_items = footer[slot]
+                    if not isinstance(slot_items, list):
+                        errors.append(f"footer.{slot}: must be a list")
+                    else:
+                        for idx, item in enumerate(slot_items):
+                            errors.extend(validate_widget(item, f"footer.{slot}[{idx}]"))
+
+    patch = response.get("patch")
+    if isinstance(patch, dict):
+        insert = patch.get("insert")
+        if isinstance(insert, dict) and insert.get("node") is not None:
+            errors.extend(validate_widget(insert["node"], "patch.insert.node"))
+
     return errors
 
 
@@ -837,8 +1155,7 @@ def smoke_test_plugin(plugin_dir: str, screen: str = "main") -> List[str]:
                         if "error" in msg:
                             return [f"RPC error on {req['method']}: {msg['error']}"]
                         if req["method"] == "render":
-                            root = (msg.get("result") or {}).get("root")
-                            errors.extend(validate_widget_tree(root))
+                            errors.extend(validate_ui_response(msg.get("result") or {}))
                         break
         finally:
             try:

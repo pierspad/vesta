@@ -24,7 +24,7 @@ CLI configuration is isolated from desktop preferences: commands do not read the
 | Transcribe | Single local or cloud endpoint per run; model list/download/removal; default Silero VAD, beam-search quality, segmentation, and JSON-Lines progress | Multi-tier provider failover, remote model discovery, and per-run custom VAD variant or model directory selection |
 | Translate | Tiered TOML provider pools, batch size, resume overlap, language list, and completeness check | Context preview/editing, interactive subtitle table editing, and remote model discovery |
 | Refine | Filtered/paginated JSON card inspection (`inspect --query --offset --limit`), direct single-card edits (`edit`), tiered LLM annotation (`enrich`) for TSV/APKG decks, and AnkiConnect (`ankiconnect ping\|decks\|import`) | Interactive card selection/editing, custom TSV column mapping, and GUI auto-run controls |
-| MCP | `vesta-cli mcp --read-root ... --output-root ...` stdio JSON-RPC server (18 tools; see [MCP.md](MCP.md)) | Settings card (`AI assistant integration (MCP)`) detects the bundled `vesta-cli` path and copies ready client JSON |
+| MCP | `vesta-cli mcp --read-root ... --output-root ...` stdio JSON-RPC server (24 tools; see [MCP.md](MCP.md)) | Settings card (`AI assistant integration (MCP)`) detects the bundled `vesta-cli` path and copies ready client JSON |
 | AnkiConnect & Desktop | Exposed via `vesta-refine ankiconnect` / `vesta-cli refine ankiconnect` (`ping`, `decks`, `import --apkg`) | Setup wizard, update installer, support logs, and local media playback server |
 
 ## Subcommands and Options

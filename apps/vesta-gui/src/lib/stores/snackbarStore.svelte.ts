@@ -1,14 +1,16 @@
 export type SnackbarVariant = "success" | "info" | "warning" | "error";
+export type SnackbarIcon = "default" | "settings";
 export const SNACKBAR_DEFAULT_DURATION = 1700;
 export const SNACKBAR_MAX_PENDING = 8;
 const severity: Record<SnackbarVariant, number> = { info: 0, success: 0, warning: 1, error: 2 };
-interface Notification { message: string; variant: SnackbarVariant; duration: number }
+interface Notification { message: string; variant: SnackbarVariant; duration: number; icon: SnackbarIcon }
 
 /** One notification surface. Errors retain their reading time and concurrent
  * completions queue rather than overwrite each other. Duplicate messages coalesce. */
 export class SnackbarStore {
   message = $state<string | null>(null);
   variant = $state<SnackbarVariant>("info");
+  icon = $state<SnackbarIcon>("default");
   key = $state(0);
   duration = $state(SNACKBAR_DEFAULT_DURATION);
   paused = $state(false);
@@ -18,13 +20,13 @@ export class SnackbarStore {
   private remaining = 0;
   private pauseReasons = new Set<string>();
 
-  show(msg: string, variant: SnackbarVariant = "info", duration?: number) {
+  show(msg: string, variant: SnackbarVariant = "info", duration?: number, icon: SnackbarIcon = "default") {
     const message = msg.trim();
     if (!message) return;
-    if ((this.message === message && this.variant === variant) || this.queue.some(item => item.message === message && item.variant === variant)) return;
+    if ((this.message === message && this.variant === variant && this.icon === icon) || this.queue.some(item => item.message === message && item.variant === variant && item.icon === icon)) return;
     const minimum = variant === "error" ? 5000 : variant === "warning" ? 3500 : SNACKBAR_DEFAULT_DURATION;
     const requested = duration !== undefined && Number.isFinite(duration) && duration >= 0 ? Math.min(duration, 2147483647) : minimum;
-    const notification = { message, variant, duration: requested === 0 ? 0 : Math.max(minimum, requested, Math.min(15000, minimum + Math.max(0, Array.from(message).length - 80) * 20)) };
+    const notification = { message, variant, icon, duration: requested === 0 ? 0 : Math.max(minimum, requested, Math.min(15000, minimum + Math.max(0, Array.from(message).length - 80) * 20)) };
     if (this.message === null) { this.activate(notification); return; }
     if (this.queue.length >= SNACKBAR_MAX_PENDING) {
       const weakest = this.queue.reduce((index, item, i, all) => severity[item.variant] < severity[all[index].variant] ? i : index, 0);
@@ -35,20 +37,20 @@ export class SnackbarStore {
     this.queue.sort((a, b) => severity[b.variant] - severity[a.variant]);
   }
 
-  success(msg: string, duration?: number) {
-    this.show(msg, "success", duration);
+  success(msg: string, duration?: number, icon?: SnackbarIcon) {
+    this.show(msg, "success", duration, icon);
   }
 
-  error(msg: string, duration?: number) {
-    this.show(msg, "error", duration);
+  error(msg: string, duration?: number, icon?: SnackbarIcon) {
+    this.show(msg, "error", duration, icon);
   }
 
-  info(msg: string, duration?: number) {
-    this.show(msg, "info", duration);
+  info(msg: string, duration?: number, icon?: SnackbarIcon) {
+    this.show(msg, "info", duration, icon);
   }
 
-  warning(msg: string, duration?: number) {
-    this.show(msg, "warning", duration);
+  warning(msg: string, duration?: number, icon?: SnackbarIcon) {
+    this.show(msg, "warning", duration, icon);
   }
 
   private activate(notification: Notification) {
@@ -58,6 +60,7 @@ export class SnackbarStore {
     this.key += 1;
     this.message = notification.message;
     this.variant = notification.variant;
+    this.icon = notification.icon;
     this.duration = notification.duration;
     this.remaining = notification.duration;
     if (!this.paused) this.schedule();
@@ -92,7 +95,7 @@ export class SnackbarStore {
     this.clearTimer();
     const next = this.queue.shift();
     if (next) this.activate(next);
-    else { this.message = null; this.pauseReasons.clear(); this.paused = false; }
+    else { this.message = null; this.icon = "default"; this.pauseReasons.clear(); this.paused = false; }
   }
   clear() {
     this.queue = [];
@@ -101,5 +104,5 @@ export class SnackbarStore {
 }
 export const snackbar = new SnackbarStore();
 export function createSnackbarNotifier(defaultDuration?: number) {
-  return (message: string, variant: SnackbarVariant = "info", duration: number | undefined = defaultDuration) => snackbar.show(message, variant, duration);
+  return (message: string, variant: SnackbarVariant = "info", duration: number | undefined = defaultDuration, icon: SnackbarIcon = "default") => snackbar.show(message, variant, duration, icon);
 }

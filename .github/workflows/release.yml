@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  # Development prereleases are opt-in; every dev push still runs full CI.
+      - dev
   workflow_dispatch:
 
 concurrency:

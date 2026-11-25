@@ -19,6 +19,7 @@
     generateDisabled: boolean;
     onStop: () => void;
     onGenerateSingle: () => void;
+    onBlockedGenerate?: () => void;
     onNavigate: (direction: -1 | 1) => void;
   }
 
@@ -37,6 +38,7 @@
     generateDisabled,
     onStop,
     onGenerateSingle,
+    onBlockedGenerate,
     onNavigate,
   }: Props = $props();
 
@@ -74,12 +76,21 @@
         </button>
       {/if}
       {#if !aiStore.killSwitchActive}
-        <button
-          type="button"
-          onclick={onGenerateSingle}
-          disabled={generateDisabled}
-          class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 hover:border-indigo-500/50 text-indigo-300 text-xs font-bold transition-all duration-200 cursor-pointer disabled:opacity-50"
+        {@const generateBlocked = generateDisabled && !isSingleRefining && !autoRefining}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <div
+          class={generateBlocked ? "cursor-help" : ""}
+          onclick={() => {
+            if (generateBlocked) onBlockedGenerate?.();
+          }}
         >
+          <button
+            type="button"
+            onclick={onGenerateSingle}
+            disabled={generateDisabled}
+            class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 hover:border-indigo-500/50 text-indigo-300 text-xs font-bold transition-all duration-200 disabled:opacity-50 {generateBlocked ? 'pointer-events-none' : 'cursor-pointer'}"
+          >
           {#if isGeneratingSelected}
             <svg class="animate-spin h-3.5 w-3.5 text-indigo-300" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -92,7 +103,8 @@
             </svg>
             {t("refine.btn.generateAI")}
           {/if}
-        </button>
+          </button>
+        </div>
       {/if}
     </div>
 
@@ -107,28 +119,28 @@
     />
   </div>
 
-  <div class="flex justify-between items-center text-xs text-gray-400 border-t border-white/5 pt-3 shrink-0">
-    <span class="flex items-center gap-1.5">
-      <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono">↑</kbd>/<kbd class="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono">k</kbd> {t("refine.btn.prev")}
-      <span class="opacity-30 mx-1">•</span>
-      <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono">↓</kbd>/<kbd class="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono">j</kbd> {t("refine.btn.next")}
-    </span>
-
-    <div class="flex items-center gap-2">
-      <button
-        onclick={() => onNavigate(-1)}
-        disabled={selectedFilteredIndex <= 0}
-        class="bg-white/5 hover:bg-white/10 disabled:opacity-30 border border-white/10 rounded-lg px-3 py-1.5 font-semibold transition-colors cursor-pointer"
-      >
-        {t("refine.btn.prev")}
-      </button>
-      <button
-        onclick={() => onNavigate(1)}
-        disabled={filteredCount === 0 || selectedFilteredIndex >= filteredCount - 1}
-        class="bg-white/5 hover:bg-white/10 disabled:opacity-30 border border-white/10 rounded-lg px-3 py-1.5 font-semibold transition-colors cursor-pointer"
-      >
-        {t("refine.btn.next")}
-      </button>
-    </div>
+  <div class="flex justify-center items-center gap-3 text-xs text-gray-300 border-t border-white/5 pt-3 shrink-0">
+    <button
+      type="button"
+      onclick={() => onNavigate(-1)}
+      disabled={selectedFilteredIndex <= 0}
+      class="min-w-[152px] inline-flex items-center justify-center gap-2.5 bg-white/5 hover:bg-white/10 disabled:opacity-35 border border-white/10 rounded-lg px-4 py-1.5 font-semibold transition-colors cursor-pointer disabled:cursor-not-allowed"
+    >
+      <span class="inline-flex items-center gap-1 text-[10px] font-mono text-gray-400" aria-hidden="true">
+        <kbd class="px-1.5 py-0.5 rounded bg-white/10">↑</kbd>/<kbd class="px-1.5 py-0.5 rounded bg-white/10">k</kbd>
+      </span>
+      <span>{t("refine.btn.prev")}</span>
+    </button>
+    <button
+      type="button"
+      onclick={() => onNavigate(1)}
+      disabled={filteredCount === 0 || selectedFilteredIndex >= filteredCount - 1}
+      class="min-w-[152px] inline-flex items-center justify-center gap-2.5 bg-white/5 hover:bg-white/10 disabled:opacity-35 border border-white/10 rounded-lg px-4 py-1.5 font-semibold transition-colors cursor-pointer disabled:cursor-not-allowed"
+    >
+      <span>{t("refine.btn.next")}</span>
+      <span class="inline-flex items-center gap-1 text-[10px] font-mono text-gray-400" aria-hidden="true">
+        <kbd class="px-1.5 py-0.5 rounded bg-white/10">↓</kbd>/<kbd class="px-1.5 py-0.5 rounded bg-white/10">j</kbd>
+      </span>
+    </button>
   </div>
 </div>

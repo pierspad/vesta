@@ -24,7 +24,7 @@ python3 build-scripts/quality_check.py --desktop --smoke
 
 During daily iteration on Linux `x86_64`, [`.cargo/config.toml`](../.cargo/config.toml) routes linking through `clang` + `mold` (install `clang` and `mold` locally) and you can keep compile/link loops fast with targeted crate tests (for example `cargo test --locked -p vesta-parser -p vesta-apkg`), reserving full `--desktop` / `vulkan` builds for final verification gates and CI.
 
-Stable publication runs automatically on `main`; development prereleases require a manual dispatch of `release.yml` on `dev`. Both branches still run full CI on every push. Publication waits for the successful push workflow on the exact release commit, including workspace tests and strict Clippy; a missing, failed, or skipped run blocks `semantic-release`. Generated scorecard metrics and the SQLite database are checked before expensive release validation. `python3 build-scripts/test_release_workflows.py` validates release triggers, queueing, platform prerequisites, and tag/version agreement.
+Stable publication (`vX.Y.Z`) runs automatically on `main` pushes and development prereleases (`vX.Y.Z-dev.N`) run automatically on `dev` pushes. Both branches wait for the successful `ci.yml` push workflow on the exact release commit, including workspace tests and strict Clippy; a missing, failed, or skipped run blocks `semantic-release`. Generated scorecard metrics and the SQLite database are checked before expensive release validation. `python3 build-scripts/test_release_workflows.py` validates release triggers, queueing, platform prerequisites, and tag/version agreement.
 
 ---
 
@@ -104,7 +104,7 @@ cargo test -p vesta-parser -p vesta-transcribe -p vesta-flashcards
 
 - **Headless CI job**: Compiles and tests all library and CLI crates without Node, Tauri system libraries, or GPU SDKs, verifying the default CPU dependency graph independently of desktop feature unification.
 - **CLI subprocess tests (`cargo test -p vesta-cli -p vesta-flashcards-cli -p vesta-translate-cli -p vesta-transcribe-cli -p vesta-extract-cli -p vesta-ocr-cli -p vesta-sync-cli -p vesta-autosync-cli -p vesta-refine-cli`)**: Verify `--help` contracts, exit codes (`0` success, `1` runtime error, `2` usage error, `130` `SIGINT` cancellation), stdout/stderr separation, and preservation of existing output files on failure or `SIGINT`.
-- **MCP protocol tests (`cargo test --locked -p vesta-mcp`)**: Connect a real stdio MCP client (`rmcp`), discover all 18 tool schemas (`get_configuration`, `inspect_subtitles`, `list_embedded_subtitles`, `extract_embedded_subtitle`, `preview_flashcards`, `generate_flashcards`, `export_dueling_subtitles`, `merge_apkg`, `sync_subtitles`, `autosync_subtitles`, `refine_flashcards`, `translate_subtitles`, `transcribe_media`, `ocr_subtitles`, `get_job`, `cancel_job`, `list_plugins`, `call_plugin`), and verify path-root isolation, job cancellation, and server-side credential isolation.
+- **MCP protocol tests (`cargo test --locked -p vesta-mcp`)**: Connect a real stdio MCP client (`rmcp`), discover all 24 tool schemas (`get_configuration`, `inspect_subtitles`, `list_embedded_subtitles`, `extract_embedded_subtitle`, `preview_video_frame`, `preview_flashcards`, `generate_flashcards`, `batch_generate_flashcards`, `export_dueling_subtitles`, `merge_apkg`, `sync_subtitles`, `autosync_subtitles`, `inspect_deck`, `edit_deck_cards`, `refine_flashcards`, `ankiconnect`, `translate_subtitles`, `transcribe_media`, `ocr_subtitles`, `manage_local_models`, `get_job`, `cancel_job`, `list_plugins`, `call_plugin`), and verify path-root isolation, job cancellation, and server-side credential isolation.
 
 ### HTTP Contracts and Provider Links
 
@@ -125,7 +125,7 @@ python3 build-scripts/check_tauri_versions.py
 python3 build-scripts/test_tauri_versions.py
 ```
 
-- **Static AST pattern check (`npm run check:patterns` in `apps/vesta-gui`)**: Parses TypeScript and Svelte script blocks to reject async `forEach` callbacks, async `Promise` executors, and `debugger` statements.
+- **Static AST pattern & UI contract checks (`npm run check:patterns` and `node scripts/check-ui-contracts.mjs` in `apps/vesta-gui`)**: Parse TypeScript and Svelte blocks to reject async `forEach` callbacks, async `Promise` executors, `debugger` statements, and layout/component contract violations; `python3 build-scripts/browser_ipc_contract.py --check` verifies Playwright mocked IPC payloads against Rust command signatures.
 - **Development CSS check (`npm run test:dev-css` in `apps/vesta-gui`)**: Starts ephemeral Vite servers, requests component CSS before component JavaScript, verifies scoped style output, and shuts down cleanly.
 - **Mounted and workflow regression tests (`npm test` in `apps/vesta-gui`)**:
   - Persistent tab containers (`active` prop transitions without unmounting), keyboard shortcut scoping, and portal menu cleanup (`SpeechEngineSelector`, `SearchableSelect`, context menus).

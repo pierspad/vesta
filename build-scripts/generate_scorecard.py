@@ -419,8 +419,8 @@ def render_scorecard_md(parsed: dict[str, dict[str, Any]], m: CodebaseMetrics) -
         "",
         "## Executive Summary by Area",
         "",
-        f"> *Coverage denominators:* `GUI`, `CLI`, `MCP`, and `Playwright` count only applicable features (excluding `N/A`), "
-        f"whereas `Docs`, `Unit Tests`, `Smoke`, and `Verified` cover all {len(features)} features.",
+        f"> *Coverage denominators:* `GUI`, `CLI`, `MCP`, `Playwright`, and `Smoke` count only applicable features (excluding `N/A`), "
+        f"whereas `Docs`, `Unit Tests`, and `Verified` cover all {len(features)} features.",
         "",
         "| Area | Features | GUI | CLI | MCP | Docs | Unit Tests | Playwright | Smoke | Verified | Open Findings |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -447,7 +447,7 @@ def render_scorecard_md(parsed: dict[str, dict[str, Any]], m: CodebaseMetrics) -
             f"| {_cnt(area_feats, 'docs')}/{len(area_feats)} "
             f"| {_cnt(area_feats, 'unit_tests')}/{len(area_feats)} "
             f"| {_cnt(area_feats, 'playwright')}/{_applicable_cnt(area_feats, 'playwright')} "
-            f"| {_cnt(area_feats, 'smoke')}/{len(area_feats)} "
+            f"| {_cnt(area_feats, 'smoke')}/{_applicable_cnt(area_feats, 'smoke')} "
             f"| {_cnt(area_feats, 'audit_status', 'verified')}/{len(area_feats)} "
             f"| {total_open_by_area[area_key]} |"
         )
@@ -460,7 +460,7 @@ def render_scorecard_md(parsed: dict[str, dict[str, Any]], m: CodebaseMetrics) -
         f"| **{_cnt(features, 'docs')}/{len(features)}** "
         f"| **{_cnt(features, 'unit_tests')}/{len(features)}** "
         f"| **{_cnt(features, 'playwright')}/{_applicable_cnt(features, 'playwright')}** "
-        f"| **{_cnt(features, 'smoke')}/{len(features)}** "
+        f"| **{_cnt(features, 'smoke')}/{_applicable_cnt(features, 'smoke')}** "
         f"| **{_cnt(features, 'audit_status', 'verified')}/{len(features)}** "
         f"| **{sum(total_open_by_area.values())}** |"
     )

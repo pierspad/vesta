@@ -78,7 +78,7 @@
 </script>
 
 <div class="glass-card p-5 {highlightClass}">
-  <div class="mb-4 flex items-center justify-between gap-3">
+  <div class="mb-4 flex items-start justify-between gap-3">
     <h3
       class="panel-title-files-output flex min-w-0 items-center gap-2 text-lg font-semibold"
     >

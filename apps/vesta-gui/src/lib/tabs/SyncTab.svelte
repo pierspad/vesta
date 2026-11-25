@@ -13,6 +13,9 @@
   import { locale } from "$lib/i18n";
   import { getFileName } from "$lib/utils/models";
   import { aiStore } from "$lib/stores/aiStore.svelte";
+  import { guidanceStore } from "$lib/stores/guidanceStore.svelte";
+  import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
+  const requirements = new RequirementFeedback<"files">();
   import { autoSyncStore } from "$lib/stores/autoSyncStore.svelte";
   import AutoSyncOverlay from "$lib/components/AutoSyncOverlay.svelte";
   import FilesPanel from "$lib/panels/FilesPanel.svelte";
@@ -125,6 +128,31 @@
     }
   }
 
+  function handleBlockedAutoSync() {
+    if (autoSyncStore.isAutoSyncing || localWhisperOperation.busy || aiStore.killSwitchActive) return;
+    if (!selectedEngine) {
+      showSnackbar(t("transcribe.blocked.missingModel"), "error", undefined, "settings");
+      guidanceStore.guideToSettings({ sourceTab: "sync", section: "whisper", targetId: "whisper-models" });
+      return;
+    }
+    if (!status?.is_loaded) {
+      requirements.pulse(["files"]);
+      showSnackbar(t("sync.dropSrtFirst"), "warning");
+      return;
+    }
+    if (!hasAudio) {
+      requirements.pulse(["files"]);
+      showSnackbar(t("sync.needVideoForAnchor"), "warning");
+    }
+  }
+
+  function handleBlockedSave() {
+    if (!status?.is_loaded) {
+      requirements.pulse(["files"]);
+      showSnackbar(t("sync.dropSrtFirst"), "info");
+    }
+  }
+
   async function startAutoSync(quick = false) {
     if (autoSyncStore.isAutoSyncing || aiStore.killSwitchActive) return;
     if (!status?.is_loaded) {
@@ -133,6 +161,11 @@
     }
     if (!status?.video_path && !audioSrc) {
       showSnackbar(t("sync.needVideoForAnchor"), "warning");
+      return;
+    }
+    if (!selectedEngine) {
+      showSnackbar(t("transcribe.blocked.missingModel"), "error", undefined, "settings");
+      guidanceStore.guideToSettings({ sourceTab: "sync", section: "whisper", targetId: "whisper-models" });
       return;
     }
 
@@ -912,6 +945,7 @@
         mediaPath={preparingMediaPath ?? status?.video_path ?? null}
         srtLoaded={!!status?.is_loaded}
         {isPreparingMedia}
+        highlightClass={requirements.classFor("files")}
         onExpandSrt={() => (expandedPathField = "srt")}
         onExpandMedia={() => (expandedPathField = "media")}
         onBrowseSrt={selectSrtFile}
@@ -1006,8 +1040,10 @@
     bind:selectedEngine
     onLoadSession={loadSession}
     onStartAutoSync={() => startAutoSync(autoSyncStore.selectedMode === "quick")}
+    onBlockedAutoSync={handleBlockedAutoSync}
     onRequestReset={() => (showResetModal = true)}
     onSaveFile={saveFile}
+    onBlockedSave={handleBlockedSave}
   />
 
   <AutoSyncOverlay onCancel={cancelAutoSync} />

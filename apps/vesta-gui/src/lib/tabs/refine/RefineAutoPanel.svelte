@@ -21,6 +21,7 @@
     logs: string[];
     onEditLlmSettings: () => void;
     onStartAuto: () => void;
+    onBlockedStartAuto?: () => void;
     onStopAuto: () => void;
   }
 
@@ -43,6 +44,7 @@
     logs,
     onEditLlmSettings,
     onStartAuto,
+    onBlockedStartAuto,
     onStopAuto,
   }: Props = $props();
 
@@ -143,16 +145,26 @@
         {isStopping ? t("refine.btn.stopping") : t("refine.btn.stop")}
       </button>
     {:else}
-      <button
-        onclick={onStartAuto}
-        disabled={operationBusy || isValidatingLlm || !!llmErrorText || !hasCards}
-        class="flex-1 rounded-xl bg-amber-600 hover:bg-amber-500 border border-amber-500/30 disabled:bg-amber-600/40 text-xs font-bold text-white px-4 py-2.5 shadow-lg shadow-amber-950/30 transition-all cursor-pointer flex items-center justify-center gap-2 {(llmErrorText || !hasCards) ? 'opacity-50 cursor-not-allowed' : ''}"
+      {@const startBlocked = !operationBusy && !isValidatingLlm && (!!llmErrorText || !hasCards)}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <div
+        class="flex-1 {startBlocked ? 'cursor-help' : ''}"
+        onclick={() => {
+          if (startBlocked) onBlockedStartAuto?.();
+        }}
       >
-        <svg class="w-4 h-4 text-amber-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
-        {t("refine.btn.startAI")}
-      </button>
+        <button
+          onclick={onStartAuto}
+          disabled={operationBusy || isValidatingLlm || !!llmErrorText || !hasCards}
+          class="w-full rounded-xl bg-amber-600 hover:bg-amber-500 border border-amber-500/30 disabled:bg-amber-600/40 disabled:border-white/10 text-xs font-bold text-white px-4 py-2.5 shadow-lg shadow-amber-950/30 disabled:shadow-none transition-all flex items-center justify-center gap-2 {(llmErrorText || !hasCards) ? 'opacity-50 saturate-75' : ''} {startBlocked ? 'pointer-events-none' : 'cursor-pointer'}"
+        >
+          <svg class="w-4 h-4 text-amber-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          {t("refine.btn.startAI")}
+        </button>
+      </div>
     {/if}
   </div>
 

@@ -4,10 +4,11 @@
   import { locale } from "$lib/i18n";
   import { languageFlagUrl } from "$lib/config/languages";
   import type { SubtitleLanguageGroup, SubtitleTrack } from "$lib/utils/subtitleTracks";
-  let { group, busy, downloadingIndex = null, selectedIndex, downloaded, canOcr = true, onselect, ondownload, onpreview }: { group: SubtitleLanguageGroup; busy: boolean; downloadingIndex?: number | null; selectedIndex?: number; downloaded: number[]; canOcr?: boolean; onselect: (index: number) => void; ondownload: (track: SubtitleTrack) => void; onpreview: (track: SubtitleTrack) => void } = $props();
+  let { group, busy, downloadingIndex = null, selectedIndex, downloaded, canOcr = true, onselect, ondownload, onpreview, onOcrBlocked }: { group: SubtitleLanguageGroup; busy: boolean; downloadingIndex?: number | null; selectedIndex?: number; downloaded: number[]; canOcr?: boolean; onselect: (index: number) => void; ondownload: (track: SubtitleTrack) => void; onpreview: (track: SubtitleTrack) => void; onOcrBlocked?: () => void } = $props();
   let t = $derived($locale);
   let track = $derived(group.tracks.find(track => track.index === selectedIndex) ?? group.tracks[0]);
   const canAction = $derived(track.text_based || canOcr);
+  const ocrBlocked = $derived(!track.text_based && !canOcr && !busy && downloadingIndex === null);
   let contextOpen = $state(false);
   let menuPosition = $state({ x: 0, y: 0 });
   $effect(() => { group.key; contextOpen = false; });
@@ -30,16 +31,24 @@
     {#if track.languageConflict}<p class="mt-1 text-xs text-amber-300">{t("extract.languageConflict")} · {track.language}</p>{/if}
   </div>
   <div class="flex shrink-0 gap-2">
-    <button class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-gray-300 hover:bg-white/10 disabled:opacity-30" title={t("extract.preview")} aria-label={`${t("extract.preview")} · ${group.languageName} · #${track.index}`} disabled={busy || !canAction} onclick={() => onpreview(track)}>
-      <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-    </button>
-    <button class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-teal-500/20 bg-teal-500/10 text-teal-300 hover:bg-teal-500/25 disabled:cursor-not-allowed disabled:border-white/5 disabled:bg-white/5 disabled:text-gray-600" title={track.text_based ? t("extract.save") : t("extract.ocr")} aria-label={`${t("extract.save")} · ${group.languageName} · #${track.index}`} aria-busy={downloadingIndex === track.index} disabled={busy || downloadingIndex !== null || !canAction} onclick={() => ondownload(track)}>
-      {#if downloadingIndex === track.index}
-      <svg aria-hidden="true" class="h-5 w-5 animate-spin motion-reduce:animate-none" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" opacity="0.25"/><path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" stroke-width="2"/></svg>
-      {:else}
-      <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4" /></svg>
-      {/if}
-    </button>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class={ocrBlocked ? "cursor-help" : ""} onclick={() => { if (ocrBlocked) onOcrBlocked?.(); }}>
+      <button class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-gray-300 hover:bg-white/10 disabled:opacity-30 {ocrBlocked ? 'pointer-events-none' : ''}" title={t("extract.preview")} aria-label={`${t("extract.preview")} · ${group.languageName} · #${track.index}`} disabled={busy || !canAction} onclick={() => onpreview(track)}>
+        <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class={ocrBlocked ? "cursor-help" : ""} onclick={() => { if (ocrBlocked) onOcrBlocked?.(); }}>
+      <button class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-teal-500/20 bg-teal-500/10 text-teal-300 hover:bg-teal-500/25 disabled:cursor-not-allowed disabled:border-white/5 disabled:bg-white/5 disabled:text-gray-600 {ocrBlocked ? 'pointer-events-none' : ''}" title={track.text_based ? t("extract.save") : t("extract.ocr")} aria-label={`${t("extract.save")} · ${group.languageName} · #${track.index}`} aria-busy={downloadingIndex === track.index} disabled={busy || downloadingIndex !== null || !canAction} onclick={() => ondownload(track)}>
+        {#if downloadingIndex === track.index}
+        <svg aria-hidden="true" class="h-5 w-5 animate-spin motion-reduce:animate-none" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" opacity="0.25"/><path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" stroke-width="2"/></svg>
+        {:else}
+        <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4" /></svg>
+        {/if}
+      </button>
+    </div>
   </div>
   {#if contextOpen}
     <!-- svelte-ignore a11y_no_static_element_interactions -->

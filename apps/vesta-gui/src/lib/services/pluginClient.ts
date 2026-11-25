@@ -100,6 +100,7 @@ export interface PluginPatch {
 export type WidgetType =
   | "column"
   | "row"
+  | "card"
   | "text"
   | "heading"
   | "textInput"
@@ -112,6 +113,8 @@ export type WidgetType =
   | "list"
   | "table"
   | "image"
+  | "mediaPlayer"
+  | "pagination"
   | "progress"
   | "fileOutput"
   | "divider"
@@ -151,6 +154,15 @@ export interface RowWidget extends BaseWidget {
   align?: "start" | "center" | "end" | "between";
   separator?: "or";
   children: WidgetNode[];
+}
+
+export interface CardWidget extends BaseWidget {
+  type: "card";
+  title?: string;
+  subtitle?: string;
+  icon?: string;
+  accent?: "purple" | "indigo" | "cyan" | "emerald" | "amber" | "blue" | "orange";
+  children?: WidgetNode[];
 }
 
 export interface TextWidget extends BaseWidget {
@@ -286,6 +298,8 @@ export interface ListWidget extends BaseWidget {
   type: "list";
   items: ListItem[];
   reserveImage?: boolean;
+  imageAspect?: "square" | "poster" | "wide";
+  layout?: "list" | "grid";
 }
 
 export interface TableWidget extends BaseWidget {
@@ -300,6 +314,30 @@ export interface ImageWidget extends BaseWidget {
   alt?: string;
   width?: number;
   height?: number;
+  aspect?: "auto" | "square" | "poster" | "wide";
+  fit?: "contain" | "cover";
+}
+
+export interface MediaPlayerWidget extends BaseWidget {
+  type: "mediaPlayer";
+  kind?: "video" | "audio";
+  src?: string;
+  poster?: string;
+  title?: string;
+  caption?: string;
+  loop?: boolean;
+  muted?: boolean;
+  height?: number | string;
+}
+
+export interface PaginationWidget extends BaseWidget {
+  type: "pagination";
+  id: string;
+  page?: number;
+  totalPages?: number;
+  totalItems?: number;
+  pageSize?: number;
+  disabled?: boolean;
 }
 
 export interface ProgressWidget extends BaseWidget {
@@ -356,6 +394,9 @@ export interface PathInputWidget extends BaseWidget {
   defaultValue?: string;
   disabled?: boolean;
   pickerType?: "file" | "folder";
+  clearable?: boolean;
+  compact?: boolean;
+  defaultDir?: "downloads";
   drop?: boolean;
   dropHint?: string;
   filters?: Array<{ name: string; extensions: string[] }>;
@@ -383,6 +424,7 @@ export interface LanguageSelectWidget extends BaseWidget {
 export type WidgetNode =
   | ColumnWidget
   | RowWidget
+  | CardWidget
   | TextWidget
   | HeadingWidget
   | TextInputWidget
@@ -395,6 +437,8 @@ export type WidgetNode =
   | ListWidget
   | TableWidget
   | ImageWidget
+  | MediaPlayerWidget
+  | PaginationWidget
   | ProgressWidget
   | FileOutputWidget
   | DividerWidget
@@ -403,6 +447,25 @@ export type WidgetNode =
   | SegmentedWidget
   | PathInputWidget
   | LanguageSelectWidget;
+
+export type PluginWidgetNode = WidgetNode;
+
+export interface PluginFooter {
+  left?: PluginWidgetNode[];
+  center?: PluginWidgetNode[];
+  right?: PluginWidgetNode[];
+}
+
+export interface PluginUiResponse {
+  screen?: string;
+  root?: WidgetNode;
+  patch?: PluginPatch;
+  footer?: PluginFooter;
+  scrollTop?: boolean;
+  snackbar?: PluginSnackbar | string;
+  notification?: PluginSnackbar | string;
+  [key: string]: any;
+}
 
 export async function pluginInspect(url: string, gitRef?: string): Promise<PluginInspectResult> {
   const inspected = await invokeCommand<PluginInspectResult>("plugin_inspect", { url, gitRef });
@@ -450,8 +513,8 @@ export async function pluginRender(
   params?: any,
   locale?: string,
   expertMode?: boolean,
-): Promise<{ root?: WidgetNode; [key: string]: any }> {
-  return invokeCommand<{ root?: WidgetNode; [key: string]: any }>("plugin_render", {
+): Promise<PluginUiResponse> {
+  return invokeCommand<PluginUiResponse>("plugin_render", {
     pluginId,
     screen,
     params,
@@ -465,8 +528,8 @@ export async function pluginDispatchEvent(
   event: PluginEventPayload,
   locale?: string,
   expertMode?: boolean,
-): Promise<{ root?: WidgetNode; [key: string]: any }> {
-  return invokeCommand<{ root?: WidgetNode; [key: string]: any }>("plugin_dispatch_event", {
+): Promise<PluginUiResponse> {
+  return invokeCommand<PluginUiResponse>("plugin_dispatch_event", {
     pluginId,
     event,
     locale,

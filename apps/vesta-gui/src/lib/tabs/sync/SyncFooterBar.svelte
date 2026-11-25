@@ -16,8 +16,10 @@
     selectedEngine: TranscribeTierEntry | null | undefined;
     onLoadSession: () => void;
     onStartAutoSync: () => void;
+    onBlockedAutoSync?: () => void;
     onRequestReset: () => void;
     onSaveFile: () => void;
+    onBlockedSave?: () => void;
   }
 
   let {
@@ -28,8 +30,10 @@
     selectedEngine = $bindable(),
     onLoadSession,
     onStartAutoSync,
+    onBlockedAutoSync,
     onRequestReset,
     onSaveFile,
+    onBlockedSave,
   }: Props = $props();
 
   let t = $derived($locale);
@@ -64,14 +68,14 @@
     {/if}
   {/snippet}
   {#snippet center()}
-    <AutoSyncControls {canAutoSync} onStart={onStartAutoSync} />
+    <AutoSyncControls {canAutoSync} onStart={onStartAutoSync} onBlockedStart={onBlockedAutoSync} />
   {/snippet}
   {#snippet right()}
     <div class="relative group">
       <button
         onclick={onRequestReset}
         disabled={!canReset}
-        class="px-4 2xl:px-5 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:bg-amber-500/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-amber-950/20 flex items-center gap-2 whitespace-nowrap enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-55 disabled:cursor-not-allowed cursor-pointer"
+        class="px-4 2xl:px-5 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:bg-amber-500/40 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-amber-950/20 disabled:shadow-none flex items-center gap-2 whitespace-nowrap enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed {!canReset ? 'saturate-75' : 'cursor-pointer'}"
       >
         <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -83,11 +87,18 @@
       </div>
     </div>
 
-    <div class="relative group">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div
+      class="relative group {!canSave ? 'cursor-help' : ''}"
+      onclick={() => {
+        if (!canSave) onBlockedSave?.();
+      }}
+    >
       <button
         onclick={onSaveFile}
         disabled={!canSave}
-        class="px-4 2xl:px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/55 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 whitespace-nowrap enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-55 disabled:cursor-not-allowed cursor-pointer"
+        class="px-4 2xl:px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/40 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 disabled:shadow-none flex items-center gap-2 whitespace-nowrap enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed {!canSave ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
       >
         <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />

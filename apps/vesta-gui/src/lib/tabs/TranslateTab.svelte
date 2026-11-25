@@ -23,6 +23,7 @@
   import type { LogEntry } from "$lib/panels/LogPanel.svelte";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { aiStore } from "$lib/stores/aiStore.svelte";
+  import { guidanceStore } from "$lib/stores/guidanceStore.svelte";
   import { uiMode } from "$lib/stores/uiModeStore.svelte";
   import {
     buildTiersPayload as buildTiersPayloadShared,
@@ -173,7 +174,12 @@
     try {
       const check = await checkTiersAvailability();
       if (request !== contextRequest || path !== inputPath || disposed || aiStore.killSwitchActive) return;
-      if (!check.available) { requirements.pulse(["options"]); if (check.errorMsg) snackbar.show(check.errorMsg, "error"); return; }
+      if (!check.available) {
+        requirements.pulse(["options"]);
+        if (check.errorMsg) snackbar.show(check.errorMsg, "error", undefined, "settings");
+        guidanceStore.guideToSettings({ sourceTab: "translate", section: "llm", targetId: "llm-tiers" });
+        return;
+      }
       const draft = await suggestTranslationContext(path, language, context, tiersPayload);
       if (request === contextRequest && path === inputPath && !aiStore.killSwitchActive && !disposed) {
         if (!titleContext.trim()) {
@@ -188,6 +194,33 @@
       if (request === contextRequest) {
         contextLoading = false;
       }
+    }
+  }
+
+  function handleBlockedSuggestContext() {
+    if (contextLoading || isTranslating || aiStore.killSwitchActive) return;
+    if (!useTiers) {
+      snackbar.show(t("tiers.noneConfigured"), "error", undefined, "settings");
+      guidanceStore.guideToSettings({ sourceTab: "translate", section: "llm", targetId: "llm-tiers" });
+      return;
+    }
+    if (!fileInfo && !titleContext.trim()) {
+      requirements.pulse(["files", "options"]);
+      snackbar.show(t("translate.blocked.selectFiles"), "info");
+      document.getElementById("context-input")?.focus();
+    }
+  }
+
+  function handleBlockedStart() {
+    if (contextLoading || isTranslating || fileLoading || aiStore.killSwitchActive) return;
+    if (!useTiers) {
+      snackbar.show(t("translate.blocked.noTiers"), "error", undefined, "settings");
+      guidanceStore.guideToSettings({ sourceTab: "translate", section: "llm", targetId: "llm-tiers" });
+      return;
+    }
+    if (!fileInfo || !inputPath || !outputPath || !fileInfo.subtitle_count) {
+      requirements.pulse(["files"]);
+      snackbar.show(t("translate.blocked.selectFiles"), "info");
     }
   }
 
@@ -405,7 +438,12 @@
     try {
       const check = await checkTiersAvailability();
       if (run.isCancelled() || disposed) return;
-      if (!check.available) { requirements.pulse(["options"]); if (check.errorMsg) snackbar.show(check.errorMsg, "error"); return; }
+      if (!check.available) {
+        requirements.pulse(["options"]);
+        if (check.errorMsg) snackbar.show(check.errorMsg, "error", undefined, "settings");
+        guidanceStore.guideToSettings({ sourceTab: "translate", section: "llm", targetId: "llm-tiers" });
+        return;
+      }
       const tiersPayload = buildTiersPayload();
       if (!tiersPayload) { error = t("tiers.noneConfigured"); return; }
       error = null;
@@ -573,6 +611,7 @@
           {isTranslating}
           highlightClass={requirements.classFor("options")}
           onSuggestContext={suggestContext}
+          onBlockedSuggestContext={handleBlockedSuggestContext}
           onApplyContext={() => {
             const cleanDraft = contextDraft.trim();
             const cleanTitle = titleContext.trim();
@@ -618,6 +657,7 @@
     {formatEta}
     onCancel={cancelTranslation}
     onStart={startTranslation}
+    onBlockedStart={handleBlockedStart}
     onReset={resetTranslation}
   />
 

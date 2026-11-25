@@ -91,7 +91,7 @@ def handle_toggle_tip(screen, widget_id, event_type, values):
 @plugin.on_event("btn_cli_check")
 def handle_cli_check(screen, widget_id, event_type, values):
     res = plugin.run_cli("extract", ["--help"])
-    ok = bool(isinstance(res, dict) and res.get("success", False))
+    ok = bool(isinstance(res, dict) and res.get("ok", False))
     plugin.notify(
         "Vesta CLI bridge OK (`vesta-cli extract --help`)" if ok else "Vesta CLI check executed",
         level="success" if ok else "info",

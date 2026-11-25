@@ -19,6 +19,9 @@
   import { join } from "@tauri-apps/api/path";
   import { defaultOutputDirectory } from "$lib/utils/defaultOutputDirectory";
   import { aiStore } from "$lib/stores/aiStore.svelte";
+  import { guidanceStore } from "$lib/stores/guidanceStore.svelte";
+  import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
+  const requirements = new RequirementFeedback<"files">();
   import { ocrModelsStore } from "$lib/stores/ocrModelsStore.svelte";
   import { ocrHardcodedSubtitle, ocrVideoPreviewFrame, previewOcrHardcodedSubtitle, type VideoFramePreview, type VideoRoi } from "$lib/services/ocr";
   import { loadTiers } from "$lib/config/translationTiers";
@@ -567,6 +570,24 @@
     }
   }
 
+  function handleOcrBlocked() {
+    if (aiStore.killSwitchActive) return;
+    snackbar.show(t("extract.ocrNoProvider"), "error", undefined, "settings");
+    guidanceStore.guideToSettings({ sourceTab: "extract", section: "itt", targetId: "ocr-models" });
+  }
+
+  function handleBlockedHardcoded() {
+    if (busy || extractingHardcoded || downloadingIndex !== null || aiStore.killSwitchActive) return;
+    if (!isVideoMedia) {
+      requirements.pulse(["files"]);
+      snackbar.show(t("extract.hardcodedVideoRequired"), "info");
+      return;
+    }
+    if (!canOcr) {
+      handleOcrBlocked();
+    }
+  }
+
   function roundRoiValue(value: number): number {
     return Math.round(value * 1000) / 1000;
   }
@@ -878,7 +899,7 @@
   <div class="flex flex-1 flex-col overflow-hidden p-6 min-h-0 text-gray-100">
     <WorkflowWorkspace fillViewport>
       {#snippet files()}
-      <div class="glass-card p-5" class:ring-2={isDraggingOver} class:ring-teal-400={isDraggingOver}>
+      <div class="glass-card p-5 {requirements.classFor('files')}" class:ring-2={isDraggingOver} class:ring-teal-400={isDraggingOver}>
         <h3 class="mb-4 text-lg font-semibold panel-title-files-output flex items-center gap-2">
           <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
           {t("common.filesAndOutput")}
@@ -970,7 +991,7 @@
             <div class="min-h-0 flex-1 overflow-y-auto pr-1 custom-scrollbar">
               <div class="grid grid-cols-1 lg:grid-cols-2 content-start gap-3">
                 {#each visible as group (group.key)}
-                  <SubtitleTrackCard {group} busy={busy || extractingHardcoded} {downloaded} {downloadingIndex} selectedIndex={selections[group.key]} {canOcr} onselect={(index) => selections = { ...selections, [group.key]: index }} ondownload={extract} onpreview={preview} />
+                  <SubtitleTrackCard {group} busy={busy || extractingHardcoded} {downloaded} {downloadingIndex} selectedIndex={selections[group.key]} {canOcr} onselect={(index) => selections = { ...selections, [group.key]: index }} ondownload={extract} onpreview={preview} onOcrBlocked={handleOcrBlocked} />
                 {/each}
                 {#if visible.length === 0}
                   {#each Array(SUBTITLE_PAGE_SIZE) as _, index (index)}
@@ -1243,27 +1264,46 @@
           </button>
         </div>
       {:else if extractMode === "hardcoded"}
+        {@const hardcodedBlocked = !busy && !extractingHardcoded && downloadingIndex === null && !aiStore.killSwitchActive && (!isVideoMedia || !canOcr)}
         <div class="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            title={t("extract.hardcodedDesc")}
-            class="inline-flex items-center gap-2 rounded-xl border border-indigo-400/25 bg-indigo-500/15 px-4 py-2.5 text-xs font-semibold text-indigo-200 transition-colors hover:bg-indigo-500/25 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-            disabled={busy || extractingHardcoded || downloadingIndex !== null || !isVideoMedia || !canOcr || aiStore.isOcring}
-            onclick={() => void previewHardcoded()}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <div
+            class={hardcodedBlocked ? "cursor-help" : ""}
+            onclick={() => {
+              if (hardcodedBlocked) handleBlockedHardcoded();
+            }}
           >
-            <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
-            {t("extract.hardcodedPreviewOcr")}
-          </button>
-          <button
-            type="button"
-            title={t("extract.hardcodedDesc")}
-            class="inline-flex items-center gap-2 rounded-xl border border-teal-500/25 bg-teal-600/20 px-4 py-2.5 text-xs font-semibold text-teal-100 transition-colors hover:bg-teal-600/30 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-            disabled={busy || extractingHardcoded || downloadingIndex !== null || !isVideoMedia || !canOcr || aiStore.isOcring}
-            onclick={() => void extractHardcoded()}
+            <button
+              type="button"
+              title={t("extract.hardcodedDesc")}
+              class="inline-flex items-center gap-2 rounded-xl border border-indigo-400/25 bg-indigo-500/20 hover:bg-indigo-500/30 disabled:bg-indigo-500/10 disabled:border-white/10 px-4 py-2.5 text-xs font-semibold text-indigo-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50 {hardcodedBlocked ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
+              disabled={busy || extractingHardcoded || downloadingIndex !== null || !isVideoMedia || !canOcr || aiStore.isOcring}
+              onclick={() => void previewHardcoded()}
+            >
+              <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+              {t("extract.hardcodedPreviewOcr")}
+            </button>
+          </div>
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <div
+            class={hardcodedBlocked ? "cursor-help" : ""}
+            onclick={() => {
+              if (hardcodedBlocked) handleBlockedHardcoded();
+            }}
           >
-            <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v12m0 0-4-4m4 4 4-4M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2"/></svg>
-            {t("extract.hardcodedSave")}
-          </button>
+            <button
+              type="button"
+              title={t("extract.hardcodedDesc")}
+              class="inline-flex items-center gap-2 rounded-xl border border-teal-500/30 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-600/35 disabled:border-white/10 px-4 py-2.5 text-xs font-semibold text-white transition-colors shadow-lg shadow-teal-950/30 disabled:shadow-none disabled:cursor-not-allowed disabled:opacity-50 {hardcodedBlocked ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
+              disabled={busy || extractingHardcoded || downloadingIndex !== null || !isVideoMedia || !canOcr || aiStore.isOcring}
+              onclick={() => void extractHardcoded()}
+            >
+              <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v12m0 0-4-4m4 4 4-4M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2"/></svg>
+              {t("extract.hardcodedSave")}
+            </button>
+          </div>
         </div>
       {:else}
         <div class="flex items-center gap-3">

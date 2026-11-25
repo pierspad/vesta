@@ -41,7 +41,7 @@ class TestDocContracts(unittest.TestCase):
         self.assertGreater(checked_links, 150)
         self.assertEqual(link_errors, [])
         self.assertEqual(ctx["mcp"]["tool_count"], 24)
-        self.assertEqual(len(ctx["plugins"]["widget_types"]), 23)
+        self.assertEqual(len(ctx["plugins"]["widget_types"]), 26)
 
     def test_compare_manifests_detects_micro_and_macro_drift(self) -> None:
         manifest, _ = cdc.build_current_manifest()
@@ -196,6 +196,212 @@ class TestDocContracts(unittest.TestCase):
         self.assertTrue(res["ok"])
         self.assertEqual(res["exitCode"], 0)
         self.assertEqual(res["json"], {"trackCount": 3})
+
+    def _load_plugin_sdk(self):
+        import importlib.util
+
+        sdk_path = cdc.ROOT / "docs/examples/plugin-hello/vesta_plugin.py"
+        spec = importlib.util.spec_from_file_location("vesta_plugin", sdk_path)
+        assert spec and spec.loader
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_plugin_sdk_new_and_updated_builders_and_validation(self) -> None:
+        mod = self._load_plugin_sdk()
+
+        card = mod.Card(
+            [mod.Text("Inside card")],
+            title="Results",
+            subtitle="Page 1",
+            icon="film",
+            accent="cyan",
+            id="card_results",
+            visible=False,
+        )
+        self.assertEqual(card["type"], "card")
+        self.assertEqual(card["title"], "Results")
+        self.assertEqual(card["subtitle"], "Page 1")
+        self.assertEqual(card["icon"], "film")
+        self.assertEqual(card["accent"], "cyan")
+        self.assertTrue(card["hidden"])
+
+        pager = mod.Pagination(
+            "pager",
+            page=2,
+            total_pages=5,
+            total_items=48,
+            page_size=10,
+            disabled=True,
+        )
+        self.assertEqual(pager["type"], "pagination")
+        self.assertEqual(pager["page"], 2)
+        self.assertEqual(pager["totalPages"], 5)
+        self.assertEqual(pager["totalItems"], 48)
+        self.assertEqual(pager["pageSize"], 10)
+        self.assertTrue(pager["disabled"])
+
+        player = mod.MediaPlayer(
+            "/tmp/clip.mp4",
+            kind="video",
+            poster="/tmp/poster.jpg",
+            title="Clip",
+            caption="Preview",
+            loop=True,
+            muted=True,
+            height=320,
+            id="preview_player",
+        )
+        self.assertEqual(player["type"], "mediaPlayer")
+        self.assertEqual(player["src"], "/tmp/clip.mp4")
+        self.assertEqual(player["poster"], "/tmp/poster.jpg")
+        self.assertEqual(player["height"], 320)
+        self.assertTrue(player["loop"])
+        self.assertTrue(player["muted"])
+
+        path_input = mod.PathInput(
+            "out_dir",
+            pickerType="folder",
+            clearable=True,
+            compact=True,
+            default_dir="downloads",
+        )
+        self.assertEqual(path_input["type"], "pathInput")
+        self.assertTrue(path_input["clearable"])
+        self.assertTrue(path_input["compact"])
+        self.assertEqual(path_input["defaultDir"], "downloads")
+
+        img = mod.Image("https://example.com/p.jpg", aspect="poster", fit="cover")
+        self.assertEqual(img["aspect"], "poster")
+        self.assertEqual(img["fit"], "cover")
+
+        lst = mod.ListWidget(
+            [{"id": "1", "title": "Item"}],
+            image_aspect="wide",
+            layout="grid",
+        )
+        self.assertEqual(lst["imageAspect"], "wide")
+        self.assertEqual(lst["layout"], "grid")
+
+        footer = mod.Footer(
+            left=[mod.Text("Status")],
+            center=None,
+            right=[mod.Button("btn_go", "Go")],
+        )
+        self.assertEqual(list(footer.keys()), ["left", "right"])
+
+        resp = mod.Response(
+            mod.Column([card, pager, player, path_input, img, lst]),
+            footer=footer,
+            screen="results",
+            snackbar={"message": "Done", "type": "success"},
+            patch_values={"query": "vesta"},
+            scroll_top=True,
+        )
+        self.assertEqual(resp["screen"], "results")
+        self.assertTrue(resp["scrollTop"])
+        self.assertEqual(resp["patch"], {"values": {"query": "vesta"}})
+        self.assertEqual(mod.validate_ui_response(resp), [])
+
+        bad_resp = mod.Response(
+            mod.Column([]),
+            footer={"left": [{"type": "nonexistent"}], "bottom": []},
+        )
+        errs = mod.validate_ui_response(bad_resp)
+        self.assertTrue(any("footer.left[0]" in e for e in errs))
+        self.assertTrue(any("footer.bottom" in e for e in errs))
+
+    def test_plugin_sdk_prefix_events_initialize_context_and_state(self) -> None:
+        import os
+        import tempfile
+        from unittest import mock
+
+        mod = self._load_plugin_sdk()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "VESTA_DATA_DIR": tmp,
+                    "VESTA_DOWNLOADS_DIR": "/env/Downloads",
+                    "VESTA_PLUGIN_SCOPES": "network,filesystem:downloads",
+                },
+                clear=False,
+            ):
+                plugin = mod.VestaPlugin()
+                self.assertEqual(plugin.downloads_dir, "/env/Downloads")
+                self.assertEqual(plugin.scopes, ["network", "filesystem:downloads"])
+
+                # Initialize with explicit permissions + host
+                plugin._apply_initialize(
+                    {
+                        "dataDir": tmp,
+                        "settings": {"theme": "dark"},
+                        "locale": "it",
+                        "expertMode": True,
+                        "permissions": {
+                            "scopes": ["vesta:cli", "filesystem:downloads"],
+                            "downloadsDir": "/host/Downloads",
+                        },
+                        "host": {
+                            "vestaVersion": "0.2.0",
+                            "platform": "linux",
+                            "capabilities": ["footer", "card"],
+                        },
+                    }
+                )
+                self.assertEqual(plugin.downloads_dir, "/host/Downloads")
+                self.assertEqual(plugin.scopes, ["vesta:cli", "filesystem:downloads"])
+                self.assertEqual(plugin.host["vestaVersion"], "0.2.0")
+                self.assertEqual(plugin.locale, "it")
+                self.assertTrue(plugin.expert_mode)
+
+                # Fallback to environment when initialize omits permissions
+                plugin._apply_initialize({"dataDir": tmp, "settings": {}})
+                self.assertEqual(plugin.downloads_dir, "/env/Downloads")
+                self.assertEqual(plugin.scopes, ["network", "filesystem:downloads"])
+
+            # Prefix event routing: exact > longest prefix > shorter prefix > wildcard
+            calls = []
+
+            @plugin.on_event()
+            def on_any(screen, widget_id, event_type, values):
+                calls.append(("any", widget_id))
+
+            @plugin.on_event(prefix="select_")
+            def on_select_prefix(screen, widget_id, event_type, values):
+                calls.append(("select_", widget_id))
+
+            @plugin.on_event(prefix="select_sub_")
+            def on_select_sub_prefix(screen, widget_id, event_type, values):
+                calls.append(("select_sub_", widget_id))
+
+            @plugin.on_event("select_sub_exact")
+            def on_exact(screen, widget_id, event_type, values):
+                calls.append(("exact", widget_id))
+
+            for wid in ("select_sub_exact", "select_sub_123", "select_item_9", "other"):
+                h = plugin._resolve_event_handler(wid)
+                assert h is not None
+                h("main", wid, "click", {})
+
+            self.assertEqual(
+                calls,
+                [
+                    ("exact", "select_sub_exact"),
+                    ("select_sub_", "select_sub_123"),
+                    ("select_", "select_item_9"),
+                    ("any", "other"),
+                ],
+            )
+
+            # Atomic JSON persistence
+            self.assertEqual(plugin.load_state(default={"count": 0}), {"count": 0})
+            saved_path = plugin.save_state({"count": 42, "items": ["a", "b"]})
+            self.assertTrue(os.path.isfile(saved_path))
+            self.assertEqual(plugin.load_state(), {"count": 42, "items": ["a", "b"]})
+            with self.assertRaises(ValueError):
+                plugin.load_state("../outside.json")
 
 
 if __name__ == "__main__":

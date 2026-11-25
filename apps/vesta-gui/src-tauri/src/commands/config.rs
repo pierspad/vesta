@@ -327,6 +327,83 @@ mod tests {
         );
         assert_eq!(guard.entries.get("theme").map(String::as_str), Some("dark"));
     }
+
+    #[test]
+    fn remove_dir_best_effort_clears_nested_tree_and_ignores_missing_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let nested = dir.path().join("media_cache").join("sub");
+        fs::create_dir_all(&nested).unwrap();
+        fs::write(nested.join("clip.mp4"), b"data").unwrap();
+        fs::write(dir.path().join("media_cache").join("root.tmp"), b"x").unwrap();
+
+        super::remove_dir_best_effort(&dir.path().join("media_cache")).unwrap();
+        assert!(!dir.path().join("media_cache").exists());
+
+        // Non-existent path is a no-op.
+        super::remove_dir_best_effort(&dir.path().join("does_not_exist")).unwrap();
+    }
+}
+
+fn is_locked_file_error(error: &std::io::Error) -> bool {
+    error.kind() == std::io::ErrorKind::PermissionDenied
+        || matches!(error.raw_os_error(), Some(32 | 33))
+}
+
+/// Best-effort recursive removal that skips files/directories locked by another process
+/// (e.g. Windows `ERROR_SHARING_VIOLATION` / `os error 32`), so a single open handle
+/// never blocks resetting the installation.
+fn remove_dir_best_effort(path: &std::path::Path) -> Result<(), String> {
+    let entries = match fs::read_dir(path) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) if is_locked_file_error(&error) => {
+            eprintln!("Skipping locked directory {}: {error}", path.display());
+            return Ok(());
+        }
+        Err(error) => return Err(format!("{}: {error}", path.display())),
+    };
+
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) => {
+                eprintln!("Skipping unreadable entry in {}: {error}", path.display());
+                continue;
+            }
+        };
+        let entry_path = entry.path();
+        let file_type = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => {
+                eprintln!("Skipping entry {}: {error}", entry_path.display());
+                continue;
+            }
+        };
+        if file_type.is_dir() {
+            remove_dir_best_effort(&entry_path)?;
+        } else if let Err(error) = fs::remove_file(&entry_path)
+            && error.kind() != std::io::ErrorKind::NotFound
+        {
+            if is_locked_file_error(&error) {
+                eprintln!("Skipping locked file {}: {error}", entry_path.display());
+            } else {
+                return Err(format!("{}: {error}", entry_path.display()));
+            }
+        }
+    }
+
+    match fs::remove_dir(path) {
+        Ok(()) => Ok(()),
+        Err(error)
+            if error.kind() == std::io::ErrorKind::NotFound
+                || error.kind() == std::io::ErrorKind::DirectoryNotEmpty
+                || is_locked_file_error(&error) =>
+        {
+            Ok(())
+        }
+        Err(error) => Err(format!("{}: {error}", path.display())),
+    }
 }
 
 #[tauri::command]
@@ -336,17 +413,19 @@ pub async fn config_reset_installation(
 ) -> Result<(), String> {
     use tauri::Manager;
     let cache = app.path().app_cache_dir().map_err(|e| e.to_string())?;
-    let temp_subs = app
-        .path()
-        .app_local_data_dir()
-        .map_err(|e| e.to_string())?
-        .join("temp_subs");
+    let local_data = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    // On Windows, app_cache_dir() and app_local_data_dir() both resolve to
+    // AppData\Local\com.vesta.desktop, which also holds WebView2's locked EBWebView/
+    // directory, ffmpeg_bin/, and logs/. Only clear Vesta's temporary cache subdirs.
+    let targets = [
+        cache.join("media_cache"),
+        cache.join("updates"),
+        local_data.join("temp_subs"),
+    ];
     let store = Arc::clone(&state.inner);
     tauri::async_runtime::spawn_blocking(move || {
-        for path in [cache, temp_subs] {
-            if path.exists() {
-                fs::remove_dir_all(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-            }
+        for path in targets {
+            remove_dir_best_effort(&path)?;
         }
         clear_config_store(&store)
     })

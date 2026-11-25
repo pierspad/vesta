@@ -10,6 +10,7 @@
   import { guardedOpen } from "$lib/utils/dialogGuard";
   import { settledScroll } from "$lib/utils/settledScroll";
   import PluginRenderer from "$lib/components/PluginRenderer.svelte";
+  import FooterActions from "$lib/components/FooterActions.svelte";
   import SearchInput from "$lib/components/SearchInput.svelte";
   import type { InstalledPlugin, PluginInspectResult } from "$lib/services/pluginClient";
   import PluginIcon from "./plugins/PluginIcon.svelte";
@@ -304,6 +305,25 @@
             <div class="flex items-center gap-2 shrink-0">{@render actions()}</div>
           </div>
         {/snippet}
+        {#snippet fallbackFooter()}
+          <div class="flex items-center gap-3 text-xs text-gray-400">
+            <span class="font-semibold text-gray-200">{currentPlugin.name}</span>
+            <span>•</span>
+            <span class="font-mono text-gray-400">v{currentPlugin.version}</span>
+            <span>•</span>
+            <span class="text-emerald-400">{t("plugins.active")}</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              onclick={() => (showSdkModal = true)}
+              title={t("plugins.developerDocs")}
+              class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors inline-flex items-center gap-1 cursor-pointer"
+            >
+              {t("plugins.developerDocs")} →
+            </button>
+          </div>
+        {/snippet}
       </PluginRenderer>
     {/key}
   {:else}
@@ -402,33 +422,29 @@
         {/if}
       </div>
     </div>
-  {/if}
 
-  <div class="footer-band h-[92px] px-6 border-t border-white/10 bg-gray-900 flex items-center justify-between shrink-0">
-    <div class="flex items-center gap-3 text-xs text-gray-400">
-      {#if currentPlugin}
-        <span class="font-semibold text-gray-200">{currentPlugin.name}</span>
-        <span>•</span>
-        <span class="font-mono text-gray-400">v{currentPlugin.version}</span>
-        <span>•</span>
-        <span class="text-emerald-400">{t("plugins.active")}</span>
-      {:else}
-        <span>{pluginsStore.plugins.length} {t("plugins.totalInstalled")}</span>
-        <span>•</span>
-        <span class="text-emerald-400">{pluginsStore.enabledPlugins.length} {t("plugins.active")}</span>
-      {/if}
-    </div>
-    <div class="flex items-center gap-3">
-      <button
-        type="button"
-        onclick={() => (showSdkModal = true)}
-        title={t("plugins.developerDocs")}
-        class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors inline-flex items-center gap-1 cursor-pointer"
-      >
-        {t("plugins.developerDocs")} →
-      </button>
-    </div>
-  </div>
+    <FooterActions>
+      {#snippet left()}
+        <div class="flex items-center gap-3 text-xs text-gray-400">
+          <span>{pluginsStore.plugins.length} {t("plugins.totalInstalled")}</span>
+          <span>•</span>
+          <span class="text-emerald-400">{pluginsStore.enabledPlugins.length} {t("plugins.active")}</span>
+        </div>
+      {/snippet}
+      {#snippet right()}
+        <div class="flex items-center gap-3">
+          <button
+            type="button"
+            onclick={() => (showSdkModal = true)}
+            title={t("plugins.developerDocs")}
+            class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors inline-flex items-center gap-1 cursor-pointer"
+          >
+            {t("plugins.developerDocs")} →
+          </button>
+        </div>
+      {/snippet}
+    </FooterActions>
+  {/if}
 
   {#if active && !selectedPluginId && inspectResult}
     <PluginInstallDialog

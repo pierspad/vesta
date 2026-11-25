@@ -454,15 +454,18 @@ impl PluginManager {
         Ok(plugin.settings.clone())
     }
 
-    /// Saves settings for a plugin.
+    /// Saves settings for a plugin and stops any running process so the next render reloads them.
     pub async fn save_settings(
         &self,
         id: &str,
         settings: HashMap<String, serde_json::Value>,
     ) -> Result<(), String> {
-        let mut reg = self.registry.lock().await;
-        reg.update_settings(id, settings)?;
-        reg.save_to_file(&self.registry_file)?;
+        {
+            let mut reg = self.registry.lock().await;
+            reg.update_settings(id, settings)?;
+            reg.save_to_file(&self.registry_file)?;
+        }
+        self.runtime.stop_plugin(id).await;
         Ok(())
     }
 
@@ -564,6 +567,122 @@ impl PluginManager {
             .await?;
 
         Ok(res)
+    }
+}
+
+fn is_local_fs_path(raw: &str) -> bool {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.starts_with("http://")
+        || lower.starts_with("https://")
+        || lower.starts_with("blob:")
+        || lower.starts_with("data:")
+        || lower.starts_with("stream:")
+    {
+        return false;
+    }
+    if trimmed.starts_with('/') || trimmed.starts_with('~') {
+        return true;
+    }
+    let bytes = trimmed.as_bytes();
+    bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/')
+}
+
+fn resolve_local_media_path(raw: &str) -> PathBuf {
+    let trimmed = raw.trim();
+    if let Some(rest) = trimmed
+        .strip_prefix("~/")
+        .or_else(|| trimmed.strip_prefix("~\\"))
+        && let Some(home) = dirs::home_dir()
+    {
+        return home.join(rest);
+    }
+    if trimmed == "~"
+        && let Some(home) = dirs::home_dir()
+    {
+        return home;
+    }
+    PathBuf::from(trimmed)
+}
+
+fn allowlist_media_field(
+    obj: &mut serde_json::Map<String, serde_json::Value>,
+    key: &str,
+    allowlist: &crate::media_stream::MediaAllowlist,
+) {
+    let Some(val) = obj.get_mut(key) else {
+        return;
+    };
+    let Some(raw) = val.as_str() else {
+        return;
+    };
+    if !is_local_fs_path(raw) {
+        return;
+    }
+    let resolved = resolve_local_media_path(raw);
+    if allowlist.allow_file(&resolved).is_ok() && raw.trim().starts_with('~') {
+        *val = serde_json::Value::String(resolved.to_string_lossy().into_owned());
+    }
+}
+
+fn allowlist_widget_tree(
+    node: &mut serde_json::Value,
+    allowlist: &crate::media_stream::MediaAllowlist,
+) {
+    let Some(obj) = node.as_object_mut() else {
+        return;
+    };
+    if obj.get("type").and_then(|v| v.as_str()) == Some("mediaPlayer") {
+        allowlist_media_field(obj, "src", allowlist);
+        allowlist_media_field(obj, "poster", allowlist);
+    }
+    if let Some(serde_json::Value::Array(children)) = obj.get_mut("children") {
+        for child in children {
+            allowlist_widget_tree(child, allowlist);
+        }
+    }
+}
+
+/// Registers local filesystem paths referenced by `mediaPlayer` widgets in `MediaAllowlist`.
+pub fn allowlist_plugin_media_paths(
+    response: &mut serde_json::Value,
+    allowlist: &crate::media_stream::MediaAllowlist,
+) {
+    let Some(obj) = response.as_object_mut() else {
+        return;
+    };
+    if let Some(root) = obj.get_mut("root") {
+        allowlist_widget_tree(root, allowlist);
+    }
+    if let Some(serde_json::Value::Object(footer)) = obj.get_mut("footer") {
+        for slot in ["left", "center", "right"] {
+            if let Some(serde_json::Value::Array(nodes)) = footer.get_mut(slot) {
+                for node in nodes {
+                    allowlist_widget_tree(node, allowlist);
+                }
+            }
+        }
+    }
+    if let Some(serde_json::Value::Object(patch)) = obj.get_mut("patch") {
+        if let Some(serde_json::Value::Object(insert)) = patch.get_mut("insert")
+            && let Some(node) = insert.get_mut("node")
+        {
+            allowlist_widget_tree(node, allowlist);
+        }
+        if let Some(serde_json::Value::Object(set_props)) = patch.get_mut("setProps") {
+            for props in set_props.values_mut() {
+                if let Some(props_obj) = props.as_object_mut() {
+                    allowlist_media_field(props_obj, "src", allowlist);
+                    allowlist_media_field(props_obj, "poster", allowlist);
+                }
+            }
+        }
     }
 }
 
@@ -774,5 +893,122 @@ mod tests {
         let err = pm.uninstall("not-installed-plugin").await.unwrap_err();
         assert!(err.contains("is not installed"), "err={err}");
         assert!(sentinel.exists(), "sentinel file must remain untouched");
+    }
+
+    #[tokio::test]
+    async fn save_settings_stops_running_plugin_and_reinitializes_with_new_settings() {
+        let base = tempfile::tempdir().unwrap();
+        let pm = PluginManager::new(base.path().join("plugins"));
+        let source = base.path().join("source");
+        fs::create_dir(&source).unwrap();
+
+        let script = r#"
+import json, sys
+settings = {}
+for line in sys.stdin:
+    req = json.loads(line)
+    m = req.get("method")
+    if m == "initialize":
+        settings = req.get("params", {}).get("settings", {})
+        print(json.dumps({"jsonrpc": "2.0", "id": req["id"], "result": {"ok": True}}), flush=True)
+    elif m == "render":
+        print(json.dumps({"jsonrpc": "2.0", "id": req["id"], "result": {"root": {"type": "text", "text": str(settings.get("apiKey", ""))}}}), flush=True)
+    elif m == "shutdown":
+        print(json.dumps({"jsonrpc": "2.0", "id": req["id"], "result": None}), flush=True)
+        break
+"#;
+        let manifest = serde_json::json!({
+            "id": "settings-reload-plugin",
+            "name": "Settings Reload Plugin",
+            "version": "1.0.0",
+            "apiVersion": 1,
+            "entry": { "command": ["python3", "-u", "-c", script] }
+        });
+        fs::write(
+            source.join("vesta-plugin.json"),
+            serde_json::to_vec(&manifest).unwrap(),
+        )
+        .unwrap();
+
+        pm.install(source.to_str().unwrap(), None).await.unwrap();
+
+        let mut initial_settings = HashMap::new();
+        initial_settings.insert("apiKey".to_string(), serde_json::json!("first-key"));
+        pm.save_settings("settings-reload-plugin", initial_settings)
+            .await
+            .unwrap();
+
+        let first_render = pm
+            .render(
+                None,
+                "settings-reload-plugin",
+                "main",
+                serde_json::json!({}),
+                "en",
+                false,
+            )
+            .await
+            .unwrap();
+        assert_eq!(first_render["root"]["text"], "first-key");
+
+        let mut updated_settings = HashMap::new();
+        updated_settings.insert("apiKey".to_string(), serde_json::json!("second-key"));
+        pm.save_settings("settings-reload-plugin", updated_settings)
+            .await
+            .unwrap();
+
+        let second_render = pm
+            .render(
+                None,
+                "settings-reload-plugin",
+                "main",
+                serde_json::json!({}),
+                "en",
+                false,
+            )
+            .await
+            .unwrap();
+        assert_eq!(second_render["root"]["text"], "second-key");
+
+        pm.runtime.stop_plugin("settings-reload-plugin").await;
+    }
+
+    #[test]
+    fn allowlist_plugin_media_paths_registers_local_media_player_sources() {
+        let dir = tempfile::tempdir().unwrap();
+        let video = dir.path().join("clip.mp4");
+        let poster = dir.path().join("thumb.jpg");
+        let patched = dir.path().join("patched.mp3");
+        fs::write(&video, b"mp4").unwrap();
+        fs::write(&poster, b"jpg").unwrap();
+        fs::write(&patched, b"mp3").unwrap();
+
+        let allowlist = crate::media_stream::MediaAllowlist::default();
+        let mut response = serde_json::json!({
+            "root": {
+                "type": "card",
+                "children": [
+                    {
+                        "type": "mediaPlayer",
+                        "src": video.to_string_lossy(),
+                        "poster": poster.to_string_lossy()
+                    },
+                    {
+                        "type": "mediaPlayer",
+                        "src": "https://example.com/stream.mp4"
+                    }
+                ]
+            },
+            "patch": {
+                "setProps": {
+                    "player_1": { "src": patched.to_string_lossy() }
+                }
+            }
+        });
+
+        allowlist_plugin_media_paths(&mut response, &allowlist);
+        assert!(allowlist.is_allowed(&video));
+        assert!(allowlist.is_allowed(&poster));
+        assert!(allowlist.is_allowed(&patched));
     }
 }

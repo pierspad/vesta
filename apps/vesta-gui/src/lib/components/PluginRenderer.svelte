@@ -2,6 +2,7 @@
   import { onMount, untrack, type Snippet } from "svelte";
   import { get } from "svelte/store";
   import { openUrl } from "@tauri-apps/plugin-opener";
+  import { downloadDir } from "@tauri-apps/api/path";
   import {
     pluginRender,
     pluginDispatchEvent,
@@ -10,6 +11,7 @@
     type ButtonWidget,
     type PluginSettingField,
     type PluginPatch,
+    type PluginFooter,
     type PathInputWidget,
   } from "$lib/services/pluginClient";
   import { currentLanguage, locale } from "$lib/i18n";
@@ -21,7 +23,9 @@
   import { guardedOpen } from "$lib/utils/dialogGuard";
   import { settledScroll } from "$lib/utils/settledScroll";
   import { setupWebviewDragDrop } from "$lib/utils/dragDrop";
+  import FooterActions from "$lib/components/FooterActions.svelte";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
+  import PathPreviewModal from "$lib/modals/PathPreviewModal.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import { languages, extendedLanguages, languageFlagUrl, localizedLanguageName } from "$lib/config/languages";
 
@@ -31,6 +35,7 @@
     active?: boolean;
     initialRoot?: WidgetNode | null;
     header?: Snippet<[Snippet, () => void, boolean]>;
+    fallbackFooter?: Snippet;
     onExit?: () => void;
   }
 
@@ -40,6 +45,7 @@
     active = true,
     initialRoot = null,
     header,
+    fallbackFooter,
     onExit,
   }: Props = $props();
 
@@ -50,19 +56,131 @@
   let previousScreens = $state<string[]>([]);
 
   let uiRoot = $state<WidgetNode | null>(null);
+  let uiFooter = $state<PluginFooter | null>(null);
   let values = $state<Record<string, any>>({});
   let renderer: HTMLDivElement;
   let scrollContainer = $state<HTMLDivElement | null>(null);
   let loading = $state(false);
   let actionLoading = $state<string | null>(null);
   let error = $state<string | null>(null);
+  let expandedPathNode = $state<PathInputWidget | null>(null);
+  let revealedPasswords = $state<Record<string, boolean>>({});
+  let brokenImages = $state<Record<string, boolean>>({});
+  let resolvedMediaUrls = $state<Record<string, string>>({});
+  let failedMediaPaths = $state<Record<string, boolean>>({});
+  let mediaElementErrors = $state<Record<string, boolean>>({});
+  let mediaServerInfoPromise: Promise<[number, string] | null> | null = null;
+  const initializedDefaultDirs = new Set<string>();
+
+  function hasFooterContent(footer?: PluginFooter | null): boolean {
+    if (!footer) return false;
+    return !!(footer.left?.length || footer.center?.length || footer.right?.length);
+  }
+
+  function footerNodes(footer: PluginFooter | null): WidgetNode[] {
+    if (!footer) return [];
+    return [...(footer.left ?? []), ...(footer.center ?? []), ...(footer.right ?? [])];
+  }
+
+  function isLocalMediaPath(src: string | undefined): boolean {
+    if (!src) return false;
+    const trimmed = src.trim();
+    if (!trimmed || /^(https?:|blob:|data:|stream:)/i.test(trimmed)) return false;
+    return trimmed.startsWith("/") || trimmed.startsWith("~") || /^[A-Za-z]:[\\/]/.test(trimmed);
+  }
+
+  function resolveMediaSrc(raw: string | undefined): string | undefined {
+    if (!raw) return undefined;
+    const trimmed = raw.trim();
+    if (!trimmed) return undefined;
+    if (!isLocalMediaPath(trimmed)) return trimmed;
+    return resolvedMediaUrls[trimmed];
+  }
+
+  function collectMediaPlayerPaths(node: WidgetNode | null | undefined, out: string[]): void {
+    if (!node) return;
+    if (node.type === "mediaPlayer") {
+      if (isLocalMediaPath(node.src)) out.push(node.src!.trim());
+      if (isLocalMediaPath(node.poster)) out.push(node.poster!.trim());
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) {
+        collectMediaPlayerPaths(child, out);
+      }
+    }
+  }
+
+  async function resolveLocalMediaUrls(paths: string[]): Promise<void> {
+    const pending = [...new Set(paths)].filter(
+      (p) => isLocalMediaPath(p) && !resolvedMediaUrls[p] && !failedMediaPaths[p]
+    );
+    if (!pending.length) return;
+    try {
+      if (!mediaServerInfoPromise) {
+        mediaServerInfoPromise = invokeCommand<[number, string]>("get_media_server_info")
+          .then((res) => (Array.isArray(res) && res.length >= 2 ? res : null))
+          .catch(() => null);
+      }
+      const info = await mediaServerInfoPromise;
+      if (!info) {
+        mediaServerInfoPromise = null;
+        for (const p of pending) failedMediaPaths[p] = true;
+        return;
+      }
+      const [port, token] = info;
+      for (const p of pending) {
+        resolvedMediaUrls[p] = `http://127.0.0.1:${port}/media?path=${encodeURIComponent(p)}&token=${encodeURIComponent(token)}`;
+      }
+    } catch {
+      mediaServerInfoPromise = null;
+      for (const p of pending) failedMediaPaths[p] = true;
+    }
+  }
+
+  $effect(() => {
+    const paths: string[] = [];
+    collectMediaPlayerPaths(uiRoot, paths);
+    for (const node of footerNodes(uiFooter)) {
+      collectMediaPlayerPaths(node, paths);
+    }
+    if (paths.length > 0) {
+      void resolveLocalMediaUrls(paths);
+    }
+  });
+
+  async function resolvePathDefaultDirs(node: WidgetNode | null | undefined): Promise<void> {
+    if (!node) return;
+    if (
+      node.type === "pathInput" &&
+      node.defaultDir === "downloads" &&
+      !node.defaultValue &&
+      !values[node.id] &&
+      !initializedDefaultDirs.has(node.id)
+    ) {
+      initializedDefaultDirs.add(node.id);
+      try {
+        const dir = await downloadDir();
+        if (dir && !values[node.id]) {
+          values[node.id] = dir;
+        }
+      } catch {
+        // Fallback gracefully in non-Tauri or test environments
+      }
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) {
+        void resolvePathDefaultDirs(child);
+      }
+    }
+  }
 
   let lastRoot: WidgetNode | null = null;
   $effect(() => {
     if (initialRoot && initialRoot !== lastRoot) {
       lastRoot = initialRoot;
       uiRoot = initialRoot;
-      collectDefaults(uiRoot);
+      collectDefaults(uiRoot, true);
+      void resolvePathDefaultDirs(uiRoot);
       triggerPluginSnackbar({ root: initialRoot });
     }
   });
@@ -94,11 +212,17 @@
   }
 
   // Initialize defaults from widget tree into `values`
-  function collectDefaults(node: WidgetNode | null | undefined): void {
+  function collectDefaults(node: WidgetNode | null | undefined, syncPagination = false): void {
     if (!node) return;
     if ("id" in node && node.id) {
       const id = node.id;
-      if (values[id] === undefined) {
+      if (node.type === "pagination") {
+        if (syncPagination && node.page !== undefined) {
+          values[id] = node.page;
+        } else if (values[id] === undefined) {
+          values[id] = node.page ?? 1;
+        }
+      } else if (values[id] === undefined) {
         if ("defaultValue" in node && node.defaultValue !== undefined) {
           values[id] = node.defaultValue;
         } else if (node.type === "checkbox") {
@@ -123,8 +247,19 @@
     }
     if ("children" in node && Array.isArray(node.children)) {
       for (const child of node.children) {
-        collectDefaults(child);
+        collectDefaults(child, syncPagination);
       }
+    }
+  }
+
+  function syncTreeState(root: WidgetNode | null, footer: PluginFooter | null, syncPagination = false): void {
+    if (root) {
+      collectDefaults(root, syncPagination);
+      void resolvePathDefaultDirs(root);
+    }
+    for (const node of footerNodes(footer)) {
+      collectDefaults(node, syncPagination);
+      void resolvePathDefaultDirs(node);
     }
   }
 
@@ -198,8 +333,17 @@
     }
     if (uiRoot) {
       uiRoot = applyPatchToTree(uiRoot, patch);
-      collectDefaults(uiRoot);
     }
+    if (uiFooter) {
+      const patchArray = (nodes?: WidgetNode[]) =>
+        nodes?.map((node) => applyPatchToTree(node, patch));
+      uiFooter = {
+        left: patchArray(uiFooter.left),
+        center: patchArray(uiFooter.center),
+        right: patchArray(uiFooter.right),
+      };
+    }
+    syncTreeState(uiRoot, uiFooter);
   }
 
   async function loadScreen(targetScreen = currentScreen): Promise<boolean> {
@@ -212,7 +356,8 @@
       if (!res?.root) return false;
       currentScreen = targetScreen;
       uiRoot = res.root;
-      collectDefaults(uiRoot);
+      uiFooter = hasFooterContent(res.footer) ? res.footer! : null;
+      syncTreeState(uiRoot, uiFooter, true);
       return true;
     } catch (e: any) {
       error = e?.message || String(e);
@@ -240,16 +385,25 @@
   function headerButtons(node: WidgetNode | null): ButtonWidget[] {
     if (!node || node.hidden || (node.expertOnly && !uiMode.expertMode)) return [];
     if (node.type === "button" && inTitleBar(node)) return [node];
-    return "children" in node ? node.children.flatMap(headerButtons) : [];
+    return "children" in node && Array.isArray(node.children) ? node.children.flatMap(headerButtons) : [];
+  }
+
+  function findWidgetInTree(node: WidgetNode | null, id: string): WidgetNode | undefined {
+    if (node?.id === id) return node;
+    if (node && "children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) {
+        const match = findWidgetInTree(child, id);
+        if (match) return match;
+      }
+    }
   }
 
   function findWidget(node: WidgetNode | null, id: string): WidgetNode | undefined {
-    if (node?.id === id) return node;
-    if (node && "children" in node) {
-      for (const child of node.children) {
-        const match = findWidget(child, id);
-        if (match) return match;
-      }
+    const match = findWidgetInTree(node, id);
+    if (match) return match;
+    for (const fNode of footerNodes(uiFooter)) {
+      const footerMatch = findWidgetInTree(fNode, id);
+      if (footerMatch) return footerMatch;
     }
   }
 
@@ -261,10 +415,10 @@
   function hasFileDrop(node: WidgetNode | null): boolean {
     if (!node) return false;
     if (node.type === "pathInput") return node.pickerType === "file" && node.drop === true;
-    return "children" in node && node.children.some(hasFileDrop);
+    return "children" in node && Array.isArray(node.children) && node.children.some(hasFileDrop);
   }
 
-  const acceptsFileDrop = $derived(hasFileDrop(uiRoot));
+  const acceptsFileDrop = $derived(hasFileDrop(uiRoot) || footerNodes(uiFooter).some(hasFileDrop));
   $effect(() => {
     if (!active || !acceptsFileDrop) return;
     return setupWebviewDragDrop({
@@ -347,10 +501,14 @@
             currentScreen = res.screen;
           }
           uiRoot = res.root;
-          collectDefaults(uiRoot);
-          if ((res as any).scrollTop || widgetId.startsWith("action_select_")) {
+          uiFooter = hasFooterContent(res.footer) ? res.footer! : null;
+          syncTreeState(uiRoot, uiFooter, true);
+          if (res.scrollTop) {
             scrollContainer?.scrollTo?.({ top: 0, behavior: "smooth" });
           }
+        } else if (res.footer !== undefined) {
+          uiFooter = hasFooterContent(res.footer) ? res.footer! : null;
+          syncTreeState(null, uiFooter, true);
         }
         if (res.patch) {
           applyPatch(res.root ? { values: res.patch.values } : res.patch);
@@ -408,7 +566,11 @@
       ) {
         if (detail.root) {
           uiRoot = detail.root;
-          collectDefaults(uiRoot);
+          uiFooter = hasFooterContent(detail.footer) ? detail.footer : null;
+          syncTreeState(uiRoot, uiFooter, true);
+        } else if (detail.footer !== undefined) {
+          uiFooter = hasFooterContent(detail.footer) ? detail.footer : null;
+          syncTreeState(null, uiFooter, true);
         }
         if (detail.patch) {
           applyPatch(detail.root ? { values: detail.patch.values } : detail.patch);
@@ -455,6 +617,7 @@
       const selected = await guardedOpen({
         directory: isDirectory,
         multiple: false,
+        defaultPath: values[node.id] || undefined,
         filters: node.filters,
       });
       if (selected && typeof selected === "string") {
@@ -507,11 +670,40 @@
     return { text: rawText, link: extractedLink };
   }
 
+  const cardAccentClasses: Record<string, string> = {
+    purple: "text-purple-400",
+    indigo: "text-indigo-400",
+    cyan: "text-cyan-400",
+    emerald: "text-emerald-400",
+    amber: "text-amber-400",
+    blue: "text-blue-400",
+    orange: "text-orange-400",
+  };
+
+  function getImageAspectClass(aspect?: string): string {
+    if (aspect === "square") return "aspect-square";
+    if (aspect === "poster") return "aspect-[2/3]";
+    if (aspect === "wide") return "aspect-video";
+    return "";
+  }
+
+  function getListThumbSizeClass(imageAspect?: string, layout?: string): string {
+    if (layout === "grid") {
+      if (imageAspect === "poster") return "w-full aspect-[2/3]";
+      if (imageAspect === "wide") return "w-full aspect-video";
+      return "w-full aspect-square";
+    }
+    if (imageAspect === "poster") return "w-12 aspect-[2/3]";
+    if (imageAspect === "wide") return "w-20 aspect-video";
+    return "w-12 h-12";
+  }
+
   function getButtonVariantClass(variant?: string): string {
     if (variant === "settings") return "plugin-settings-button plugin-action";
     if (variant === "accent") return "plugin-action plugin-action-accent";
     if (variant === "secondary") return "btn-secondary btn-compact";
     if (variant === "danger") return "plugin-action plugin-action-danger";
+    if (variant === "success") return "plugin-action plugin-action-success";
     return "plugin-action plugin-action-primary";
   }
 </script>
@@ -545,8 +737,6 @@
     <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
   {:else if name === "refresh"}
     <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-  {:else if name === "trash"}
-    <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
   {:else if name === "external"}
     <svg class={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
   {:else if name === "key"}
@@ -573,6 +763,19 @@
   {/if}
 {/snippet}
 
+{#snippet passwordToggleIcon(revealed: boolean)}
+  {#if revealed}
+    <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+    </svg>
+  {:else}
+    <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+  {/if}
+{/snippet}
+
 {#snippet renderNode(node: WidgetNode, inHeader = false)}
   {#if !node.hidden && (!node.expertOnly || uiMode.expertMode) && (!header || !inTitleBar(node) || inHeader)}
     {#if node.type === "column"}
@@ -595,6 +798,30 @@
           >
             {@render renderNode(child)}
           </div>
+        {/each}
+      </div>
+
+    {:else if node.type === "card"}
+      <div class="glass-card p-5 flex flex-col gap-4 w-full">
+        {#if node.title || node.subtitle || node.icon}
+          <div class="flex flex-col gap-1">
+            {#if node.title || node.icon}
+              <h3 class="text-base font-semibold flex items-center gap-2 {cardAccentClasses[node.accent ?? 'indigo'] ?? 'text-indigo-400'}">
+                {#if node.icon}
+                  {@render renderIcon(node.icon, "w-5 h-5 shrink-0")}
+                {/if}
+                {#if node.title}
+                  <span>{node.title}</span>
+                {/if}
+              </h3>
+            {/if}
+            {#if node.subtitle}
+              <p class="text-xs text-gray-400">{node.subtitle}</p>
+            {/if}
+          </div>
+        {/if}
+        {#each node.children ?? [] as child}
+          {@render renderNode(child)}
         {/each}
       </div>
 
@@ -750,7 +977,7 @@
           {/if}
           <input
             id="widget-{node.id}"
-            type="password"
+            type={revealedPasswords[node.id] ? "text" : "password"}
             use:pulseMissingPassword={warning}
             aria-describedby={warning ? `widget-${node.id}-warning` : undefined}
             class:plugin-input-warning={!!warning}
@@ -766,8 +993,19 @@
                 else void handleAction(node.submitAction || node.id, node.submitAction ? "click" : "submit");
               }
             }}
-            class="h-10 px-3 {node.icon && node.icon !== 'tmdb' && node.icon !== 'imdb' ? 'pl-9' : ''} rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 w-full"
+            class="h-10 px-3 pr-10 {node.icon && node.icon !== 'tmdb' && node.icon !== 'imdb' ? 'pl-9' : ''} rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 w-full"
           />
+          <button
+            type="button"
+            disabled={node.disabled}
+            aria-pressed={!!revealedPasswords[node.id]}
+            aria-label={t("settings.toggleVisibility")}
+            title={t("settings.toggleVisibility")}
+            onclick={() => { revealedPasswords[node.id] = !revealedPasswords[node.id]; }}
+            class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {@render passwordToggleIcon(!!revealedPasswords[node.id])}
+          </button>
         </div>
         {#if warning}
           <span id="widget-{node.id}-warning" class="sr-only">{warning}</span>
@@ -846,6 +1084,7 @@
             value={String(values[node.id] ?? node.defaultValue ?? "")}
             onchange={(val) => {
               values[node.id] = val;
+              void handleAction(node.id, "change");
             }}
             disabled={node.disabled}
             searchable={(node.options?.length ?? 0) > 6}
@@ -915,18 +1154,20 @@
         data-plugin-file-drop={droppable ? node.id : undefined}
       >
         <PathPickerField
-          label={node.label ?? ""}
+          label={node.compact ? "" : (node.label ?? "")}
           value={values[node.id] ?? ""}
           placeholder={node.placeholder ?? t(node.pickerType === "file" ? "plugins.chooseFile" : "plugins.chooseFolder")}
           browseTitle={t("common.browse")}
           disabled={node.disabled}
           browseFirst={node.pickerType !== "file"}
-          clearLabel={node.pickerType !== "file" ? t("common.clearField") : undefined}
+          clearLabel={node.clearable !== false && !node.compact && node.pickerType !== "file" ? t("common.clearField") : undefined}
+          containerClass={node.compact ? "w-full min-w-0" : ""}
+          onexpand={() => { expandedPathNode = node; }}
           onbrowse={() => handleBrowsePath(node)}
-          onclear={() => {
+          onclear={node.clearable !== false ? () => {
             values[node.id] = "";
             void handleAction(node.id, "change");
-          }}
+          } : undefined}
         />
         {#if droppable}
           <p class="text-xs text-gray-400">{node.dropHint ?? t("sync.dropFileHere")}</p>
@@ -1009,8 +1250,19 @@
         disabled={node.disabled}
         title={node.tooltip}
         class="flex items-center gap-3 p-3 rounded-xl border transition-all text-left cursor-pointer {Boolean(values[node.id]) ? 'border-indigo-500/50 bg-indigo-500/10 text-white' : 'border-white/10 bg-white/[0.03] text-gray-300 hover:bg-white/[0.06]'} disabled:opacity-50"
-        onclick={() => { if (!node.disabled) values[node.id] = !values[node.id]; }}
-        onkeydown={(e) => { if ((e.key === ' ' || e.key === 'Enter') && !node.disabled) { e.preventDefault(); values[node.id] = !values[node.id]; } }}
+        onclick={() => {
+          if (!node.disabled) {
+            values[node.id] = !values[node.id];
+            void handleAction(node.id, "change");
+          }
+        }}
+        onkeydown={(e) => {
+          if ((e.key === ' ' || e.key === 'Enter') && !node.disabled) {
+            e.preventDefault();
+            values[node.id] = !values[node.id];
+            void handleAction(node.id, "change");
+          }
+        }}
       >
         <div class="w-5 h-5 rounded-lg border flex items-center justify-center transition-colors {Boolean(values[node.id]) ? 'border-indigo-400 bg-indigo-600 text-white' : 'border-white/20 bg-black/20 text-transparent'}">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
@@ -1043,13 +1295,14 @@
       </button>
 
     {:else if node.type === "list"}
-      <div class="flex flex-col gap-2 w-full">
+      {@const isGrid = node.layout === "grid"}
+      <div class="{isGrid ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3' : 'flex flex-col gap-2'} w-full">
         {#each node.items as item (item.id)}
           {@const primary = item.actions?.find(action => action.id === item.primaryAction)}
           {@const defaultAction = primary ?? item.actions?.[0]}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
-            class="relative flex items-center justify-between p-3.5 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.05] transition-colors gap-3"
+            class="relative flex {isGrid ? 'flex-col items-stretch' : 'items-center justify-between'} p-3.5 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.05] transition-colors gap-3"
             ondblclick={(e) => {
               if (actionLoading !== null || !defaultAction) return;
               if ((e.target as HTMLElement | null)?.closest("button, a, input")) return;
@@ -1063,9 +1316,16 @@
                 onclick={() => handleAction(primary.id, "click")}></button>
             {/if}
             {#if item.image || node.reserveImage}
-              <div class="w-12 h-12 rounded-lg bg-black/30 shrink-0 grid place-items-center overflow-hidden text-gray-500">
-                {#if item.image}
-                  <img src={item.image} alt="" loading="lazy" class="w-full h-full object-cover" />
+              <div class="{getListThumbSizeClass(node.imageAspect, node.layout)} rounded-lg bg-black/30 shrink-0 grid place-items-center overflow-hidden text-gray-500">
+                {#if item.image && !brokenImages[item.image]}
+                  <img
+                    src={item.image}
+                    alt=""
+                    loading="lazy"
+                    referrerpolicy="no-referrer"
+                    onerror={() => { if (item.image) brokenImages[item.image] = true; }}
+                    class="w-full h-full object-cover"
+                  />
                 {:else}
                   {@render renderIcon("film", "w-5 h-5")}
                 {/if}
@@ -1108,7 +1368,7 @@
               {/if}
             </div>
             {#if item.actions && item.actions.length > 0}
-              <div class="flex items-center gap-2 shrink-0">
+              <div class="flex items-center gap-2 shrink-0 {isGrid ? 'justify-end mt-auto pt-1' : ''}">
                 {#each item.actions as action}
                   <button
                     type="button"
@@ -1153,17 +1413,118 @@
       </div>
 
     {:else if node.type === "image"}
+      {@const aspectClass = getImageAspectClass(node.aspect)}
       <div class="w-full overflow-hidden rounded-xl">
-        {#if node.src}
-          <img src={node.src} alt={node.alt ?? ""} width={node.width} height={node.height}
-            class="max-w-full rounded-xl object-contain" />
+        {#if node.src && !brokenImages[node.src]}
+          <img
+            src={node.src}
+            alt={node.alt ?? ""}
+            width={node.width}
+            height={node.height}
+            referrerpolicy="no-referrer"
+            onerror={() => { brokenImages[node.src] = true; }}
+            class="max-w-full rounded-xl {aspectClass} {node.fit === 'cover' ? 'object-cover w-full h-full' : 'object-contain'}"
+          />
         {:else}
-          <div class="grid max-w-full place-items-center rounded-xl bg-black/20 text-gray-500"
+          <div class="grid max-w-full place-items-center rounded-xl bg-black/20 text-gray-500 {aspectClass}"
             style:width={node.width ? `${node.width}px` : undefined}
             style:height={node.height ? `${node.height}px` : undefined}>
             {@render renderIcon("film", "w-8 h-8")}
           </div>
         {/if}
+      </div>
+
+    {:else if node.type === "mediaPlayer"}
+      {@const rawSrc = node.src?.trim()}
+      {@const resolvedSrc = resolveMediaSrc(rawSrc)}
+      {@const resolvedPoster = resolveMediaSrc(node.poster)}
+      {@const errorKey = `${node.id ?? ""}:${resolvedSrc ?? rawSrc ?? ""}`}
+      {@const hasMediaError = !rawSrc || (isLocalMediaPath(rawSrc) && failedMediaPaths[rawSrc]) || !!mediaElementErrors[errorKey]}
+      <div class="flex flex-col gap-2 w-full rounded-xl border border-white/10 bg-white/[0.02] p-3">
+        {#if node.title || node.caption}
+          <div class="flex flex-col gap-0.5">
+            {#if node.title}
+              <span class="text-sm font-semibold text-white">{node.title}</span>
+            {/if}
+            {#if node.caption}
+              <span class="text-xs text-gray-400">{node.caption}</span>
+            {/if}
+          </div>
+        {/if}
+        {#if hasMediaError}
+          <div role="status" class="flex items-center gap-2 rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2 text-xs text-rose-300">
+            {@render renderIcon("film", "w-4 h-4 shrink-0")}
+            <span>{t("sync.playbackFailed")}</span>
+          </div>
+        {:else if resolvedSrc}
+          {#if node.kind === "audio"}
+            <audio
+              controls
+              src={resolvedSrc}
+              loop={node.loop}
+              muted={node.muted}
+              class="w-full"
+              onerror={() => { mediaElementErrors[errorKey] = true; }}
+            ></audio>
+          {:else}
+            <!-- svelte-ignore a11y_media_has_caption -->
+            <video
+              controls
+              playsinline
+              src={resolvedSrc}
+              poster={resolvedPoster}
+              loop={node.loop}
+              muted={node.muted}
+              class="w-full rounded-xl bg-black/40"
+              style={node.height ? `max-height: ${typeof node.height === "number" ? `${node.height}px` : node.height};` : undefined}
+              onerror={() => { mediaElementErrors[errorKey] = true; }}
+            ></video>
+          {/if}
+        {/if}
+      </div>
+
+    {:else if node.type === "pagination"}
+      {@const totalPages = Math.max(1, Number(node.totalPages ?? 1))}
+      {@const currentPage = Math.min(totalPages, Math.max(1, Number(values[node.id] ?? node.page ?? 1)))}
+      {@const prevDisabled = !!node.disabled || currentPage <= 1 || loading || actionLoading !== null}
+      {@const nextDisabled = !!node.disabled || currentPage >= totalPages || loading || actionLoading !== null}
+      <div id="widget-{node.id}" class="flex items-center justify-center gap-3 py-1" data-plugin-pagination={node.id}>
+        <button
+          type="button"
+          class="btn-secondary btn-compact inline-flex items-center gap-1 disabled:opacity-50"
+          aria-label={t("sync.pagination.prev")}
+          disabled={prevDisabled}
+          onclick={() => {
+            values[node.id] = Math.max(1, currentPage - 1);
+            void handleAction(node.id, "change");
+          }}
+        >
+          <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+          <span>{t("sync.pagination.prev")}</span>
+        </button>
+        <span class="text-xs font-medium text-gray-300 tabular-nums">
+          {t("sync.pageSlash", { current: currentPage, total: totalPages })}
+          {#if node.totalItems !== undefined}
+            <span class="text-gray-400">({node.totalItems})</span>
+          {/if}
+        </span>
+        <button
+          type="button"
+          class="btn-secondary btn-compact inline-flex items-center gap-1 disabled:opacity-50"
+          aria-label={t("sync.pagination.next")}
+          disabled={nextDisabled}
+          onclick={() => {
+            values[node.id] = Math.min(totalPages, currentPage + 1);
+            void handleAction(node.id, "change");
+          }}
+        >
+          <span>{t("sync.pagination.next")}</span>
+          <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       </div>
 
     {:else if node.type === "progress"}
@@ -1229,13 +1590,27 @@
               {@const info = resolveHintAndLink(field.hint, field.helpText ?? field.description, field.link)}
               <div class="flex flex-col gap-1.5 w-full">
                 <label for="setting-{field.id}" class="text-xs font-medium text-gray-400">{field.label}</label>
-                <input
-                  id="setting-{field.id}"
-                  type={field.type === "password" ? "password" : field.type === "number" ? "number" : "text"}
-                  bind:value={values[field.id]}
-                  placeholder={field.description ?? ""}
-                  class="h-10 px-3 rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-                />
+                <div class="relative w-full">
+                  <input
+                    id="setting-{field.id}"
+                    type={field.type === "password" ? (revealedPasswords[`setting:${field.id}`] ? "text" : "password") : field.type === "number" ? "number" : "text"}
+                    bind:value={values[field.id]}
+                    placeholder={field.description ?? ""}
+                    class="h-10 px-3 {field.type === 'password' ? 'pr-10' : ''} w-full rounded-xl border border-white/10 bg-white/5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
+                  />
+                  {#if field.type === "password"}
+                    <button
+                      type="button"
+                      aria-pressed={!!revealedPasswords[`setting:${field.id}`]}
+                      aria-label={t("settings.toggleVisibility")}
+                      title={t("settings.toggleVisibility")}
+                      onclick={() => { revealedPasswords[`setting:${field.id}`] = !revealedPasswords[`setting:${field.id}`]; }}
+                      class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
+                    >
+                      {@render passwordToggleIcon(!!revealedPasswords[`setting:${field.id}`])}
+                    </button>
+                  {/if}
+                </div>
                 {#if info.text || info.link}
                   <div class="flex flex-wrap items-center gap-2 mt-0.5">
                     {#if info.text}
@@ -1307,6 +1682,30 @@
   {/each}
 {/snippet}
 
+{#snippet footerLeft()}
+  <div class="flex items-center gap-3 min-w-0 flex-1">
+    {#each uiFooter?.left ?? [] as child}
+      {@render renderNode(child)}
+    {/each}
+  </div>
+{/snippet}
+
+{#snippet footerCenter()}
+  <div class="flex items-center gap-3">
+    {#each uiFooter?.center ?? [] as child}
+      {@render renderNode(child)}
+    {/each}
+  </div>
+{/snippet}
+
+{#snippet footerRight()}
+  <div class="flex items-center gap-3 shrink-0">
+    {#each uiFooter?.right ?? [] as child}
+      {@render renderNode(child)}
+    {/each}
+  </div>
+{/snippet}
+
 <div bind:this={renderer} class="w-full h-full flex flex-col">
   {@render header?.(actions, () => { void goBack(); }, loading || actionLoading !== null)}
   <div bind:this={scrollContainer} use:settledScroll class="plugin-renderer select-text w-full flex-1 min-h-0 flex flex-col p-6 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
@@ -1341,6 +1740,35 @@
       </div>
     {/if}
   </div>
+  {#if hasFooterContent(uiFooter)}
+    <FooterActions
+      justify={uiFooter?.left?.length ? "between" : uiFooter?.center?.length ? "center" : "end"}
+      left={uiFooter?.left?.length ? footerLeft : undefined}
+      center={uiFooter?.center?.length ? footerCenter : undefined}
+      right={uiFooter?.right?.length ? footerRight : undefined}
+    />
+  {:else if fallbackFooter}
+    <FooterActions>
+      {#snippet left()}
+        <div class="w-full flex items-center justify-between gap-4">
+          {@render fallbackFooter()}
+        </div>
+      {/snippet}
+    </FooterActions>
+  {/if}
+  <PathPreviewModal
+    isOpen={!!expandedPathNode}
+    title={expandedPathNode?.label || t(expandedPathNode?.pickerType === "file" ? "plugins.chooseFile" : "plugins.chooseFolder")}
+    value={expandedPathNode ? String(values[expandedPathNode.id] ?? "") : ""}
+    editable={expandedPathNode ? !expandedPathNode.disabled : false}
+    placeholder={expandedPathNode?.placeholder ?? ""}
+    onclose={() => { expandedPathNode = null; }}
+    onsave={(newValue) => {
+      if (!expandedPathNode) return;
+      values[expandedPathNode.id] = newValue;
+      void handleAction(expandedPathNode.id, "change");
+    }}
+  />
 </div>
 
 <style>
@@ -1368,11 +1796,15 @@
     --action-fill: var(--color-rose-700);
     color: var(--text);
   }
-  :is(.plugin-action-accent, .plugin-action-danger) {
+  .plugin-action-success {
+    --action-fill: var(--color-emerald-600);
+    color: var(--text);
+  }
+  :is(.plugin-action-accent, .plugin-action-danger, .plugin-action-success) {
     background: color-mix(in srgb, var(--action-fill) 78%, var(--surface-2));
     border-color: color-mix(in srgb, var(--action-fill) 90%, var(--surface-2));
   }
-  :is(.plugin-action-accent, .plugin-action-danger):hover:not(:disabled):not([aria-disabled="true"]) {
+  :is(.plugin-action-accent, .plugin-action-danger, .plugin-action-success):hover:not(:disabled):not([aria-disabled="true"]) {
     background: color-mix(in srgb, var(--action-fill) 90%, var(--surface-2));
   }
   .plugin-action:disabled {

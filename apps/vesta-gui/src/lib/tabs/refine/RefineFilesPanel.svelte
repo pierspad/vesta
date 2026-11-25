@@ -8,14 +8,15 @@
     annotatedCount: number;
     modifiedCount: number;
     disabled: boolean;
+    highlightClass?: string;
     onBrowse: () => void;
   }
 
-  let { filePath, totalCards, annotatedCount, modifiedCount, disabled, onBrowse }: Props = $props();
+  let { filePath, totalCards, annotatedCount, modifiedCount, disabled, highlightClass = "", onBrowse }: Props = $props();
   let t = $derived($locale);
 </script>
 
-<div class="glass-card p-5 shrink-0">
+<div class="glass-card p-5 shrink-0 {highlightClass}">
   <h3 class="panel-title-files-output mb-4 flex items-center gap-2 text-lg font-semibold">
     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />

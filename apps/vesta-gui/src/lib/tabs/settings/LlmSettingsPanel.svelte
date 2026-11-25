@@ -46,7 +46,7 @@
     {onSetDefault}
   />
 
-  <div class="glass-card flex flex-col mb-6 mt-4 relative z-20">
+  <div id="llm-tiers" class="glass-card flex flex-col mb-6 mt-4 relative z-20 {highlightedModelId === 'llm-tiers' ? 'requirement-pulse' : ''}">
     <div class="p-4 border-b border-white/5 flex items-center justify-between gap-3 w-full">
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0">

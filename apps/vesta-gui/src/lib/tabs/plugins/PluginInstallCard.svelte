@@ -1,6 +1,7 @@
 <script lang="ts">
   import { locale } from "$lib/i18n";
   import PathPickerField from "$lib/components/PathPickerField.svelte";
+  import PathPreviewModal from "$lib/modals/PathPreviewModal.svelte";
 
   interface Props {
     installMode: "repo" | "folder";
@@ -21,16 +22,17 @@
   }: Props = $props();
 
   let t = $derived($locale);
+  let previewModalOpen = $state(false);
 </script>
 
-<div class="rounded-2xl border border-white/10 bg-white/[0.02] p-5 flex flex-col gap-4 shadow-sm">
+<div class="glass-card p-5 flex flex-col gap-4">
   <div class="flex items-center justify-between gap-4 flex-wrap">
-    <h2 class="text-sm font-semibold text-white flex items-center gap-2">
-      <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+      <svg aria-hidden="true" class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
       </svg>
       {t("plugins.installFromRepo")}
-    </h2>
+    </h3>
 
     <div class="inline-flex items-center p-1 rounded-xl bg-black/40 border border-white/10 gap-1 text-xs select-none">
       <button
@@ -80,6 +82,7 @@
           placeholder={t("plugins.localFolderPlaceholder")}
           browseTitle={t("plugins.browse")}
           browseLabel={t("flashcards.browse")}
+          onexpand={urlInput.trim() ? () => (previewModalOpen = true) : undefined}
           onbrowse={onBrowseFolder}
           onclear={() => (urlInput = "")}
           containerClass="h-10"
@@ -108,3 +111,15 @@
     <p role="alert" class="mt-3 break-words text-sm text-red-300">{t("plugins.inspectFailed")}</p>
   {/if}
 </div>
+
+<PathPreviewModal
+  isOpen={previewModalOpen}
+  title={t("plugins.modeFolder")}
+  value={urlInput}
+  onclose={() => (previewModalOpen = false)}
+  editable={true}
+  placeholder={t("plugins.localFolderPlaceholder")}
+  onsave={(newValue) => {
+    urlInput = newValue.trim();
+  }}
+/>

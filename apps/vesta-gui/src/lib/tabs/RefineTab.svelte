@@ -21,6 +21,9 @@
   import ConfirmDialog from "$lib/modals/ConfirmDialog.svelte";
   import WorkflowWorkspace from "$lib/components/WorkflowWorkspace.svelte";
   import { aiStore } from "$lib/stores/aiStore.svelte";
+  import { guidanceStore } from "$lib/stores/guidanceStore.svelte";
+  import { RequirementFeedback } from "$lib/utils/requirementFeedback.svelte";
+  const requirements = new RequirementFeedback<"files">();
   import { loadRefinementPrompt } from "$lib/config/refinementPrompt";
   import { createRefineCardSearch } from "$lib/workflows/refineCardSearch";
   import { runRefineAuto, type RefineRunSummary } from "$lib/workflows/refineAutoRun";
@@ -362,9 +365,19 @@
 
   async function refineSingleCardAI() {
     if (operationBusy || aiStore.killSwitchActive || isValidatingLlm || selectedCardIndex === null || cards.length === 0) return;
-    if (llmError) { triggerLlmHighlight(); snackbar.show(llmErrorMessage(llmError), "error"); return; }
+    if (llmError) {
+      triggerLlmHighlight();
+      snackbar.show(llmErrorMessage(llmError), "error", undefined, "settings");
+      guidanceStore.guideToSettings({ sourceTab: "refine", section: "llm", targetId: "llm-tiers" });
+      return;
+    }
     const tiersPayload = refineTiersPayload();
-    if (!tiersPayload) { triggerLlmHighlight(); snackbar.show(llmErrorMessage("noneConfigured"), "error"); return; }
+    if (!tiersPayload) {
+      triggerLlmHighlight();
+      snackbar.show(llmErrorMessage("noneConfigured"), "error", undefined, "settings");
+      guidanceStore.guideToSettings({ sourceTab: "refine", section: "llm", targetId: "llm-tiers" });
+      return;
+    }
 
     const card = cards[selectedCardIndex];
     isSingleRefining = true;
@@ -395,9 +408,19 @@
 
   async function startAutoRefinement() {
     if (operationBusy || cards.length === 0 || aiStore.killSwitchActive || isValidatingLlm) return;
-    if (llmError) { triggerLlmHighlight(); snackbar.show(llmErrorMessage(llmError), "error"); return; }
+    if (llmError) {
+      triggerLlmHighlight();
+      snackbar.show(llmErrorMessage(llmError), "error", undefined, "settings");
+      guidanceStore.guideToSettings({ sourceTab: "refine", section: "llm", targetId: "llm-tiers" });
+      return;
+    }
     const tiersPayload = refineTiersPayload();
-    if (!tiersPayload) { triggerLlmHighlight(); snackbar.show(llmErrorMessage("noneConfigured"), "error"); return; }
+    if (!tiersPayload) {
+      triggerLlmHighlight();
+      snackbar.show(llmErrorMessage("noneConfigured"), "error", undefined, "settings");
+      guidanceStore.guideToSettings({ sourceTab: "refine", section: "llm", targetId: "llm-tiers" });
+      return;
+    }
 
     const cardsToProcess = onlyUnannotated ? cards.filter((c) => !c.notes || c.notes.trim() === "") : cards;
     if (cardsToProcess.length === 0) { snackbar.show(t("refine.msg.noCardsToProcess"), "info"); return; }
@@ -466,6 +489,46 @@
       }
     } finally {
       if (!disposed) { autoRefining = false; isStopping = false; autoRefineGroupCardIds.clear(); }
+    }
+  }
+
+  function handleBlockedGenerateSingle() {
+    if (operationBusy || aiStore.killSwitchActive || isValidatingLlm) return;
+    if (llmError) {
+      triggerLlmHighlight();
+      snackbar.show(llmErrorMessage(llmError), "error", undefined, "settings");
+      guidanceStore.guideToSettings({ sourceTab: "refine", section: "llm", targetId: "llm-tiers" });
+      return;
+    }
+    if (selectedCardIndex === null || cards.length === 0) {
+      requirements.pulse(["files"]);
+      snackbar.show(t("refine.msg.noCardSelectedAlert"), "info");
+    }
+  }
+
+  function handleBlockedStartAuto() {
+    if (operationBusy || aiStore.killSwitchActive || isValidatingLlm) return;
+    if (cards.length === 0) {
+      requirements.pulse(["files"]);
+      snackbar.show(t("refine.msg.noCardsToProcess"), "info");
+      return;
+    }
+    if (llmError) {
+      triggerLlmHighlight();
+      snackbar.show(llmErrorMessage(llmError), "error", undefined, "settings");
+      guidanceStore.guideToSettings({ sourceTab: "refine", section: "llm", targetId: "llm-tiers" });
+    }
+  }
+
+  function handleBlockedSave(kind: "overwrite" | "apkg" | "tsv") {
+    if (operationBusy) return;
+    if (cards.length === 0) {
+      requirements.pulse(["files"]);
+      snackbar.show(t("refine.msg.noCardsToProcess"), "info");
+      return;
+    }
+    if (kind === "apkg" && fileExtension === "TSV") {
+      snackbar.show(t("refine.action.cannotSaveTsvAsApkg"), "info");
     }
   }
 
@@ -566,6 +629,7 @@
           {annotatedCount}
           {modifiedCount}
           disabled={operationBusy}
+          highlightClass={requirements.classFor("files")}
           onBrowse={selectFile}
         />
       {/snippet}
@@ -642,6 +706,7 @@
               generateDisabled={operationBusy || isValidatingLlm || !!llmError || selectedCardIndex === null}
               onStop={stopAutoRefinement}
               onGenerateSingle={refineSingleCardAI}
+              onBlockedGenerate={handleBlockedGenerateSingle}
               onNavigate={navigateCard}
             />
           {:else}
@@ -664,6 +729,7 @@
               {logs}
               onEditLlmSettings={() => onGoToSettings?.("llm", "default-refinement-prompt")}
               onStartAuto={startAutoRefinement}
+              onBlockedStartAuto={handleBlockedStartAuto}
               onStopAuto={stopAutoRefinement}
             />
           {/if}
@@ -681,6 +747,7 @@
     {isSaving}
     onOverwrite={overwriteOriginalFile}
     onSaveAs={saveNewFileWithExtension}
+    onBlockedSave={handleBlockedSave}
   />
 
   <ConfirmDialog

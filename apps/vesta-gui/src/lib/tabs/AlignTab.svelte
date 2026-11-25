@@ -11,6 +11,8 @@
   import { languages } from '$lib/config/languages';
   import PathPreviewModal from '$lib/modals/PathPreviewModal.svelte';
   import { snackbar } from '$lib/stores/snackbarStore.svelte';
+  import { RequirementFeedback } from '$lib/utils/requirementFeedback.svelte';
+  const requirements = new RequirementFeedback<"files">();
   import ConfirmDialog from '$lib/modals/ConfirmDialog.svelte';
   import PathPickerField from '$lib/components/PathPickerField.svelte';
   import WorkflowWorkspace from '$lib/components/WorkflowWorkspace.svelte';
@@ -590,7 +592,7 @@
     <WorkflowWorkspace fillViewport>
       {#snippet files()}
         <!-- Top Panel: Files and Output -->
-        <div class="glass-card p-5 shrink-0">
+        <div class="glass-card p-5 shrink-0 {requirements.classFor('files')}">
           <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 panel-title-files-output">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -779,13 +781,23 @@
       <div class="flex-1 w-full grid grid-cols-2">
         <!-- Left Column: Save Button aligned to the right of the left half -->
         <div class="flex items-center justify-end pr-3">
-          <div class="relative group">
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <div
+            class="relative group {sourceSubs.length === 0 ? 'cursor-help' : ''}"
+            onclick={() => {
+              if (sourceSubs.length === 0) {
+                requirements.pulse(["files"]);
+                snackbar.show(t("align.loadPrompt"), "info");
+              }
+            }}
+          >
             <button
               onclick={saveSource}
               disabled={sourceSubs.length === 0}
-              class="px-5 py-2.5 bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500/30 disabled:bg-emerald-600/40 text-emerald-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 cursor-pointer"
+              class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500/30 disabled:bg-emerald-600/40 disabled:border-white/10 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 disabled:shadow-none flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 {sourceSubs.length === 0 ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
             >
-              <svg class="w-4 h-4 text-emerald-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
               </svg>
               {t("align.saveResult")}

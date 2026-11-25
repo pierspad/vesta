@@ -162,4 +162,18 @@ describe("Snackbar mounted component", () => {
     expect(snackbar.message).not.toBe("Copied");
     expect(snackbar.variant).toBe("error");
   });
+
+  it("renders the settings cog icon when icon='settings' is passed", async () => {
+    const store = new SnackbarStore();
+    stores.push(store);
+    store.show("Open Settings -> LLM", "error", 5000, "settings");
+    const target = document.createElement("div");
+    document.body.append(target);
+    mounted.push(mount(SnackbarStoreHarness, { target, props: { store }, intro: false }));
+    await tick();
+
+    const icon = target.querySelector('svg[data-icon="settings"]');
+    expect(icon).not.toBeNull();
+    expect(icon!.querySelectorAll("path")).toHaveLength(2);
+  });
 });

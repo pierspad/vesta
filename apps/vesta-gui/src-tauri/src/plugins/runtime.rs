@@ -1069,6 +1069,19 @@ impl PluginRuntimeManager {
             "settings": settings,
             "expertMode": expert_mode,
             "permissions": serde_json::Value::Object(permissions_obj),
+            "host": {
+                "vestaVersion": env!("CARGO_PKG_VERSION"),
+                "platform": std::env::consts::OS,
+                "capabilities": [
+                    "footer",
+                    "card",
+                    "pagination",
+                    "mediaPlayer",
+                    "pathPreviewModal",
+                    "pathClearable",
+                    "settingsReload"
+                ]
+            }
         });
 
         let init_res = tokio::select! {
@@ -1158,27 +1171,47 @@ impl PluginRuntimeManager {
                     );
                 }
                 "ui.update" => {
+                    use tauri::Manager;
                     let screen = params
                         .get("screen")
                         .and_then(|v| v.as_str())
                         .unwrap_or("main");
-                    let root = params
+                    let mut root = params
                         .get("root")
                         .cloned()
                         .unwrap_or(serde_json::Value::Null);
-                    let patch = params
+                    let mut patch = params
                         .get("patch")
                         .cloned()
                         .unwrap_or(serde_json::Value::Null);
-                    let _ = app.emit(
-                        "plugin:update",
-                        serde_json::json!({
-                            "pluginId": plugin_id,
-                            "screen": screen,
+                    let mut footer = params
+                        .get("footer")
+                        .cloned()
+                        .unwrap_or(serde_json::Value::Null);
+                    if let Some(allowlist) = app.try_state::<crate::media_stream::MediaAllowlist>()
+                    {
+                        let mut payload = serde_json::json!({
                             "root": root,
-                            "patch": patch
-                        }),
-                    );
+                            "patch": patch,
+                            "footer": footer,
+                        });
+                        crate::plugins::allowlist_plugin_media_paths(&mut payload, &allowlist);
+                        if let Some(obj) = payload.as_object_mut() {
+                            root = obj.remove("root").unwrap_or(serde_json::Value::Null);
+                            patch = obj.remove("patch").unwrap_or(serde_json::Value::Null);
+                            footer = obj.remove("footer").unwrap_or(serde_json::Value::Null);
+                        }
+                    }
+                    let mut event_payload = serde_json::json!({
+                        "pluginId": plugin_id,
+                        "screen": screen,
+                        "root": root,
+                        "patch": patch,
+                    });
+                    if !footer.is_null() {
+                        event_payload["footer"] = footer;
+                    }
+                    let _ = app.emit("plugin:update", event_payload);
                 }
                 "vesta.openInFlashcards" => {
                     let video_path = params
@@ -1544,6 +1577,26 @@ for line in sys.stdin:
             serde_json::json!(["filesystem:downloads"])
         );
         assert!(downloads_res["init"]["permissions"]["downloadsDir"].is_string());
+        assert_eq!(
+            downloads_res["init"]["host"]["vestaVersion"],
+            env!("CARGO_PKG_VERSION")
+        );
+        assert_eq!(
+            downloads_res["init"]["host"]["platform"],
+            std::env::consts::OS
+        );
+        assert_eq!(
+            downloads_res["init"]["host"]["capabilities"],
+            serde_json::json!([
+                "footer",
+                "card",
+                "pagination",
+                "mediaPlayer",
+                "pathPreviewModal",
+                "pathClearable",
+                "settingsReload"
+            ])
+        );
 
         let net_env = network_res["env"].as_object().unwrap();
         assert_eq!(net_env["VESTA_PLUGIN_SCOPES"], "network");

@@ -10,6 +10,7 @@
   <Snackbar
     message={store.message}
     variant={store.variant}
+    icon={store.icon}
     duration={store.duration}
     animationKey={store.key}
     paused={store.paused}

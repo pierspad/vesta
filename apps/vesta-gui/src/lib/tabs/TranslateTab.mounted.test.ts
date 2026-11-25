@@ -42,6 +42,7 @@ vi.mock("$lib/config/vestaConfig", () => ({
 
 import TranslateTab from "./TranslateTab.svelte";
 import { aiStore } from "$lib/stores/aiStore.svelte";
+import { guidanceStore } from "$lib/stores/guidanceStore.svelte";
 
 const mounted: ReturnType<typeof mount>[] = [];
 
@@ -221,6 +222,11 @@ describe("TranslateTab", () => {
       );
 
     expect(findSuggestBtn()).toBeDefined();
+    expect(target.querySelector("details #translation-context-label")).toBeNull();
+    const contextHeader = findSuggestBtn()!.closest("#translation-context-header");
+    expect(contextHeader?.querySelector("#translation-context-label")).not.toBeNull();
+    expect(contextHeader?.textContent).toContain("Detour.1945.en.srt");
+    expect(findSuggestBtn()!.parentElement?.className).toContain("ml-auto");
     findSuggestBtn()!.click();
     await settle();
 
@@ -234,5 +240,31 @@ describe("TranslateTab", () => {
     aiStore.killSwitchActive = false;
     await settle();
     expect(findSuggestBtn()).toBeDefined();
+  });
+
+  it("guides step-by-step to Settings -> LLM when clicking disabled Suggest context without LLM tiers", async () => {
+    guidanceStore.clear();
+    mocks.store.set("vesta-translate-tiers", "[]");
+    aiStore.killSwitchActive = false;
+
+    const target = document.createElement("div");
+    document.body.append(target);
+    mounted.push(mount(TranslateTab, { target, props: { active: true } }));
+    await settle();
+
+    const suggestBtn = Array.from(target.querySelectorAll<HTMLButtonElement>("button")).find((b) =>
+      b.textContent?.includes("Suggest context"),
+    )!;
+    expect(suggestBtn.disabled).toBe(true);
+    suggestBtn.parentElement!.click();
+    await settle();
+
+    expect(guidanceStore.active).toEqual({
+      sourceTab: "translate",
+      section: "llm",
+      targetId: "llm-tiers",
+    });
+    expect(guidanceStore.isSettingsButtonPulsing).toBe(true);
+    guidanceStore.clear();
   });
 });

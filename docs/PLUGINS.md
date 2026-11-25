@@ -156,10 +156,10 @@ Every message must be a single line of valid JSON terminated by `\n`.
 
 ## 5. Host Context & RPC Methods (Vesta → Plugin)
 
-Vesta automatically injects host environment properties (`locale`, `expertMode`, `dataDir`, `settings`) into lifecycle and UI calls so plugins can adapt without querying internal state.
+Vesta automatically injects host environment properties (`locale`, `expertMode`, `dataDir`, `settings`, `permissions`, `host`) into lifecycle and UI calls so plugins can adapt without querying internal state.
 
 ### `initialize`
-Called immediately after spawning the plugin process.
+Called immediately after spawning the plugin process. Vesta also exposes `VESTA_PLUGIN_ID`, `VESTA_API_VERSION`, `VESTA_DATA_DIR`, `VESTA_PLUGIN_SCOPES` (comma-separated permission scopes), and `VESTA_DOWNLOADS_DIR` (when `"filesystem:downloads"` is declared) as child process environment variables.
 - **Params**:
   ```json
   {
@@ -167,7 +167,24 @@ Called immediately after spawning the plugin process.
     "dataDir": "/path/to/plugin/data",
     "locale": "en",
     "expertMode": false,
-    "settings": { "apiKey": "secret..." }
+    "settings": { "apiKey": "secret..." },
+    "permissions": {
+      "scopes": ["network", "filesystem:downloads"],
+      "downloadsDir": "/home/user/Downloads"
+    },
+    "host": {
+      "vestaVersion": "0.1.0",
+      "platform": "linux",
+      "capabilities": [
+        "footer",
+        "card",
+        "pagination",
+        "mediaPlayer",
+        "pathPreviewModal",
+        "pathClearable",
+        "settingsReload"
+      ]
+    }
   }
   ```
 - **Result**: `{"status": "ok"}`
@@ -184,18 +201,24 @@ Requests the declarative UI tree for a given screen (e.g. `"main"` or `"settings
   }
   ```
 - **Result**:
+  Returns a `root` widget tree plus optional `footer` (`{ left?, center?, right? }` widget arrays), `scrollTop` (`boolean`), and `snackbar`:
   ```json
   {
     "root": {
       "type": "column",
       "children": [...]
     },
+    "footer": {
+      "left": [{ "type": "text", "text": "Ready", "variant": "muted" }],
+      "right": [{ "type": "button", "id": "btn_run", "label": "Run", "variant": "primary" }]
+    },
+    "scrollTop": false,
     "snackbar": { "message": "Loaded!", "type": "info" }
   }
   ```
 
 ### `event`
-Dispatched whenever the user interacts with a widget (clicking a button, pressing `Enter` in an input with `submitAction`, changing a `languageSelect`, `pathInput`, or `segmented` control, or clicking a `list` item action).
+Dispatched whenever the user interacts with a widget (clicking a button, pressing `Enter` in an input with `submitAction`, changing a `checkbox`, `select`, `pagination`, `languageSelect`, `pathInput`, or `segmented` control, or clicking a `list` item action). Modifying `checkbox`, `select`, `pagination`, `languageSelect`, `pathInput`, or `segmented` widgets emits `type: "change"` with the updated value in `values[widgetId]`.
 - **Params**:
   ```json
   {
@@ -212,10 +235,12 @@ Dispatched whenever the user interacts with a widget (clicking a button, pressin
   }
   ```
 - **Result**:
-  Returns a new UI tree (`{ "root": ... }`), an incremental patch (`{ "patch": ... }`), or an object with optional `snackbar`:
+  Returns a new UI tree (`{ "root": ... }`), an incremental patch (`{ "patch": ... }`), or an object with optional `footer`, `scrollTop`, `screen`, and `snackbar`:
   ```json
   {
     "root": { ... },
+    "footer": { "right": [...] },
+    "scrollTop": true,
     "snackbar": { "message": "Saved successfully!", "type": "success" }
   }
   ```
@@ -335,22 +360,25 @@ All widgets accept the following optional properties:
 |---|---|---|
 | `column` | Vertical flex container | `gap?: number \| string`, `children: WidgetNode[]` |
 | `row` | Horizontal flex container | `gap?: number \| string`, `align?: "start" \| "center" \| "end" \| "between"`, `separator?: "or"`, `children: WidgetNode[]` |
+| `card` | Glass-styled card container | `title?: string`, `subtitle?: string`, `icon?: string`, `accent?: "purple" \| "indigo" \| "cyan" \| "emerald" \| "amber" \| "blue" \| "orange"`, `children?: WidgetNode[]` |
 | `text` | Paragraph or status text | `text: string`, `variant?: "normal" \| "muted" \| "danger" \| "warning" \| "success"`, `size?: "sm" \| "base" \| "lg"` |
 | `heading` | Section heading | `text: string`, `level?: 1 \| 2 \| 3 \| 4`, `icon?: string` |
 | `textInput` | Text input field | `id: string`, `label?: string`, `labelIcon?: string`, `labelTooltip?: string`, `placeholder?: string`, `defaultValue?: string`, `icon?: string`, `submitAction?: string`, `emptyWarning?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
 | `textArea` | Resizable multiline input | `id: string`, `label: string`, `placeholder?: string`, `defaultValue?: string`, `rows?: number`, `maxLength?: number`, `disabled?: boolean`, `readOnly?: boolean` |
 | `passwordInput`| Password / API key field | `id: string`, `label?: string`, `labelIcon?: string`, `labelTooltip?: string`, `placeholder?: string`, `defaultValue?: string`, `icon?: string`, `submitAction?: string`, `emptyWarning?: string`, `hint?: string \| { text?, link? }`, `link?: { label, url }` |
 | `numberInput` | Numeric input field | `id: string`, `label?: string`, `min?: number`, `max?: number`, `step?: number`, `defaultValue?: number` |
-| `select` | Styled dropdown select | `id: string`, `label?: string`, `options: Array<{ label, value }>`, `defaultValue?: string` |
+| `select` | Styled dropdown select | `id: string`, `label?: string`, `options: Array<{ label, value }>`, `defaultValue?: string` (emits `"change"` event) |
 | `segmented` | Sub-navigation pill bar | `id: string`, `label?: string`, `options: Array<{ value, label, icon?, badge?, tooltip? }>`, `defaultValue?: string` |
-| `pathInput` | Native OS file/folder picker | `id: string`, `label?: string`, `placeholder?: string`, `defaultValue?: string`, `pickerType?: "file" \| "folder"`, `filters?: Array<{ name, extensions }>`, `drop?: boolean`, `dropHint?: string` |
+| `pathInput` | Native OS file/folder picker | `id: string`, `label?: string`, `placeholder?: string`, `defaultValue?: string`, `pickerType?: "file" \| "folder"`, `clearable?: boolean`, `compact?: boolean`, `defaultDir?: "downloads"`, `filters?: Array<{ name, extensions }>`, `drop?: boolean`, `dropHint?: string` (supports `PathPreviewModal` expansion) |
 | `languageSelect` | Unified searchable language picker | `id: string`, `label?: string`, `scope?: "all" \| "core"`, `codes?: string[]`, `names?: "both" \| "english" \| "native"`, `showFlags?: boolean`, `defaultValue?: string` (ISO-639-1 code, e.g. `"en"`, `"it"`), `placeholder?: string`, `tooltip?: string` |
-| `checkbox` | Toggle checkbox | `id: string`, `label: string`, `defaultValue?: boolean`, `tooltip?: string` |
-| `button` | Action button | `id: string`, `label: string`, `icon?: string`, `variant?: "primary" \| "secondary" \| "danger" \| "settings" \| "accent"`, `status?: "attention" \| "ready"`, `placement?: "header" \| "body"`, `disabled?: boolean`, `tooltip?: string`, `disabledTooltip?: string`, `disabledFocus?: string`, `requiresAny?: string[]` |
+| `checkbox` | Toggle checkbox | `id: string`, `label: string`, `defaultValue?: boolean`, `tooltip?: string` (emits `"change"` event) |
+| `button` | Action button | `id: string`, `label: string`, `icon?: string`, `variant?: "primary" \| "secondary" \| "danger" \| "settings" \| "accent" \| "success"`, `status?: "attention" \| "ready"`, `placement?: "header" \| "body"`, `disabled?: boolean`, `tooltip?: string`, `disabledTooltip?: string`, `disabledFocus?: string`, `requiresAny?: string[]` |
 | `link` / `externalLink` | External hyperlink | `label: string`, `url: string`, `icon?: string` (opens in system browser via Tauri opener) |
-| `list` | Rich item list with actions | `reserveImage?: boolean`, `items: Array<{ id, title, subtitle?, badge?, language?, meta?, image?, primaryAction?, actions?: Array<{ id, label, variant?, icon?, iconOnly?, tooltip? }> }>` |
+| `list` | Rich item list with actions | `reserveImage?: boolean`, `imageAspect?: "square" \| "poster" \| "wide"`, `layout?: "list" \| "grid"`, `items: Array<{ id, title, subtitle?, badge?, language?, meta?, image?, primaryAction?, actions?: Array<{ id, label, variant?, icon?, iconOnly?, tooltip? }> }>` |
 | `table` | Responsive data table | `headers: string[]`, `rows: Array<Array<string \| number>>` |
-| `image` | Static image | `src: string`, `alt?: string`, `width?: number`, `height?: number` |
+| `image` | Static image | `src: string`, `alt?: string`, `width?: number`, `height?: number`, `aspect?: "auto" \| "square" \| "poster" \| "wide"`, `fit?: "contain" \| "cover"` |
+| `mediaPlayer` | Inline video or audio player | `src?: string`, `kind?: "video" \| "audio"`, `poster?: string`, `title?: string`, `caption?: string`, `loop?: boolean`, `muted?: boolean`, `height?: number \| string` |
+| `pagination` | Page navigation bar | `id: string`, `page?: number`, `totalPages?: number`, `totalItems?: number`, `pageSize?: number`, `disabled?: boolean` (emits `"change"` event) |
 | `progress` | Progress bar | `value: number`, `max?: number`, `label?: string` |
 | `fileOutput` | File path card with copy/open | `path: string`, `label?: string` |
 | `divider` | Horizontal separator | `expertOnly?: boolean` |
@@ -368,10 +396,9 @@ All widgets accept the following optional properties:
 
 A `textArea` keeps Enter for newlines. Edited text is included in the `values` of subsequent actions. Use the Python helper `TextArea("notes", "Notes", rows=5, maxLength=2000)`.
 
-For a native file picker with drag and drop, use `PathInput("subtitle", label="Subtitle", pickerType="file", drop=True, filters=[{"name": "Subtitles", "extensions": ["srt"]}])`. A drop accepts one path over that field and checks the configured extension. The plugin receives a `change` event with the path and should validate its contents before processing. Use `dropHint` for custom help.
+For a native file picker with drag and drop, use `PathInput("subtitle", label="Subtitle", pickerType="file", drop=True, filters=[{"name": "Subtitles", "extensions": ["srt"]}])`. A drop accepts one path over that field and checks the configured extension. The plugin receives a `change` event with the path and should validate its contents before processing. Use `dropHint` for custom help. Folder pickers also support `default_dir="downloads"` (`defaultDir: "downloads"`), `clearable` (true by default for non-compact folder pickers), `compact=True` for tight layouts (such as inside a sticky `footer`), and an expand button that opens `PathPreviewModal` to inspect or edit long paths.
 
-Use `fileOutput` to present a generated file with an Open action. Inline
-video playback is outside the current widget contract.
+Use `fileOutput` to present a generated file with an Open action, or `MediaPlayer(src, kind="video" | "audio")` to embed inline video/audio playback directly inside a plugin screen (Vesta automatically allowlists local media paths in `src` and `poster`). Use `Card(children, title=..., accent=...)` for grouped glass sections, `Pagination(id, page=..., total_pages=..., total_items=...)` for paged result navigation, and `Footer(left=..., center=..., right=...)` with `Response(root, footer=..., scroll_top=...)` to render a sticky bottom action bar.
 
 ### Button guidance
 
@@ -422,13 +449,13 @@ localized separator between visible children, including when Expert mode changes
 
 Plugins remain responsible for validating action parameters in their handlers.
 
-Set `reserveImage: true` on a list to keep a thumbnail slot for every item.
+Set `reserveImage: true` on a list to keep a thumbnail slot for every item, `imageAspect` (`"square" | "poster" | "wide"`) to control thumbnail aspect ratio, and `layout="grid"` for responsive multi-column cards (`ListWidget(..., image_aspect="poster", layout="grid")`). Standalone `Image` widgets support `aspect` (`"auto" | "square" | "poster" | "wide"`) and `fit` (`"contain" | "cover"`).
 Set an item's `primaryAction` to one of its action IDs to make its card
 activate that action by mouse or keyboard.
 
 ### Icon registry
 
-Use `variant: "accent"` for a cyan action and `variant: "danger"` with
+Use `variant: "accent"` for a cyan action, `variant: "success"` for an emerald confirmation action, and `variant: "danger"` with
 `icon: "trash"` for clearing content.
 
 Widgets supporting `icon` accept standard monochrome vector icon names (plus `"tmdb"` and `"imdb"` vector logos):
@@ -518,14 +545,18 @@ Vesta includes a zero-dependency Python SDK helper (`vesta_plugin.py`) located u
 
 ### Available Builders and Runtime Methods
 
-- **Widget Builders**: `Column`, `Row`, `Heading`, `Text`, `TextInput`, `TextArea`, `PathInput`, `PasswordInput`, `NumberInput`, `Select`, `Segmented`, `LanguageSelect`, `Checkbox`, `Button`, `Link`, `ExternalLink`, `ListWidget`, `Table`, `Image`, `Progress`, `FileOutput`, `Divider`, `Settings`. All builders accept universal properties (`id`, `hidden`, `expertOnly`, `tooltip`, `flex`, `width`) via keyword arguments.
+- **Widget Builders**: `Column`, `Row`, `Card`, `Heading`, `Text`, `TextInput`, `TextArea`, `PathInput`, `PasswordInput`, `NumberInput`, `Select`, `Segmented`, `LanguageSelect`, `Checkbox`, `Button`, `Link`, `ExternalLink`, `ListWidget`, `Table`, `Image`, `MediaPlayer`, `Pagination`, `Progress`, `FileOutput`, `Divider`, `Settings`. All builders accept universal properties (`id`, `hidden`, `expertOnly`, `tooltip`, `flex`, `width`) via keyword arguments (`Card`, `MediaPlayer`, and `Pagination` also accept `visible=False` as a shorthand for `hidden=True`).
+- **Response & Layout Helpers**:
+  - `Footer(left=None, center=None, right=None)` — returns a sticky footer bar dictionary omitting empty/`None` slots.
+  - `Response(root, *, footer=None, screen=None, snackbar=None, patch_values=None, scroll_top=False)` — returns a structured UI response dict for `render` and `event` handlers.
 - **`VestaPlugin` Methods**:
-  - `@plugin.on_initialize`, `@plugin.on_render(screen="main")`, `@plugin.on_event(widget_id=None)`
-  - `plugin.notify(msg, level="info")`, `plugin.progress(id, value, label="")`, `plugin.update_ui(screen="main", root=None, patch=None)`
+  - `@plugin.on_initialize`, `@plugin.on_render(screen="main")`, `@plugin.on_event(widget_id=None, *, prefix=None)` (supports exact widget IDs, prefix matching via `prefix="select_"`, and `"*"` fallback)
+  - `plugin.load_state(filename="state.json", default=None)` and `plugin.save_state(data, filename="state.json")` (atomic JSON state persistence under `plugin.data_dir`)
+  - `plugin.notify(msg, level="info")`, `plugin.log(msg, level="info")`, `plugin.progress(id, value, label="")`, `plugin.update_ui(screen="main", root=None, patch=None, footer=None)`
   - `plugin.open_in_flashcards(video_path, subtitle_path)`
   - `plugin.get_values(screen="main") -> dict`
   - `plugin.run_cli(command, args=None, timeout_secs=None, parse_json=False) -> dict` (requires `"vesta:cli"` permission scope; when `parse_json=True` and `ok` is true, parses JSON `stdout` into `result["json"]`)
-  - Runtime properties updated automatically across RPC calls: `plugin.locale`, `plugin.expert_mode`, `plugin.data_dir`, `plugin.settings`.
+  - Runtime properties updated automatically across RPC calls: `plugin.locale`, `plugin.expert_mode`, `plugin.data_dir`, `plugin.downloads_dir` (from `permissions.downloadsDir` or `VESTA_DOWNLOADS_DIR`), `plugin.scopes` (from `permissions.scopes` or `VESTA_PLUGIN_SCOPES`), `plugin.host` (`vestaVersion`, `platform`, `capabilities`), and `plugin.settings`.
 
 ```python
 from vesta_plugin import VestaPlugin, Column, Heading, Text, TextInput, Button

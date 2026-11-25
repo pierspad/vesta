@@ -246,15 +246,54 @@ def validate_package(path, expected_notes=10, require_media=True):
     return {'notes': count, 'media_files': len(media)}
 
 
-def run_mcp_smoke(cli_bin, read_root, output_root, inputs, anki_url):
+def run_mcp_smoke(cli_bin, read_root, output_root, inputs, anki_url, v1_url):
     """Verify stdio JSON-RPC lifecycle, tool discovery (24 tools), and end-to-end tool calls."""
+    provider_cfg_path = read_root / 'mcp-provider-config.json'
+    smoke_secret = 'vesta-smoke-secret-do-not-expose'
+    provider_cfg_path.write_text(json.dumps({
+        'translation': {
+            'profiles': {
+                'smoke-translation': {
+                    'tiers': [[{
+                        'provider': 'custom',
+                        'model': 'translate-repair',
+                        'api_key_env': 'VESTA_SMOKE_API_KEY',
+                        'api_url': v1_url,
+                        'rpm': 0,
+                    }]],
+                    'batch_size': 5,
+                },
+            },
+        },
+        'transcription': {
+            'profiles': {
+                'smoke-stt': {
+                    'provider': 'custom',
+                    'model': 'whisper-1',
+                    'api_key_env': 'VESTA_SMOKE_API_KEY',
+                    'api_url': v1_url,
+                },
+            },
+        },
+    }), encoding='utf-8')
+
     proc = subprocess.Popen(
-        [str(cli_bin), 'mcp', '--read-root', str(read_root), '--output-root', str(output_root)],
+        [
+            str(cli_bin),
+            'mcp',
+            '--read-root',
+            str(read_root),
+            '--output-root',
+            str(output_root),
+            '--provider-config',
+            str(provider_cfg_path),
+        ],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
         bufsize=1,
+        env={**os.environ, 'VESTA_SMOKE_API_KEY': smoke_secret},
     )
     next_id = 0
 
@@ -314,6 +353,12 @@ def run_mcp_smoke(cli_bin, read_root, output_root, inputs, anki_url):
 
         cfg = call_tool('get_configuration', {})
         assert cfg.get('read_roots') and cfg.get('output_root'), cfg
+        assert cfg.get('translation_available') is True and cfg.get('transcription_available') is True, cfg
+        assert 'smoke-translation' in cfg.get('enabled_translation_profiles', []), cfg
+        assert 'smoke-stt' in cfg.get('enabled_transcription_profiles', []), cfg
+        cfg_serialized = json.dumps(cfg)
+        assert smoke_secret not in cfg_serialized and 'api_url' not in cfg_serialized, cfg
+        assert 'VESTA_SMOKE_API_KEY' not in cfg_serialized, cfg
 
         inspected = call_tool('inspect_subtitles', {'path': str(inputs['subtitles'])})
         assert inspected.get('count') == 10, inspected
@@ -371,6 +416,21 @@ def run_mcp_smoke(cli_bin, read_root, output_root, inputs, anki_url):
         })
         assert '00:00:00,000 -->' in Path(synced['output_path']).read_text(encoding='utf-8'), synced
 
+        autosync_job = call_tool('autosync_subtitles', {
+            'input': str(inputs['shifted']),
+            'media': str(inputs['video']),
+            'profile_id': 'smoke-stt',
+            'language': 'en',
+            'quick': True,
+            'max_offset_secs': 60,
+        })
+        autosync_done = wait_job(autosync_job['job_id'])
+        assert autosync_done.get('status') == 'succeeded', autosync_done
+        autosync_res = autosync_done.get('result', {})
+        assert autosync_res.get('anchors_created', 0) >= 1, autosync_done
+        assert '00:00:00,000 -->' in Path(autosync_res['output_path']).read_text(encoding='utf-8'), autosync_done
+        assert smoke_secret not in json.dumps(autosync_done), autosync_done
+
         deck_inspected = call_tool('inspect_deck', {
             'input': str(inputs['apkg_a']),
             'query': 'dialogue number 3',
@@ -402,7 +462,7 @@ def run_mcp_smoke(cli_bin, read_root, output_root, inputs, anki_url):
             proc.stdin.close()
         proc.wait(timeout=15)
 
-    return {'tools_verified': len(EXPECTED_MCP_TOOLS), 'mcp_calls_ok': 16}
+    return {'tools_verified': len(EXPECTED_MCP_TOOLS), 'mcp_calls_ok': 17}
 
 
 def run_suite_checks(cli_bin, fc_bin, temp, inputs, package_a, package_b, base_url):
@@ -580,7 +640,7 @@ def run_suite_checks(cli_bin, fc_bin, temp, inputs, package_a, package_b, base_u
     # CM-01 / CM-02: vesta-cli mcp live stdio server verification (24 tools)
     mcp_out = temp / 'mcp-out'
     mcp_out.mkdir(exist_ok=True)
-    checks['mcp'] = run_mcp_smoke(cli_bin, temp, mcp_out, {**inputs, 'apkg_a': package_a, 'apkg_b': package_b}, anki_url)
+    checks['mcp'] = run_mcp_smoke(cli_bin, temp, mcp_out, {**inputs, 'apkg_a': package_a, 'apkg_b': package_b}, anki_url, v1_url)
     return checks
 
 

@@ -20,6 +20,7 @@
   import Snackbar from "$lib/components/Snackbar.svelte";
   import { snackbar } from "$lib/stores/snackbarStore.svelte";
   import { aiStore } from "$lib/stores/aiStore.svelte";
+  import { guidanceStore } from "$lib/stores/guidanceStore.svelte";
   import { getShortcuts } from "$lib/utils/shortcuts";
   import * as vestaConfig from "$lib/config/vestaConfig";
   import { pluginsStore } from "$lib/stores/pluginsStore.svelte";
@@ -174,6 +175,7 @@
 
   $effect(() => {
     if (aiStore.killSwitchActive) {
+      guidanceStore.clear();
       if (activeTab === "translate" || activeTab === "transcribe") {
         changeTab("flashcards");
       }
@@ -446,6 +448,12 @@
     activeTab = "settings";
   }
 
+  $effect(() => {
+    guidanceStore.syncNavigation(activeTab, requestedSettingsSection, (targetId) => {
+      highlightItemId = targetId;
+    });
+  });
+
   function toggleSidebar() {
     sidebarCollapsed = !sidebarCollapsed;
     userPreference = sidebarCollapsed ? "collapsed" : "expanded";
@@ -534,6 +542,7 @@
     <Snackbar
       message={snackbar.message}
       variant={snackbar.variant}
+      icon={snackbar.icon}
       duration={snackbar.duration}
       animationKey={snackbar.key}
       paused={snackbar.paused}

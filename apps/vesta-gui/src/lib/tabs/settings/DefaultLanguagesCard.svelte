@@ -1,6 +1,6 @@
 <script lang="ts">
   import { locale } from "$lib/i18n";
-  import { languages } from "$lib/config/languages";
+  import { languages, languageFlagUrl } from "$lib/config/languages";
   import LanguageSelect from "$lib/components/LanguageSelect.svelte";
 
   interface Props {
@@ -39,7 +39,11 @@
           </span>
           {t("settings.copy.nativeLanguage")}
         </span>
-        <span class="text-3xl">{languages.find((lang) => lang.code === defaultNativeLanguage)?.flag || "🌐"}</span>
+        {#if languageFlagUrl(defaultNativeLanguage)}
+          <img src={languageFlagUrl(defaultNativeLanguage) ?? ""} alt="" class="h-6 w-8 rounded-[3px] object-cover shadow-xs" />
+        {:else}
+          <span class="text-2xl leading-none">🌐</span>
+        {/if}
       </div>
       <LanguageSelect
         className="language-select"
@@ -57,7 +61,11 @@
           <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300">文</span>
           {t("settings.copy.studyingLanguage")}
         </span>
-        <span class="text-3xl">{languages.find((lang) => lang.code === defaultFlashcardsLanguage)?.flag || "🌐"}</span>
+        {#if languageFlagUrl(defaultFlashcardsLanguage)}
+          <img src={languageFlagUrl(defaultFlashcardsLanguage) ?? ""} alt="" class="h-6 w-8 rounded-[3px] object-cover shadow-xs" />
+        {:else}
+          <span class="text-2xl leading-none">🌐</span>
+        {/if}
       </div>
       <LanguageSelect
         className="language-select"
@@ -77,7 +85,11 @@
           </span>
           {t("settings.copy.translationLanguage")}
         </span>
-        <span class="text-3xl">{languages.find((lang) => lang.code === defaultTargetLanguage)?.flag || "🌐"}</span>
+        {#if languageFlagUrl(defaultTargetLanguage)}
+          <img src={languageFlagUrl(defaultTargetLanguage) ?? ""} alt="" class="h-6 w-8 rounded-[3px] object-cover shadow-xs" />
+        {:else}
+          <span class="text-2xl leading-none">🌐</span>
+        {/if}
       </div>
       <LanguageSelect
         className="language-select"
@@ -97,7 +109,11 @@
           </span>
           {t("settings.copy.transcription")}
         </span>
-        <span class="text-3xl">{defaultTranscribeLanguage === "auto" ? "🌐" : languages.find((lang) => lang.code === defaultTranscribeLanguage)?.flag || "🌐"}</span>
+        {#if defaultTranscribeLanguage !== "auto" && languageFlagUrl(defaultTranscribeLanguage)}
+          <img src={languageFlagUrl(defaultTranscribeLanguage) ?? ""} alt="" class="h-6 w-8 rounded-[3px] object-cover shadow-xs" />
+        {:else}
+          <span class="text-2xl leading-none">🌐</span>
+        {/if}
       </div>
       <LanguageSelect
         className="language-select"

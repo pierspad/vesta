@@ -1,8 +1,11 @@
+use crate::media_stream::MediaAllowlist;
 use crate::plugins::registry::InstalledPlugin;
-use crate::plugins::{PluginEventPayload, PluginInspectResult, PluginManager};
+use crate::plugins::{
+    PluginEventPayload, PluginInspectResult, PluginManager, allowlist_plugin_media_paths,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 pub type AppPluginState = Arc<PluginManager>;
 
@@ -84,16 +87,20 @@ pub async fn plugin_render(
     let params_val = params.unwrap_or(serde_json::Value::Null);
     let loc = locale.unwrap_or_else(|| "en".to_string());
     let is_expert = expert_mode.unwrap_or(false);
-    state
+    let mut res = state
         .render(
-            Some(app),
+            Some(app.clone()),
             &plugin_id,
             &screen_name,
             params_val,
             &loc,
             is_expert,
         )
-        .await
+        .await?;
+    if let Some(allowlist) = app.try_state::<MediaAllowlist>() {
+        allowlist_plugin_media_paths(&mut res, &allowlist);
+    }
+    Ok(res)
 }
 
 #[tauri::command]
@@ -107,7 +114,11 @@ pub async fn plugin_dispatch_event(
 ) -> Result<serde_json::Value, String> {
     let loc = locale.unwrap_or_else(|| "en".to_string());
     let is_expert = expert_mode.or(event.expert_mode).unwrap_or(false);
-    state
-        .dispatch_event(Some(app), &plugin_id, &event, &loc, is_expert)
-        .await
+    let mut res = state
+        .dispatch_event(Some(app.clone()), &plugin_id, &event, &loc, is_expert)
+        .await?;
+    if let Some(allowlist) = app.try_state::<MediaAllowlist>() {
+        allowlist_plugin_media_paths(&mut res, &allowlist);
+    }
+    Ok(res)
 }

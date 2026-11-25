@@ -7,6 +7,7 @@
     mediaPath: string | null;
     srtLoaded: boolean;
     isPreparingMedia?: boolean;
+    highlightClass?: string;
     onExpandSrt: () => void;
     onExpandMedia: () => void;
     onBrowseSrt: () => void;
@@ -18,6 +19,7 @@
     mediaPath,
     srtLoaded,
     isPreparingMedia = false,
+    highlightClass = "",
     onExpandSrt,
     onExpandMedia,
     onBrowseSrt,
@@ -27,7 +29,7 @@
   let t = $derived($locale);
 </script>
 
-<div class="glass-card p-5">
+<div class="glass-card p-5 {highlightClass}">
   <h3
     class="text-lg font-semibold mb-4 flex items-center gap-2 panel-title-files-output"
   >

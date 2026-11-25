@@ -110,6 +110,8 @@ On \`initialize\`, \`render\`, and \`event\`, Vesta automatically passes:
 - \`locale\`: Active Vesta UI language code (e.g. \`"en"\`, \`"it"\`, \`"ja"\`)
 - \`expertMode\`: \`boolean\` indicating whether the user enabled **Expert Mode** in Vesta
 - \`settings\`: Dictionary of saved manifest settings
+- \`permissions\`: \`{ scopes: string[], downloadsDir?: string }\` on \`initialize\` (plus \`VESTA_PLUGIN_SCOPES\` and \`VESTA_DOWNLOADS_DIR\` env vars when \`"filesystem:downloads"\` is granted)
+- \`host\`: \`{ vestaVersion: string, platform: string, capabilities: string[] }\` on \`initialize\`
 - \`values\`: Snapshot of all interactive widget values on the active screen (on \`event\`)
 
 ## 3. Plugin credentials
@@ -118,22 +120,26 @@ Store credentials in the plugin's own settings or data directory. Vesta does not
 ## 4. Declarative Widget Catalog
 Every widget supports \`id\`, \`hidden\`, \`expertOnly\` (auto-hidden when Expert Mode is off), \`tooltip\` (native Vesta hover tooltip), \`flex\`, and \`width\`.
 
-- **Layout**: \`column\` (\`gap\`, \`children\`), \`row\` (\`gap\`, \`align\`: \`"start" | "center" | "end" | "between"\`, \`separator\`, \`children\`), \`divider\`, \`heading\` (\`level\`, \`icon\`), \`text\` (\`variant\`, \`size\`)
+- **Layout**: \`column\` (\`gap\`, \`children\`), \`row\` (\`gap\`, \`align\`: \`"start" | "center" | "end" | "between"\`, \`separator\`, \`children\`), \`card\` (\`title\`, \`subtitle\`, \`icon\`, \`accent\`, \`children\`), \`divider\`, \`heading\` (\`level\`, \`icon\`), \`text\` (\`variant\`, \`size\`)
+- **Sticky Footer Bar**: Return \`footer: { left?: WidgetNode[], center?: WidgetNode[], right?: WidgetNode[] }\` (and optional \`scrollTop: true\`) in \`render\`, \`event\`, or \`ui.update\` responses to pin controls in Vesta's bottom action bar.
 - **Inputs**:
   - \`textInput\` / \`passwordInput\`: \`label\`, \`labelIcon\`, \`labelTooltip\`, \`placeholder\`, \`defaultValue\`, \`icon\` (\`"search"\`, \`"tmdb"\`, \`"imdb"\`, etc.), \`submitAction\` (button ID triggered when pressing **Enter**), \`emptyWarning\`, \`hint\`, \`link\`
   - \`textArea\`: Resizable multiline input (\`label\`, \`placeholder\`, \`defaultValue\`, \`rows\`, \`maxLength\`, \`disabled\`, \`readOnly\`)
   - \`languageSelect\`: Unified Vesta language selector with bundled SVG flags (\`scope\`: \`"all"\` for 58 world languages or \`"core"\` for 33 study languages)
-  - \`pathInput\`: Native OS file/folder selector (\`pickerType\`: \`"file" | "folder"\`, \`filters\`, \`drop\`, \`dropHint\`)
-  - \`select\`, \`segmented\`, \`numberInput\`, \`checkbox\`
+  - \`pathInput\`: Native OS file/folder selector (\`pickerType\`: \`"file" | "folder"\`, \`clearable\`, \`compact\`, \`defaultDir\`: \`"downloads"\`, \`filters\`, \`drop\`, \`dropHint\`, plus \`PathPreviewModal\` path inspection/editing)
+  - \`select\`, \`segmented\`, \`checkbox\` (emit \`"change"\` events), \`numberInput\`
 - **Actions & Display**:
-  - \`button\`: \`label\`, \`variant\` (\`"primary" | "secondary" | "danger" | "settings" | "accent"\`), \`status\`, \`placement\`, \`icon\`, \`disabled\`, \`tooltip\`, \`disabledTooltip\`, \`disabledFocus\`, \`requiresAny\`
-  - \`list\`: \`items\` with \`title\`, \`subtitle\`, \`badge\`, \`language\` (ISO code automatically rendered by Vesta as **Flag SVG + Localized Language Name** in Vesta's active language), \`meta\`, \`image\`, \`primaryAction\`, and \`actions\`
-  - \`fileOutput\`, \`progress\`, \`table\`, \`image\`, \`link\` / \`externalLink\`
+  - \`button\`: \`label\`, \`variant\` (\`"primary" | "secondary" | "danger" | "settings" | "accent" | "success"\`), \`status\`, \`placement\`, \`icon\`, \`disabled\`, \`tooltip\`, \`disabledTooltip\`, \`disabledFocus\`, \`requiresAny\`
+  - \`list\`: \`layout\` (\`"list" | "grid"\`), \`imageAspect\` (\`"square" | "poster" | "wide"\`), \`reserveImage\`, \`items\` with \`title\`, \`subtitle\`, \`badge\`, \`language\` (ISO code automatically rendered by Vesta as **Flag SVG + Localized Language Name** in Vesta's active language), \`meta\`, \`image\`, \`primaryAction\`, and \`actions\`
+  - \`pagination\`: Page navigation bar (\`id\`, \`page\`, \`totalPages\`, \`totalItems\`, \`pageSize\`, \`disabled\`, emits \`"change"\` event)
+  - \`mediaPlayer\`: Inline video/audio player (\`src\`, \`kind\`: \`"video" | "audio"\`, \`poster\`, \`title\`, \`caption\`, \`loop\`, \`muted\`, \`height\`; local paths are automatically allowlisted)
+  - \`image\` (\`aspect\`, \`fit\`, \`width\`, \`height\`), \`fileOutput\`, \`progress\`, \`table\`, \`link\` / \`externalLink\`
 
 ## 5. Host Notifications & Integrations (Plugin → Vesta)
 - **Host Snackbar / Toast**: Return \`snackbar: { message: "Saved!", type: "success" | "error" | "info" | "warning" }\` in \`render\` or \`event\` response to trigger native Vesta toast notification.
-- \`ui.update\`: Push live \`root\` or incremental \`patch\` (\`values\`, \`setProps\`, \`visibility\`, \`insert\`, \`remove\`, \`move\`)
+- \`ui.update\`: Push live \`root\`, \`footer\`, or incremental \`patch\` (\`values\`, \`setProps\`, \`visibility\`, \`insert\`, \`remove\`, \`move\`)
 - \`ui.notify\`: Show native toast (\`level\`: \`"info" | "success" | "warn" | "error"\`, \`msg\`)
+- \`vesta.log\`: Emit structured diagnostic log entry (\`level\`: \`"debug" | "info" | "warn" | "error"\`, \`msg\`) captured in Vesta Support Logs
 - \`ui.progress\`: Update progress indicator (\`id\`, \`value\`, \`label\`)
 - \`vesta.openInFlashcards\`: Hand off \`videoPath\` and \`subtitlePath\` directly to the Flashcards tab
 - \`vesta.cli\`: Execute headless Vesta CLI workflows (\`flashcards\`, \`translate\`, \`transcribe\`, \`sync\`, \`autosync\`, \`refine\`, \`extract\`, \`ocr\`) when the plugin declares the \`"vesta:cli"\` permission scope

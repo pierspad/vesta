@@ -140,7 +140,7 @@ it("renders install section with Browse button, integrated search, and aligned 9
   expect(searchInput).not.toBeNull();
 
   // Footer bar has exact h-[92px] and bg-gray-900
-  const footer = target.querySelector(".footer-band");
+  const footer = target.querySelector("[data-footer-actions]");
   expect(footer).not.toBeNull();
   expect(footer?.className).toContain("h-[92px]");
   expect(footer?.className).toContain("bg-gray-900");
@@ -270,6 +270,28 @@ it("switches to embedded view with Back button and header bar when opened", asyn
   backBtn.click();
   await tick();
   expect(navigatedTab).toBe("plugins");
+});
+
+it("renders a single footer inside PluginRenderer without duplicating the manager footer", async () => {
+  const target = document.body.appendChild(document.createElement("div"));
+  vi.mocked(pluginRender).mockResolvedValueOnce({
+    root: { type: "text", text: "Plugin Workspace" },
+    footer: {
+      right: [{ type: "button", id: "plugin_footer_btn", label: "Download Selected" }],
+    },
+  });
+
+  components.push(mount(PluginsTab, { target, props: { active: true } }));
+  await tick();
+
+  expect(target.querySelectorAll("[data-footer-actions]")).toHaveLength(1);
+
+  target.querySelector<HTMLButtonElement>(".btn-primary.text-xs")!.click();
+  await vi.waitFor(() => {
+    expect(target.querySelector("#widget-plugin_footer_btn")).not.toBeNull();
+  });
+
+  expect(target.querySelectorAll("[data-footer-actions]")).toHaveLength(1);
 });
 
 it("renders custom image icon when iconUrl is present", async () => {

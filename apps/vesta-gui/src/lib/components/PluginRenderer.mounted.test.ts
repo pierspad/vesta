@@ -1,15 +1,27 @@
 // @vitest-environment jsdom
-import { mount, tick, unmount } from "svelte";
+import { createRawSnippet, mount, tick, unmount } from "svelte";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import PluginRenderer from "./PluginRenderer.svelte";
 import PluginHeaderHarness from "$lib/test/fixtures/PluginHeaderHarness.svelte";
 import type { WidgetNode } from "$lib/services/pluginClient";
 import { pluginsStore } from "$lib/stores/pluginsStore.svelte";
 import { uiMode } from "$lib/stores/uiModeStore.svelte";
+import { invokeCommand } from "$lib/services/tauriClient";
 
 const mockDispatch = vi.fn();
 const mockRender = vi.fn();
 const mockDragDrop = vi.fn<(handlers: import("$lib/utils/dragDrop").DragDropHandlers) => () => void>();
+const mockDownloadDir = vi.fn<() => Promise<string>>().mockResolvedValue("/home/user/Downloads");
+const mockGuardedOpen = vi.fn();
+
+vi.mock("@tauri-apps/api/path", () => ({
+  downloadDir: () => mockDownloadDir(),
+}));
+
+vi.mock("$lib/utils/dialogGuard", () => ({
+  guardedOpen: (...args: any[]) => mockGuardedOpen(...args),
+  guardedSave: vi.fn(),
+}));
 
 vi.mock("$lib/utils/dragDrop", () => ({
   setupWebviewDragDrop: (...args: Parameters<typeof mockDragDrop>) => mockDragDrop(...args),
@@ -954,7 +966,7 @@ it("renders widget type select using SearchableSelect and updates value on optio
     ],
   };
 
-  mockDispatch.mockResolvedValueOnce({ root: schema });
+  mockDispatch.mockResolvedValue({ root: schema });
 
   const target = document.createElement("div");
   document.body.append(target);
@@ -985,16 +997,392 @@ it("renders widget type select using SearchableSelect and updates value on optio
   option720!.click();
   await tick();
 
+  await vi.waitFor(() => {
+    expect(mockDispatch).toHaveBeenCalledWith(
+      "test-plugin",
+      expect.objectContaining({
+        widgetId: "quality",
+        eventType: "change",
+        values: expect.objectContaining({ quality: "720" }),
+      }),
+      expect.any(String),
+      expect.any(Boolean)
+    );
+  });
+
+  await Promise.resolve();
+  await tick();
   target.querySelector<HTMLButtonElement>("#widget-apply")!.click();
   await tick();
 
-  expect(mockDispatch).toHaveBeenCalledWith(
-    "test-plugin",
-    expect.objectContaining({
-      widgetId: "apply",
-      values: expect.objectContaining({ quality: "720" }),
-    }),
-    expect.any(String),
-    expect.any(Boolean)
+  await vi.waitFor(() => {
+    expect(mockDispatch).toHaveBeenCalledWith(
+      "test-plugin",
+      expect.objectContaining({
+        widgetId: "apply",
+        eventType: "click",
+        values: expect.objectContaining({ quality: "720" }),
+      }),
+      expect.any(String),
+      expect.any(Boolean)
+    );
+  });
+});
+
+it("renders card, pagination, and dispatches checkbox change events", async () => {
+  const schema: WidgetNode = {
+    type: "card",
+    title: "Results",
+    subtitle: "Showing page 1",
+    icon: "film",
+    accent: "cyan",
+    children: [
+      {
+        type: "checkbox",
+        id: "only_hd",
+        label: "HD Only",
+        defaultValue: false,
+      },
+      {
+        type: "pagination",
+        id: "pager",
+        page: 1,
+        totalPages: 3,
+        totalItems: 42,
+      },
+      {
+        type: "button",
+        id: "btn_done",
+        label: "Done",
+        variant: "success",
+      },
+    ],
+  };
+
+  mockDispatch.mockResolvedValue({});
+
+  const target = document.body.appendChild(document.createElement("div"));
+  components.push(
+    mount(PluginRenderer, {
+      target,
+      props: {
+        pluginId: "test-plugin",
+        initialRoot: schema,
+      },
+    })
   );
+  await tick();
+
+  const card = target.querySelector(".glass-card");
+  expect(card).not.toBeNull();
+  expect(card?.querySelector("h3")?.className).toContain("text-cyan-400");
+  expect(card?.textContent).toContain("Results");
+  expect(card?.textContent).toContain("Showing page 1");
+  expect(target.querySelector("#widget-btn_done")?.className).toContain("plugin-action-success");
+
+  const checkbox = target.querySelector<HTMLButtonElement>('[role="checkbox"]')!;
+  checkbox.click();
+  await vi.waitFor(() => {
+    expect(mockDispatch).toHaveBeenCalledWith(
+      "test-plugin",
+      expect.objectContaining({
+        widgetId: "only_hd",
+        eventType: "change",
+        values: expect.objectContaining({ only_hd: true }),
+      }),
+      expect.any(String),
+      expect.any(Boolean)
+    );
+  });
+
+  await Promise.resolve();
+  await tick();
+  mockDispatch.mockClear();
+
+  const pager = target.querySelector('[data-plugin-pagination="pager"]')!;
+  expect(pager.textContent).toContain("Page 1 / 3");
+  expect(pager.textContent).toContain("(42)");
+
+  const prevBtn = pager.querySelector<HTMLButtonElement>('button[aria-label="Prev"]')!;
+  const nextBtn = pager.querySelector<HTMLButtonElement>('button[aria-label="Next"]')!;
+  expect(prevBtn.disabled).toBe(true);
+  expect(nextBtn.disabled).toBe(false);
+
+  nextBtn.click();
+  await vi.waitFor(() => {
+    expect(mockDispatch).toHaveBeenCalledWith(
+      "test-plugin",
+      expect.objectContaining({
+        widgetId: "pager",
+        eventType: "change",
+        values: expect.objectContaining({ pager: 2 }),
+      }),
+      expect.any(String),
+      expect.any(Boolean)
+    );
+  });
+});
+
+it("renders mediaPlayer for remote URLs, local media server paths, audio, and error fallbacks", async () => {
+  vi.mocked(invokeCommand).mockImplementation(async (cmd: string) => {
+    if (cmd === "get_media_server_info") return [43210, "tok&1"];
+    return undefined;
+  });
+
+  const schema: WidgetNode = {
+    type: "column",
+    children: [
+      {
+        type: "mediaPlayer",
+        id: "remote_video",
+        title: "Remote Trailer",
+        caption: "HTTPS Stream",
+        src: "https://cdn.example.com/trailer.mp4",
+        poster: "https://cdn.example.com/poster.jpg",
+        loop: true,
+        muted: true,
+        height: 320,
+      },
+      {
+        type: "mediaPlayer",
+        id: "local_audio",
+        kind: "audio",
+        title: "Local Track",
+        src: "/tmp/audio clip.mp3",
+      },
+    ],
+  };
+
+  const target = document.body.appendChild(document.createElement("div"));
+  components.push(
+    mount(PluginRenderer, {
+      target,
+      props: {
+        pluginId: "test-plugin",
+        initialRoot: schema,
+      },
+    })
+  );
+  await tick();
+
+  const video = target.querySelector("video")!;
+  expect(video).not.toBeNull();
+  expect(video.getAttribute("src")).toBe("https://cdn.example.com/trailer.mp4");
+  expect(video.getAttribute("poster")).toBe("https://cdn.example.com/poster.jpg");
+  expect(video.loop).toBe(true);
+  expect(video.muted).toBe(true);
+  expect(target.textContent).toContain("Remote Trailer");
+  expect(target.textContent).toContain("HTTPS Stream");
+
+  await vi.waitFor(() => {
+    const audio = target.querySelector("audio");
+    expect(audio?.getAttribute("src")).toBe(
+      "http://127.0.0.1:43210/media?path=%2Ftmp%2Faudio%20clip.mp3&token=tok%261"
+    );
+  });
+
+  video.dispatchEvent(new Event("error"));
+  await tick();
+  expect(target.textContent).toContain("Playback failed");
+});
+
+it("renders response footer in FooterActions instead of fallbackFooter and handles scrollTop", async () => {
+  mockRender.mockResolvedValueOnce({
+    root: {
+      type: "column",
+      children: [{ type: "button", id: "go_page_2", label: "Next View" }],
+    },
+    footer: {
+      left: [{ type: "pathInput", id: "out_dir", compact: true, clearable: false, defaultDir: "downloads" }],
+      right: [{ type: "button", id: "footer_ok", label: "Apply", variant: "primary" }],
+    },
+  });
+  mockDispatch.mockResolvedValueOnce({
+    root: {
+      type: "column",
+      children: [{ type: "text", text: "Page 2" }],
+    },
+    scrollTop: true,
+  });
+
+  const fallbackFooter = createRawSnippet(() => ({
+    render: () => `<span data-fallback-footer>Fallback Footer</span>`,
+  }));
+
+  const target = document.body.appendChild(document.createElement("div"));
+  components.push(
+    mount(PluginRenderer, {
+      target,
+      props: {
+        pluginId: "test-plugin",
+        fallbackFooter,
+      },
+    })
+  );
+
+  await vi.waitFor(() => {
+    expect(target.querySelector("[data-footer-actions]")).not.toBeNull();
+    expect(target.querySelector("#widget-footer_ok")).not.toBeNull();
+  });
+
+  expect(target.querySelector("[data-fallback-footer]")).toBeNull();
+  await vi.waitFor(() => {
+    expect(target.querySelector("[data-footer-actions]")?.textContent).toContain("/home/user/Downloads");
+  });
+
+  const scrollEl = target.querySelector<HTMLElement>(".plugin-renderer")!;
+  const scrollSpy = vi.fn();
+  scrollEl.scrollTo = scrollSpy;
+
+  target.querySelector<HTMLButtonElement>("#widget-go_page_2")!.click();
+  await vi.waitFor(() => {
+    expect(scrollSpy).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
+    expect(target.querySelector("[data-fallback-footer]")).not.toBeNull();
+  });
+});
+
+it("supports pathInput clearable: false, PathPreviewModal editing, and image/list fallbacks", async () => {
+  const schema: WidgetNode = {
+    type: "column",
+    children: [
+      {
+        type: "pathInput",
+        id: "output_dir",
+        label: "Output Folder",
+        defaultValue: "/tmp/out",
+        clearable: false,
+      },
+      {
+        type: "image",
+        src: "https://example.com/broken.jpg",
+        aspect: "poster",
+        fit: "cover",
+      },
+      {
+        type: "list",
+        layout: "grid",
+        imageAspect: "wide",
+        items: [
+          {
+            id: "item-1",
+            title: "Grid Item",
+            image: "https://example.com/thumb.jpg",
+          },
+        ],
+      },
+    ],
+  };
+
+  mockDispatch.mockResolvedValue({});
+
+  const target = document.body.appendChild(document.createElement("div"));
+  components.push(
+    mount(PluginRenderer, {
+      target,
+      props: {
+        pluginId: "test-plugin",
+        initialRoot: schema,
+      },
+    })
+  );
+  await tick();
+
+  // clearable: false hides Clear field
+  expect(target.textContent).not.toContain("Clear field");
+  expect(target.querySelector('button[aria-label="Clear field"]')).toBeNull();
+
+  // Clicking the path display button opens editable PathPreviewModal
+  const pathDisplayBtn = Array.from(target.querySelectorAll("button")).find((b) =>
+    b.textContent?.includes("/tmp/out")
+  )!;
+  expect(pathDisplayBtn.disabled).toBe(false);
+  pathDisplayBtn.click();
+  await tick();
+
+  const dialog = target.querySelector('[role="dialog"]')!;
+  expect(dialog).not.toBeNull();
+  const editBtn = Array.from(dialog.querySelectorAll("button")).find((b) =>
+    b.textContent?.includes("Edit")
+  )!;
+  editBtn.click();
+  await tick();
+
+  const modalInput = dialog.querySelector<HTMLInputElement>("input[type='text']")!;
+  modalInput.value = "/tmp/edited-out";
+  modalInput.dispatchEvent(new Event("input", { bubbles: true }));
+  await tick();
+
+  const saveBtn = Array.from(dialog.querySelectorAll("button")).find((b) =>
+    b.textContent?.trim() === "Save"
+  )!;
+  saveBtn.click();
+
+  await vi.waitFor(() => {
+    expect(mockDispatch).toHaveBeenCalledWith(
+      "test-plugin",
+      expect.objectContaining({
+        widgetId: "output_dir",
+        eventType: "change",
+        values: expect.objectContaining({ output_dir: "/tmp/edited-out" }),
+      }),
+      expect.any(String),
+      expect.any(Boolean)
+    );
+  });
+
+  // Image and list grid attributes + error fallback
+  const img = target.querySelector<HTMLImageElement>('img[src="https://example.com/broken.jpg"]')!;
+  expect(img.getAttribute("referrerpolicy")).toBe("no-referrer");
+  expect(img.className).toContain("aspect-[2/3]");
+  expect(img.className).toContain("object-cover");
+  img.dispatchEvent(new Event("error"));
+  await tick();
+  expect(target.querySelector('img[src="https://example.com/broken.jpg"]')).toBeNull();
+
+  const grid = target.querySelector(".grid");
+  expect(grid).not.toBeNull();
+  const thumb = target.querySelector<HTMLImageElement>('img[src="https://example.com/thumb.jpg"]')!;
+  expect(thumb.getAttribute("referrerpolicy")).toBe("no-referrer");
+  thumb.dispatchEvent(new Event("error"));
+  await tick();
+  expect(target.querySelector('img[src="https://example.com/thumb.jpg"]')).toBeNull();
+});
+
+it("toggles password visibility on passwordInput and settings password fields", async () => {
+  const target = document.createElement("div");
+  document.body.append(target);
+  const root: WidgetNode = {
+    type: "column",
+    children: [
+      { type: "passwordInput", id: "api_key", label: "API Key", defaultValue: "secret-123" },
+      {
+        type: "settings",
+        fields: [
+          { id: "user_pass", label: "Password", type: "password", defaultValue: "pw-456" },
+        ],
+      },
+    ],
+  };
+  components.push(mount(PluginRenderer, { target, props: { pluginId: "fixture", initialRoot: root } }));
+  await tick();
+
+  const keyInput = target.querySelector<HTMLInputElement>("#widget-api_key")!;
+  const settingInput = target.querySelector<HTMLInputElement>("#setting-user_pass")!;
+  const toggleButtons = Array.from(target.querySelectorAll<HTMLButtonElement>("button[aria-pressed]"));
+  expect(toggleButtons).toHaveLength(2);
+
+  expect(keyInput.type).toBe("password");
+  expect(toggleButtons[0].getAttribute("aria-pressed")).toBe("false");
+  toggleButtons[0].click();
+  await tick();
+  expect(keyInput.type).toBe("text");
+  expect(toggleButtons[0].getAttribute("aria-pressed")).toBe("true");
+  toggleButtons[0].click();
+  await tick();
+  expect(keyInput.type).toBe("password");
+
+  expect(settingInput.type).toBe("password");
+  toggleButtons[1].click();
+  await tick();
+  expect(settingInput.type).toBe("text");
 });

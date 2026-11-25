@@ -22,6 +22,7 @@
     onCancel: () => void;
     onReset: () => void;
     onStart: () => void;
+    onBlockedStart?: () => void;
   }
 
   let {
@@ -36,6 +37,7 @@
     onCancel,
     onReset,
     onStart,
+    onBlockedStart,
   }: Props = $props();
 
   let t = $derived($locale);
@@ -129,13 +131,20 @@
           </div>
         </div>
       {:else}
-        <div class="relative group">
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <div
+          class="relative group {!canStart ? 'cursor-help' : ''}"
+          onclick={() => {
+            if (!canStart) onBlockedStart?.();
+          }}
+        >
           <button
             onclick={onStart}
             disabled={!canStart}
-            class="px-5 py-2.5 bg-emerald-600/80 hover:bg-emerald-500/80 border border-emerald-500/30 disabled:bg-emerald-600/40 text-emerald-100 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 cursor-pointer"
+            class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500/30 disabled:bg-emerald-600/40 disabled:border-white/10 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 disabled:shadow-none flex items-center gap-2 enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 {!canStart ? 'pointer-events-none saturate-75' : 'cursor-pointer'}"
           >
-            <svg class="w-4 h-4 text-emerald-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>

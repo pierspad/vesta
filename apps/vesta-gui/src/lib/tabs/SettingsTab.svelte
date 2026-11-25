@@ -394,7 +394,8 @@
         if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") el.focus();
       }
     }, 100);
-    const timer = setTimeout(() => { highlightedModelId = null; highlightItemId = null; }, 1500);
+    const durationMs = highlightItemId.startsWith("notification-") ? 1500 : 1800;
+    const timer = setTimeout(() => { highlightedModelId = null; highlightItemId = null; }, durationMs);
     return () => { clearTimeout(scrollTimer); clearTimeout(timer); };
   });
 

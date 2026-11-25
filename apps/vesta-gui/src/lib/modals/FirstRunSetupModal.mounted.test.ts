@@ -71,7 +71,7 @@ it("keeps the custom configuration and a concise component review", async () => 
   expect(target.textContent).toContain("PaddleOCR v4 Mobile (Latin)");
   expect(target.textContent).toContain("Sizes are approximate");
   expect(target.querySelectorAll(".review-preferences dt svg")).toHaveLength(3);
-  expect(target.querySelectorAll(".review-preferences dd")[0].textContent).toContain("🇬🇧");
+  expect(target.querySelectorAll(".review-preferences dd")[0].querySelector("img")?.getAttribute("src")).toContain("/flags/gb.svg");
 });
 
 it("highlights a suggested OCR model and lets review items jump back to their setup step", async () => {
