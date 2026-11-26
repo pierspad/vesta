@@ -699,6 +699,7 @@
   }
 
   function getButtonVariantClass(variant?: string): string {
+    if (variant === "flashcards" || variant === "synchronize") return `plugin-action plugin-workflow-action plugin-workflow-${variant}`;
     if (variant === "settings") return "plugin-settings-button plugin-action";
     if (variant === "accent") return "plugin-action plugin-action-accent";
     if (variant === "secondary") return "btn-secondary btn-compact";
@@ -1286,7 +1287,7 @@
         {#if actionLoading === node.id}
           <svg class="animate-spin -ml-1 mr-1.5 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
         {:else if node.icon}
-          {@render renderIcon(node.icon, "w-3.5 h-3.5 shrink-0 " + (node.icon === "save" || node.icon === "refresh" ? "text-white" : ""))}
+          {@render renderIcon(node.icon, "w-3.5 h-3.5 shrink-0")}
         {/if}
         {#if node.status === "attention" || node.status === "ready"}
           <span aria-hidden="true" class="plugin-status-dot" class:attention={node.status === "attention"}></span>
@@ -1784,6 +1785,20 @@
     background: var(--accent);
     color: var(--accent-text);
     border-color: var(--accent);
+  }
+  .plugin-workflow-flashcards { --workflow-action-color: var(--workflow-flashcards); }
+  .plugin-workflow-synchronize { --workflow-action-color: var(--workflow-synchronize); }
+  .plugin-workflow-action {
+    color: var(--workflow-action-color);
+    background: color-mix(in srgb, var(--workflow-action-color) 10%, var(--surface-2));
+    border-color: color-mix(in srgb, var(--workflow-action-color) 30%, transparent);
+  }
+  .plugin-workflow-action:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: color-mix(in srgb, var(--workflow-action-color) 18%, var(--surface-2));
+  }
+  .plugin-workflow-action:focus-visible {
+    outline: 2px solid var(--workflow-action-color);
+    outline-offset: 3px;
   }
   .plugin-action-primary:hover:not(:disabled):not([aria-disabled="true"]) {
     background: var(--accent-strong);

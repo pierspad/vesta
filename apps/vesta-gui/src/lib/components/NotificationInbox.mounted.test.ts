@@ -49,10 +49,9 @@ it("opens a modal inbox with actionable configuration and update notices", async
   expect(target.querySelector("dialog")?.hasAttribute("open")).toBe(true);
   const articles = target.querySelectorAll("article");
   expect(articles).toHaveLength(5);
-  expect(articles[1].textContent).toContain("Missing configuration");
-  expect(articles[2].textContent).toContain("Missing configuration");
-  expect(articles[3].textContent).toContain("Missing configuration");
-  expect(articles[3].querySelector(".bg-amber-400")).not.toBeNull();
+  expect(target.querySelector("#notification-setup-title")?.textContent).toBe("Optional setup");
+  expect(articles[1].textContent).toContain("Whisper");
+  expect(articles[2].textContent).toContain("LLM");
   (articles[1].querySelector("button") as HTMLButtonElement).click();
   expect(onsettings).toHaveBeenCalledWith("whisper");
   (articles[3].querySelector("button") as HTMLButtonElement).click();
@@ -63,6 +62,8 @@ it("opens a modal inbox with actionable configuration and update notices", async
 
 it("renders sanitized Markdown and closes through the close control", async () => {
   const { target, onclose } = await renderInbox("");
+  expect(target.querySelector(".markdown-content")).toBeNull();
+  target.querySelector<HTMLButtonElement>(".release-summary")!.click();
   await vi.waitFor(() => expect(target.querySelector(".markdown-content h2")?.textContent).toBe("Changes"));
   expect(target.querySelector(".markdown-content strong")?.textContent).toBe("Audio:");
   expect(target.querySelector(".markdown-content li a")?.getAttribute("target")).toBe("_blank");
@@ -130,4 +131,15 @@ it("keeps release notes collapsed, shows installed version details, and exposes 
   expect(updates.openRelease).not.toHaveBeenCalled();
   details.click();
   await vi.waitFor(() => expect(details.getAttribute("aria-expanded")).toBe("false"));
+});
+
+it("shows an identifiable installed-version link when release notes are unavailable", async () => {
+  updates.installedReleaseNotes = "";
+  const { target } = await renderInbox("");
+  const release = target.querySelector<HTMLAnchorElement>(".release-notice a")!;
+  expect(release.textContent).toContain("Installed version");
+  expect(release.textContent).toContain("v0.33.0");
+  expect(release.href).toContain("releases/tag/v1.0.0");
+  expect(release.target).toBe("_blank");
+  expect(target.querySelector(".setup-notices")).toBeNull();
 });

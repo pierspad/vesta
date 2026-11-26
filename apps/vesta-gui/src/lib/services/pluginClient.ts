@@ -263,7 +263,7 @@ export interface ButtonWidget extends BaseWidget {
   type: "button";
   id: string;
   label: string;
-  variant?: "primary" | "secondary" | "danger" | "settings" | "accent" | "success";
+  variant?: "primary" | "secondary" | "danger" | "settings" | "accent" | "success" | "flashcards" | "synchronize";
   disabled?: boolean;
   icon?: string;
   status?: "attention" | "ready";

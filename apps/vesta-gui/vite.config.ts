@@ -1,8 +1,26 @@
+import { watch } from "node:fs";
 import { fileURLToPath, URL } from "node:url";
 
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import tailwindcss from "@tailwindcss/vite";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, type Plugin, type WatchOptions } from "vite";
+
+function developmentWatchOptions(): WatchOptions {
+  const options: WatchOptions = { ignored: ["**/src-tauri/**"] };
+  if (process.platform !== "linux" || process.env.CHOKIDAR_USEPOLLING !== undefined) {
+    return options;
+  }
+
+  // Probe before Chokidar registers the tree and floods stderr on exhausted inotify quotas.
+  try {
+    watch(new URL(".", import.meta.url), () => {}).close();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOSPC") throw error;
+    console.warn("[vesta] Linux file watcher limit reached; using polling (300 ms).");
+    return { ...options, usePolling: true, interval: 300 };
+  }
+  return options;
+}
 
 // `Component.svelte?svelte&type=style&lang.css` — the virtual module
 // vite-plugin-svelte serves for a component's `<style>` block.
@@ -55,7 +73,7 @@ function svelteVirtualCssFallback(): Plugin {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ command, mode }) => ({
   plugins: [svelte(), svelteVirtualCssFallback(), tailwindcss()],
   clearScreen: false,
   optimizeDeps: { include: ["dompurify", "marked"] },
@@ -74,9 +92,9 @@ export default defineConfig(({ mode }) => ({
         fileURLToPath(new URL("../../lib/vesta-flashcards/assets/anki", import.meta.url)),
       ],
     },
-    watch: {
-      ignored: ["**/src-tauri/**"],
-    },
+    watch: command === "serve" && mode !== "test"
+      ? developmentWatchOptions()
+      : { ignored: ["**/src-tauri/**"] },
   },
   // `vitest` reads its config from this same file (single source of truth).
   // Pure utilities, stores, configuration and mocked IPC services run in Node;

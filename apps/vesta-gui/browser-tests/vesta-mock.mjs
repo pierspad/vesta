@@ -74,6 +74,7 @@ let supportLogPath = null;
 let installedPlugins = [];
 const downloadedFonts = new Set(["noto-sans-jp"]);
 let demoPluginCheckRan = false;
+let pluginViewOverride = null;
 let refineCards = [
   { id: "card-1", expression: "こんにちは", meaning: "Hello", notes: "" },
   { id: "card-2", expression: "ありがとう", meaning: "Thank you", notes: "Existing note" },
@@ -538,7 +539,7 @@ mockIPC((command, args) => {
       installedPlugins = installedPlugins.map((p) => (p.id === args.id ? { ...p, settings: { ...args.settings } } : p));
       return null;
     case "plugin_render":
-      return demoPluginView();
+      return pluginViewOverride ?? demoPluginView();
     case "plugin_dispatch_event":
       if (args.event?.widgetId === "run_check") demoPluginCheckRan = true;
       return demoPluginView();
@@ -701,6 +702,7 @@ mockIPC((command, args) => {
 
 window.browserFixture = {
   calls,
+  setPluginView: (view) => { pluginViewOverride = view; },
   selectFile: (path) => { nextFile = path; },
   setSubtitleTracks: (tracks) => { subtitleTracks = tracks; },
   setAutoCompleteExport: (enabled) => { autoCompleteExport = Boolean(enabled); },

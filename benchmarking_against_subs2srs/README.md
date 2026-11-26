@@ -12,7 +12,13 @@
 Test media are **auto-discovered** from `Test_Subs/FILM/` (see below); edit
 [`config.sh`](config.sh) only to change the Vesta variants, languages or media
 folder. Nothing here modifies the apps; everything writes under
-`benchmarking_against_subs2srs/results/` and `benchmarking_against_subs2srs/.work/` (both gitignored).
+`benchmarking_against_subs2srs/results/` and `benchmarking_against_subs2srs/.work/`.
+Temporary media in `.work/` are gitignored; CSV results, summaries and SVG reports
+are retained in Git for reproducibility.
+
+After a benchmark finishes, `.work/` can be removed to reclaim generated media
+space. Keep the original input media under `Test_Subs/` and the reports under
+`results/`; neither needs to be deleted to clear the scratch exports.
 
 ## Test media auto-discovery
 

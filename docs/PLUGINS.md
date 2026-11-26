@@ -372,7 +372,7 @@ All widgets accept the following optional properties:
 | `pathInput` | Native OS file/folder picker | `id: string`, `label?: string`, `placeholder?: string`, `defaultValue?: string`, `pickerType?: "file" \| "folder"`, `clearable?: boolean`, `compact?: boolean`, `defaultDir?: "downloads"`, `filters?: Array<{ name, extensions }>`, `drop?: boolean`, `dropHint?: string` (supports `PathPreviewModal` expansion) |
 | `languageSelect` | Unified searchable language picker | `id: string`, `label?: string`, `scope?: "all" \| "core"`, `codes?: string[]`, `names?: "both" \| "english" \| "native"`, `showFlags?: boolean`, `defaultValue?: string` (ISO-639-1 code, e.g. `"en"`, `"it"`), `placeholder?: string`, `tooltip?: string` |
 | `checkbox` | Toggle checkbox | `id: string`, `label: string`, `defaultValue?: boolean`, `tooltip?: string` (emits `"change"` event) |
-| `button` | Action button | `id: string`, `label: string`, `icon?: string`, `variant?: "primary" \| "secondary" \| "danger" \| "settings" \| "accent" \| "success"`, `status?: "attention" \| "ready"`, `placement?: "header" \| "body"`, `disabled?: boolean`, `tooltip?: string`, `disabledTooltip?: string`, `disabledFocus?: string`, `requiresAny?: string[]` |
+| `button` | Action button | `id: string`, `label: string`, `icon?: string`, `variant?: "primary" \| "secondary" \| "danger" \| "settings" \| "accent" \| "success" \| "flashcards" \| "synchronize"`, `status?: "attention" \| "ready"`, `placement?: "header" \| "body"`, `disabled?: boolean`, `tooltip?: string`, `disabledTooltip?: string`, `disabledFocus?: string`, `requiresAny?: string[]` |
 | `link` / `externalLink` | External hyperlink | `label: string`, `url: string`, `icon?: string` (opens in system browser via Tauri opener) |
 | `list` | Rich item list with actions | `reserveImage?: boolean`, `imageAspect?: "square" \| "poster" \| "wide"`, `layout?: "list" \| "grid"`, `items: Array<{ id, title, subtitle?, badge?, language?, meta?, image?, primaryAction?, actions?: Array<{ id, label, variant?, icon?, iconOnly?, tooltip? }> }>` |
 | `table` | Responsive data table | `headers: string[]`, `rows: Array<Array<string \| number>>` |
@@ -454,6 +454,10 @@ Set an item's `primaryAction` to one of its action IDs to make its card
 activate that action by mouse or keyboard.
 
 ### Icon registry
+
+Use `variant: "flashcards"` or `variant: "synchronize"` for handoff buttons matching
+the amber Flashcards and cyan Synchronize workspace colors. Their icons inherit
+the action color, including hover and keyboard focus states.
 
 Use `variant: "accent"` for a cyan action, `variant: "success"` for an emerald confirmation action, and `variant: "danger"` with
 `icon: "trash"` for clearing content.

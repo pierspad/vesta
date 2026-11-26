@@ -28,6 +28,20 @@ Stable publication (`vX.Y.Z`) runs automatically on `main` pushes and developmen
 
 ---
 
+### Linux development file watchers
+
+When Linux's inotify watch quota is already exhausted at startup, Vite automatically
+uses polling at 300 ms intervals and prints one diagnostic. This applies to both
+`sh run_gui.sh` and `npm run dev`; polling can use more CPU than native file events.
+Set `CHOKIDAR_USEPOLLING=true` to force polling if the quota runs out during startup
+or later. An explicit `CHOKIDAR_USEPOLLING` value overrides automatic detection.
+
+For manual testing without live reload, run `sh run_gui.sh --no-watch`.
+It builds the frontend once and serves the compiled assets directly in the native
+app, with both the Tauri watcher and the Vite development server disabled.
+Restart the command to pick up edits. The normal launcher keeps live reload;
+polling is a quota fallback and can cost more CPU, not a general memory optimization.
+
 ### Browser regressions in Chromium
 
 Install Chromium for the opt-in browser suite:

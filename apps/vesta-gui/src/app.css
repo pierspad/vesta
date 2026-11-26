@@ -26,6 +26,8 @@ body,
   --accent-strong: var(--color-indigo-600);
   --accent-text: var(--color-white);
   --done: var(--color-emerald-300);
+  --workflow-flashcards: var(--color-amber-400);
+  --workflow-synchronize: var(--color-cyan-400);
   --danger: var(--color-red-400);
   --shadow: 0 18px 50px color-mix(in srgb, var(--color-black) 40%, transparent);
   /* Neutral translucent controls follow the surface beneath them. Menus stay

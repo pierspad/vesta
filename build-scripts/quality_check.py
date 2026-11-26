@@ -75,10 +75,15 @@ def prune_stale_target(target_dir: Path, max_age_days: int) -> int:
             if not entry.is_dir() or entry.is_symlink():
                 continue
             match = HASH_DIR_RE.match(entry.name)
-            if not match:
-                continue
             try:
-                grouped.setdefault(match.group(1), []).append((entry.stat().st_mtime, entry))
+                if match:
+                    grouped.setdefault(match.group(1), []).append((entry.stat().st_mtime, entry))
+                else:
+                    # Newer Cargo versions group build outputs as build/<crate>/<hash>/.
+                    for candidate in entry.iterdir():
+                        if candidate.is_symlink() or not candidate.is_dir() or not re.fullmatch(r'[0-9a-f]{16}', candidate.name):
+                            continue
+                        grouped.setdefault(entry.name, []).append((candidate.stat().st_mtime, candidate))
             except OSError:
                 continue
         for entries in grouped.values():
@@ -123,7 +128,8 @@ def main():
     clippy = ['cargo', 'clippy', '--locked', '--workspace', '--all-targets', '--exclude', 'whisper-bench']
     if not args.desktop: clippy += ['--exclude', 'vesta']
     clippy += ['--', '-D', 'warnings']
-    commands = [(ROOT, ['python3', 'build-scripts/test_release_workflows.py']),
+    commands = [(ROOT, ['python3', 'build-scripts/test_quality_check.py']),
+                (ROOT, ['python3', 'build-scripts/test_release_workflows.py']),
                 (ROOT, ['python3', 'build-scripts/test_ci_apt.py']),
                 (ROOT, ['python3', 'build-scripts/check_tauri_versions.py']),
                 (ROOT, ['python3', 'build-scripts/test_tauri_versions.py']),

@@ -13,6 +13,12 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$SCRIPT_DIR/apps/vesta-gui"
 
+NO_WATCH=false
+if [ "${1:-}" = "--no-watch" ]; then
+    NO_WATCH=true
+    shift
+fi
+
 if [ ! -d "$APP_DIR" ]; then
     echo -e "${RED}❌ Error: apps/vesta-gui directory not found in $SCRIPT_DIR${NC}"
     exit 1
@@ -43,6 +49,15 @@ fi
 
 echo -e "${GREEN}✅ Dependencies OK${NC}"
 
+export WEBKIT_DISABLE_COMPOSITING_MODE=1
+export WHISPER_DONT_GENERATE_BINDINGS=1
+
+if [ "$NO_WATCH" = true ]; then
+    echo -e "${BLUE}📦 Building the frontend once (no file watchers or Vite server)...${NC}"
+    npm run build
+    exec npx tauri dev --no-watch --no-dev-server --config '{"build":{"beforeDevCommand":null,"devUrl":null}}' "$@"
+fi
+
 # 2. Dynamic Port Selection
 BASE_PORT=5175
 PORT=$BASE_PORT
@@ -63,11 +78,8 @@ PORT=$(find_free_port "$BASE_PORT")
 export PORT
 echo -e "${GREEN}🔌 Using available port $PORT${NC}"
 
-export WEBKIT_DISABLE_COMPOSITING_MODE=1
-export WHISPER_DONT_GENERATE_BINDINGS=1
-
 echo -e "${BLUE}🖥️  Starting Tauri in dev mode on port $PORT...${NC}"
 echo -e "${YELLOW}   (Press Ctrl+C to stop)${NC}"
 echo ""
 
-npx tauri dev --config "{\"build\": {\"devUrl\": \"http://localhost:$PORT\"}}"
+npx tauri dev --config "{\"build\": {\"devUrl\": \"http://localhost:$PORT\"}}" "$@"
